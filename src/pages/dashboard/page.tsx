@@ -19,7 +19,7 @@ import LogoutDialog from './components/LogoutDialog';
 
 export default function Dashboard() {
   const [activeSection, setActiveSection] = useState('overview');
-  const [darkMode, setDarkMode] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   const handleLogout = () => {
@@ -44,47 +44,32 @@ export default function Dashboard() {
     }, 1500);
   };
 
-  const renderContent = () => {
-    switch (activeSection) {
-      case 'overview':
-        return <Overview />;
-      case 'admins':
-        return <AdminManagement />;
-      case 'riders':
-        return <RiderManagement />;
-      case 'users':
-        return <UserManagement />;
-      case 'households':
-        return <HouseholdManagement />;
-      case 'pickups':
-        return <PickupOperations />;
-      case 'financial':
-        return <FinancialManagement />;
-      case 'analytics':
-        return <Analytics />;
-      case 'sms':
-        return <SMSManagement />;
-      case 'settings':
-        return <SystemSettings />;
-      case 'audit':
-        return <AuditLog />;
-      case 'live-tracking':
-        return <LiveTracking />;
-      case 'route-optimization':
-        return <RouteOptimization />;
-      case 'feedback':
-        return <FeedbackRatings />;
-      default:
-        return <Overview />;
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
-      <Sidebar activeSection={activeSection} setActiveSection={setActiveSection} />
+      <Sidebar 
+        activeSection={activeSection} 
+        setActiveSection={(section) => {
+          setActiveSection(section);
+          setIsSidebarOpen(false);
+        }} 
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
+      
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-20 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       <div className="flex-1 flex flex-col min-w-0">
-        <Header onLogout={() => setShowLogoutDialog(true)} />
-        <main className="flex-1 overflow-y-auto p-6">
+        <Header 
+          onLogout={() => setShowLogoutDialog(true)} 
+          onMenuClick={() => setIsSidebarOpen(true)}
+        />
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
           {activeSection === 'overview' && <Overview onNavigate={setActiveSection} />}
           {activeSection === 'admins' && <AdminManagement />}
           {activeSection === 'riders' && <RiderManagement />}

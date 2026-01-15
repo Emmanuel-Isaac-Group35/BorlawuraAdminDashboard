@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 
 interface HeaderProps {
   onLogout: () => void;
+  onMenuClick: () => void;
 }
 
-export default function Header({ onLogout }: HeaderProps) {
+export default function Header({ onLogout, onMenuClick }: HeaderProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -43,9 +44,15 @@ export default function Header({ onLogout }: HeaderProps) {
   const unreadCount = notifications.filter(n => n.unread).length;
 
   return (
-    <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-6 shadow-sm">
-      <div className="flex items-center gap-4">
-        <h2 className="text-xl font-bold bg-gradient-to-r from-teal-600 to-teal-500 bg-clip-text text-transparent">Admin Dashboard</h2>
+    <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-4 md:px-6 shadow-sm sticky top-0 z-10">
+      <div className="flex items-center gap-3 md:gap-4">
+        <button
+          onClick={onMenuClick}
+          className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 md:hidden transition-colors"
+        >
+          <i className="ri-menu-2-line text-xl text-gray-600 dark:text-gray-300"></i>
+        </button>
+        <h2 className="text-xl font-bold bg-gradient-to-r from-teal-600 to-teal-500 bg-clip-text text-transparent truncate">Admin Dashboard</h2>
       </div>
 
       <div className="flex items-center gap-3">
@@ -109,9 +116,8 @@ export default function Header({ onLogout }: HeaderProps) {
                   {notifications.map((notif) => (
                     <div
                       key={notif.id}
-                      className={`p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors ${
-                        notif.unread ? 'bg-teal-50/30 dark:bg-teal-900/10' : ''
-                      }`}
+                      className={`p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors ${notif.unread ? 'bg-teal-50/30 dark:bg-teal-900/10' : ''
+                        }`}
                     >
                       <div className="flex items-start gap-3">
                         <div className={`w-10 h-10 rounded-lg bg-${notif.color}-100 dark:bg-${notif.color}-900/30 flex items-center justify-center flex-shrink-0`}>

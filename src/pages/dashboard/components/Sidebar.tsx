@@ -1,9 +1,11 @@
 interface SidebarProps {
   activeSection: string;
   setActiveSection: (section: string) => void;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-export default function Sidebar({ activeSection, setActiveSection }: SidebarProps) {
+export default function Sidebar({ activeSection, setActiveSection, isOpen, onClose }: SidebarProps) {
   const menuItems = [
     { id: 'overview', icon: 'ri-dashboard-line', label: 'Overview' },
     { id: 'admins', icon: 'ri-admin-line', label: 'Admin Management' },
@@ -22,20 +24,29 @@ export default function Sidebar({ activeSection, setActiveSection }: SidebarProp
   ];
 
   return (
-    <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col shadow-sm">
+    <aside className={`fixed md:relative inset-y-0 left-0 z-30 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col shadow-sm transition-transform duration-300 md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
       <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center shadow-lg">
-            <img 
-              src="https://static.readdy.ai/image/f36f7d597113fd33528bc296679291a8/dc15fdc5d53c2e34f7f6945da4837d77.png" 
-              alt="Borla Wura Logo" 
-              className="w-7 h-7 object-contain"
-            />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center shadow-lg">
+              <img
+                src="https://static.readdy.ai/image/f36f7d597113fd33528bc296679291a8/dc15fdc5d53c2e34f7f6945da4837d77.png"
+                alt="Borla Wura Logo"
+                className="w-7 h-7 object-contain"
+              />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-gray-900 dark:text-white">Borla Wura</h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Admin Dashboard</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-lg font-bold text-gray-900 dark:text-white">Borla Wura</h1>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Admin Dashboard</p>
-          </div>
+          <button
+            onClick={onClose}
+            className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition-colors"
+          >
+            <i className="ri-close-line text-xl"></i>
+          </button>
         </div>
       </div>
 
@@ -44,11 +55,10 @@ export default function Sidebar({ activeSection, setActiveSection }: SidebarProp
           <button
             key={item.id}
             onClick={() => setActiveSection(item.id)}
-            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-all whitespace-nowrap cursor-pointer rounded-lg mb-1 ${
-              activeSection === item.id
+            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-all whitespace-nowrap cursor-pointer rounded-lg mb-1 ${activeSection === item.id
                 ? 'bg-gradient-to-r from-teal-500 to-teal-600 text-white shadow-lg shadow-teal-500/30'
                 : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50'
-            }`}
+              }`}
           >
             <div className="w-5 h-5 flex items-center justify-center">
               <i className={`${item.icon} text-lg`}></i>
