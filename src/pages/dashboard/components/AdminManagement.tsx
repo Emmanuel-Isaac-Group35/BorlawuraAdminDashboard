@@ -1,15 +1,103 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '../../../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+interface Admin {
+  id: string;
+  full_name: string;
+  email: string;
+  role: string;
+  status: string;
+  last_login: string;
+}
 
 export default function AdminManagement() {
   const [showAddModal, setShowAddModal] = useState(false);
+  const [admins, setAdmins] = useState<Admin[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    role: 'Select role',
+    password: ''
+  });
 
-  const admins = [
-    { id: 1, name: 'Kwame Nkrumah', email: 'kwame@borlawura.com', role: 'Super Admin', status: 'active', lastLogin: '2 hours ago' },
-    { id: 2, name: 'Ama Ata Aidoo', email: 'ama@borlawura.com', role: 'Operations Admin', status: 'active', lastLogin: '5 hours ago' },
-    { id: 3, name: 'Kofi Annan', email: 'kofi@borlawura.com', role: 'Finance Admin', status: 'active', lastLogin: '1 day ago' },
-    { id: 4, name: 'Yaa Asantewaa', email: 'yaa@borlawura.com', role: 'Support Admin', status: 'active', lastLogin: '3 days ago' },
-    { id: 5, name: 'Kwesi Brew', email: 'kwesi@borlawura.com', role: 'Operations Admin', status: 'inactive', lastLogin: '1 week ago' },
-  ];
+  useEffect(() => {
+    fetchAdmins();
+  }, []);
+
+  const fetchAdmins = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('admins')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching admins:', error);
+    } else {
+      setAdmins(data || []);
+    }
+    setLoading(false);
+  };
+
+  const handleSaveAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    try {
+      if (!formData.email || !formData.password || formData.name === '' || formData.role === 'Select role') {
+        alert('Please fill in all fields');
+        setSubmitting(false);
+        return;
+      }
+
+      // Create temporary client to avoid logging out current user
+      const tempClient = createClient(
+        import.meta.env.VITE_SUPABASE_URL,
+        import.meta.env.VITE_SUPABASE_ANON_KEY,
+        { auth: { persistSession: false } }
+      );
+
+      // 1. Create Auth User
+      const { data: authData, error: authError } = await tempClient.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: { full_name: formData.name, role: formData.role }
+        }
+      });
+
+      if (authError) throw authError;
+
+      if (authData.user) {
+        // 2. Insert into public.admins
+        // We use the Auth User ID as the Primary Key to link them
+        const { error: dbError } = await supabase.from('admins').insert({
+          id: authData.user.id,
+          full_name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          status: 'active'
+        });
+
+        if (dbError) throw dbError;
+
+        // Success
+        alert('Admin created successfully! (User can now login)');
+        setShowAddModal(false);
+        setFormData({ name: '', email: '', role: 'Select role', password: '' });
+        fetchAdmins();
+      }
+
+    } catch (error: any) {
+      console.error('Error creating admin:', error);
+      alert('Error: ' + error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const roles = [
     { name: 'Super Admin', permissions: ['All Permissions'], color: 'rose' },
@@ -97,10 +185,10 @@ export default function AdminManagement() {
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
                         <span className="text-sm font-semibold text-teal-600 dark:text-teal-400">
-                          {admin.name.split(' ').map(n => n[0]).join('')}
+                          {admin.full_name?.split(' ').map(n => n[0]).join('') || 'A'}
                         </span>
                       </div>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{admin.name}</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">{admin.full_name}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{admin.email}</td>
@@ -110,15 +198,16 @@ export default function AdminManagement() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      admin.status === 'active' 
-                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                    }`}>
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${admin.status === 'active'
+                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                      : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                      }`}>
                       {admin.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{admin.lastLogin}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    {admin.last_login ? new Date(admin.last_login).toLocaleString() : 'Never'}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer">
@@ -148,26 +237,48 @@ export default function AdminManagement() {
                 <i className="ri-close-line text-gray-600 dark:text-gray-400"></i>
               </button>
             </div>
-            <form className="space-y-4">
+            <form onSubmit={handleSaveAdmin} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Full Name</label>
                 <input
                   type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
                   placeholder="Enter full name"
+                  required
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email Address</label>
                 <input
                   type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
                   placeholder="admin@borlawura.com"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Password</label>
+                <input
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  placeholder="••••••••"
+                  required
+                  minLength={6}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Role</label>
-                <select className="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer">
+                <select
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  className="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
+                >
                   <option>Select role</option>
                   <option>Super Admin</option>
                   <option>Operations Admin</option>
@@ -179,15 +290,18 @@ export default function AdminManagement() {
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors whitespace-nowrap cursor-pointer"
+                  disabled={submitting}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors whitespace-nowrap cursor-pointer disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors whitespace-nowrap cursor-pointer"
+                  disabled={submitting}
+                  className="flex-1 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors whitespace-nowrap cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  Add Admin
+                  {submitting && <i className="ri-loader-4-line animate-spin"></i>}
+                  {submitting ? 'Creating...' : 'Add Admin'}
                 </button>
               </div>
             </form>

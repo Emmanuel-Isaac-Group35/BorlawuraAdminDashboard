@@ -1,12 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '../../../lib/supabase';
 
 interface Feedback {
   id: string;
   type: 'rider' | 'service' | 'app';
   userName: string;
   userId: string;
-  targetName?: string;
-  targetId?: string;
   rating: number;
   comment: string;
   date: string;
@@ -18,81 +17,49 @@ export default function FeedbackRatings() {
   const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(null);
   const [filterType, setFilterType] = useState<string>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const feedbacks: Feedback[] = [
-    {
-      id: 'FB-001',
-      type: 'rider',
-      userName: 'Kwame Asante',
-      userId: 'U-1234',
-      targetName: 'Kofi Adu',
-      targetId: 'R-2847',
-      rating: 5,
-      comment: 'Excellent service! The rider was very professional and arrived on time. My waste was collected efficiently.',
-      date: '2024-01-15 10:30 AM',
-      status: 'reviewed',
-      category: 'positive'
-    },
-    {
-      id: 'FB-002',
-      type: 'rider',
-      userName: 'Ama Serwaa',
-      userId: 'U-2345',
-      targetName: 'Yaw Boateng',
-      targetId: 'R-1523',
-      rating: 2,
-      comment: 'Rider was late by 45 minutes and did not notify me. Not satisfied with the service.',
-      date: '2024-01-15 09:15 AM',
-      status: 'new',
-      category: 'negative'
-    },
-    {
-      id: 'FB-003',
-      type: 'service',
-      userName: 'Kofi Mensah',
-      userId: 'U-3456',
-      rating: 4,
-      comment: 'Good overall service. The app is easy to use and scheduling pickups is convenient.',
-      date: '2024-01-14 03:20 PM',
-      status: 'reviewed',
-      category: 'positive'
-    },
-    {
-      id: 'FB-004',
-      type: 'app',
-      userName: 'Abena Osei',
-      userId: 'U-4567',
-      rating: 3,
-      comment: 'The app sometimes crashes when trying to schedule pickups. Please fix this issue.',
-      date: '2024-01-14 11:45 AM',
-      status: 'new',
-      category: 'neutral'
-    },
-    {
-      id: 'FB-005',
-      type: 'rider',
-      userName: 'Kwesi Appiah',
-      userId: 'U-5678',
-      targetName: 'Akua Mensah',
-      targetId: 'R-3421',
-      rating: 5,
-      comment: 'Amazing service! Very friendly rider and thorough waste collection. Highly recommend!',
-      date: '2024-01-13 02:10 PM',
-      status: 'resolved',
-      category: 'positive'
-    },
-    {
-      id: 'FB-006',
-      type: 'service',
-      userName: 'Yaa Asantewaa',
-      userId: 'U-6789',
-      rating: 1,
-      comment: 'Very disappointed. Scheduled pickup was missed twice without any notification. Poor customer service.',
-      date: '2024-01-13 08:30 AM',
-      status: 'new',
-      category: 'negative'
+  useEffect(() => {
+    fetchFeedback();
+  }, []);
+
+  const fetchFeedback = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('feedback')
+        .select(`
+          *,
+          users (
+            full_name,
+            email
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        const formattedFeedback: Feedback[] = data.map((item: any) => ({
+          id: item.id,
+          type: item.type,
+          userName: item.users?.full_name || 'Anonymous',
+          userId: item.users?.email || 'N/A',
+          rating: item.rating,
+          comment: item.comment,
+          date: new Date(item.created_at).toLocaleString(),
+          status: item.status,
+          category: item.rating >= 4 ? 'positive' : item.rating === 3 ? 'neutral' : 'negative'
+        }));
+        setFeedbacks(formattedFeedback);
+      }
+    } catch (err) {
+      console.error('Error fetching feedback:', err);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
   const filteredFeedbacks = feedbacks.filter(fb => {
     const matchesType = filterType === 'all' || fb.type === filterType;
@@ -140,15 +107,36 @@ export default function FeedbackRatings() {
     }
   };
 
-  const handleStatusChange = (feedbackId: string, newStatus: 'reviewed' | 'resolved') => {
-    const toast = document.createElement('div');
-    toast.className = 'fixed top-4 right-4 bg-teal-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2';
-    toast.innerHTML = `
-      <i class="ri-check-line text-lg"></i>
-      <span class="font-medium">Feedback marked as ${newStatus}</span>
-    `;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2000);
+  const handleStatusChange = async (feedbackId: string, newStatus: 'reviewed' | 'resolved') => {
+    try {
+      const { error } = await supabase
+        .from('feedback')
+        .update({ status: newStatus })
+        .eq('id', feedbackId);
+
+      if (error) throw error;
+
+      // Update local state
+      setFeedbacks(feedbacks.map(f => f.id === feedbackId ? { ...f, status: newStatus } : f));
+
+      // Show toast
+      const toast = document.createElement('div');
+      toast.className = 'fixed top-4 right-4 bg-teal-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2';
+      toast.innerHTML = `
+        <i class="ri-check-line text-lg"></i>
+        <span class="font-medium">Feedback marked as ${newStatus}</span>
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2000);
+
+      // Close modal if open
+      if (selectedFeedback?.id === feedbackId) {
+        setSelectedFeedback(null);
+      }
+    } catch (err) {
+      console.error('Error updating status:', err);
+      alert('Failed to update status');
+    }
   };
 
   return (
@@ -222,72 +210,65 @@ export default function FeedbackRatings() {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setFilterType('all')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-                filterType === 'all'
-                  ? 'bg-teal-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${filterType === 'all'
+                ? 'bg-teal-600 text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
             >
               All Types
             </button>
             <button
               onClick={() => setFilterType('rider')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-                filterType === 'rider'
-                  ? 'bg-teal-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${filterType === 'rider'
+                ? 'bg-teal-600 text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
             >
               Rider Feedback
             </button>
             <button
               onClick={() => setFilterType('service')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-                filterType === 'service'
-                  ? 'bg-teal-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${filterType === 'service'
+                ? 'bg-teal-600 text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
             >
               Service Feedback
             </button>
             <button
               onClick={() => setFilterType('app')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-                filterType === 'app'
-                  ? 'bg-teal-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${filterType === 'app'
+                ? 'bg-teal-600 text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
             >
               App Feedback
             </button>
             <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-2"></div>
             <button
               onClick={() => setFilterCategory('all')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-                filterCategory === 'all'
-                  ? 'bg-teal-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${filterCategory === 'all'
+                ? 'bg-teal-600 text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
             >
               All
             </button>
             <button
               onClick={() => setFilterCategory('positive')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-                filterCategory === 'positive'
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${filterCategory === 'positive'
+                ? 'bg-emerald-600 text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
             >
               Positive
             </button>
             <button
               onClick={() => setFilterCategory('negative')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-                filterCategory === 'negative'
-                  ? 'bg-red-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${filterCategory === 'negative'
+                ? 'bg-red-600 text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
             >
               Negative
             </button>
@@ -308,12 +289,6 @@ export default function FeedbackRatings() {
                   <div>
                     <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{feedback.userName}</h4>
                     <p className="text-xs text-gray-500 dark:text-gray-400">{feedback.userId}</p>
-                    {feedback.targetName && (
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                        <i className="ri-arrow-right-line mr-1"></i>
-                        Rider: {feedback.targetName} ({feedback.targetId})
-                      </p>
-                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -405,17 +380,6 @@ export default function FeedbackRatings() {
                 </div>
               </div>
 
-              {selectedFeedback.targetName && (
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Regarding</p>
-                  <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      Rider: {selectedFeedback.targetName}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{selectedFeedback.targetId}</p>
-                  </div>
-                </div>
-              )}
 
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Comment</p>

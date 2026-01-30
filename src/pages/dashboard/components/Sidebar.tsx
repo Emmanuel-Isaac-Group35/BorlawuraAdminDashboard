@@ -1,3 +1,6 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '../../../lib/supabase';
+
 interface SidebarProps {
   activeSection: string;
   setActiveSection: (section: string) => void;
@@ -6,16 +9,46 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ activeSection, setActiveSection, isOpen, onClose }: SidebarProps) {
+  const [userInfo, setUserInfo] = useState({
+    fullName: 'Admin User',
+    role: 'Super Admin'
+  });
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        const { data: adminData } = await supabase
+          .from('admins')
+          .select('full_name, role')
+          .eq('email', user.email)
+          .maybeSingle();
+
+        if (adminData) {
+          setUserInfo({
+            fullName: adminData.full_name || 'Admin User',
+            role: adminData.role || 'Admin'
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+
   const menuItems = [
     { id: 'overview', icon: 'ri-dashboard-line', label: 'Overview' },
     { id: 'admins', icon: 'ri-admin-line', label: 'Admin Management' },
     { id: 'riders', icon: 'ri-e-bike-2-line', label: 'Rider Management' },
     { id: 'users', icon: 'ri-user-line', label: 'User Management' },
-    { id: 'households', icon: 'ri-home-4-line', label: 'Household Management' },
     { id: 'pickups', icon: 'ri-map-pin-line', label: 'Pickup Operations' },
     { id: 'live-tracking', icon: 'ri-map-2-line', label: 'Live Tracking' },
     { id: 'route-optimization', icon: 'ri-route-line', label: 'Route Optimization' },
-    { id: 'financial', icon: 'ri-money-dollar-circle-line', label: 'Financial Management' },
     { id: 'analytics', icon: 'ri-bar-chart-box-line', label: 'Analytics & Reports' },
     { id: 'sms', icon: 'ri-message-3-line', label: 'SMS Management' },
     { id: 'feedback', icon: 'ri-chat-smile-3-line', label: 'Feedback & Ratings' },
@@ -56,8 +89,8 @@ export default function Sidebar({ activeSection, setActiveSection, isOpen, onClo
             key={item.id}
             onClick={() => setActiveSection(item.id)}
             className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-all whitespace-nowrap cursor-pointer rounded-lg mb-1 ${activeSection === item.id
-                ? 'bg-gradient-to-r from-teal-500 to-teal-600 text-white shadow-lg shadow-teal-500/30'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50'
+              ? 'bg-gradient-to-r from-teal-500 to-teal-600 text-white shadow-lg shadow-teal-500/30'
+              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50'
               }`}
           >
             <div className="w-5 h-5 flex items-center justify-center">
@@ -74,8 +107,8 @@ export default function Sidebar({ activeSection, setActiveSection, isOpen, onClo
             <i className="ri-user-line text-white text-lg"></i>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">Admin User</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">Super Admin</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{userInfo.fullName}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{userInfo.role}</p>
           </div>
         </div>
       </div>

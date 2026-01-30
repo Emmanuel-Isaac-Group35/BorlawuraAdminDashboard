@@ -1,8 +1,28 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '../../../lib/supabase';
+
+interface Rider {
+  id: string;
+  full_name: string;
+  phone: string;
+  email: string;
+  zone: string;
+  status: string;
+  tricycle_number: string;
+  national_id: string;
+  address: string;
+  rating: number;
+  total_earnings: number;
+  total_pickups: number;
+}
 
 export default function RiderManagement() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showAddRiderModal, setShowAddRiderModal] = useState(false);
+  const [riders, setRiders] = useState<Rider[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedRider, setSelectedRider] = useState<Rider | null>(null);
+
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
@@ -13,14 +33,24 @@ export default function RiderManagement() {
     address: '',
   });
 
-  const riders = [
-    { id: 1, name: 'Kofi Adu', phone: '+233 24 123 4567', zone: 'Accra Central', status: 'active', pickups: 245, rating: 4.9, earnings: '₵4,890' },
-    { id: 2, name: 'Yaw Boateng', phone: '+233 24 234 5678', zone: 'Osu', status: 'active', pickups: 198, rating: 4.8, earnings: '₵3,960' },
-    { id: 3, name: 'Akua Mensah', phone: '+233 24 345 6789', zone: 'Tema', status: 'offline', pickups: 176, rating: 4.9, earnings: '₵3,520' },
-    { id: 4, name: 'Kwabena Asante', phone: '+233 24 456 7890', zone: 'Madina', status: 'active', pickups: 165, rating: 4.7, earnings: '₵3,300' },
-    { id: 5, name: 'Ama Serwaa', phone: '+233 24 567 8901', zone: 'Legon', status: 'active', pickups: 142, rating: 4.8, earnings: '₵2,840' },
-    { id: 6, name: 'Kwesi Appiah', phone: '+233 24 678 9012', zone: 'Spintex', status: 'suspended', pickups: 89, rating: 4.2, earnings: '₵1,780' },
-  ];
+  useEffect(() => {
+    fetchRiders();
+  }, []);
+
+  const fetchRiders = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('riders')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching riders:', error);
+    } else {
+      setRiders(data || []);
+    }
+    setLoading(false);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -42,20 +72,53 @@ export default function RiderManagement() {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('New rider registration:', formData);
-    setShowAddRiderModal(false);
-    setFormData({
-      fullName: '',
-      phone: '',
-      email: '',
-      nationalId: '',
-      tricycleNumber: '',
-      zone: '',
-      address: '',
-    });
+    try {
+      const { error } = await supabase.from('riders').insert([{
+        full_name: formData.fullName,
+        phone: formData.phone,
+        email: formData.email,
+        national_id: formData.nationalId,
+        tricycle_number: formData.tricycleNumber,
+        zone: formData.zone,
+        address: formData.address,
+        status: 'active', // Default to active or 'offline'
+        rating: 5.0,
+        total_earnings: 0,
+        total_pickups: 0
+      }]);
+
+      if (error) throw error;
+
+      // Refresh list
+      fetchRiders();
+
+      // Close and Reset
+      setShowAddRiderModal(false);
+      setFormData({
+        fullName: '',
+        phone: '',
+        email: '',
+        nationalId: '',
+        tricycleNumber: '',
+        zone: '',
+        address: '',
+      });
+      alert('Rider registered successfully!');
+    } catch (error) {
+      console.error('Error registering rider:', error);
+      alert('Failed to register rider.');
+    }
   };
+
+  // Calculate stats from real data
+  const totalRiders = riders.length;
+  const activeRiders = riders.filter(r => r.status === 'active').length;
+  const suspendedRiders = riders.filter(r => r.status === 'suspended').length;
+  const avgRating = totalRiders > 0
+    ? (riders.reduce((acc, curr) => acc + (curr.rating || 0), 0) / totalRiders).toFixed(1)
+    : '0.0';
 
   return (
     <div className="space-y-6">
@@ -64,7 +127,7 @@ export default function RiderManagement() {
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Rider Management</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage tricycle operators and their performance</p>
         </div>
-        <button 
+        <button
           onClick={() => setShowAddRiderModal(true)}
           className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors whitespace-nowrap cursor-pointer"
         >
@@ -81,7 +144,7 @@ export default function RiderManagement() {
               <i className="ri-e-bike-2-line text-teal-600 dark:text-teal-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">156</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{totalRiders}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-2">
@@ -90,7 +153,7 @@ export default function RiderManagement() {
               <i className="ri-checkbox-circle-line text-emerald-600 dark:text-emerald-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">89</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{activeRiders}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-2">
@@ -99,7 +162,7 @@ export default function RiderManagement() {
               <i className="ri-star-line text-amber-600 dark:text-amber-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">4.8</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{avgRating}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-2">
@@ -108,7 +171,7 @@ export default function RiderManagement() {
               <i className="ri-error-warning-line text-red-600 dark:text-red-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">8</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{suspendedRiders}</p>
         </div>
       </div>
 
@@ -165,7 +228,7 @@ export default function RiderManagement() {
                       <div className="w-10 h-10 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
                         <i className="ri-user-line text-teal-600 dark:text-teal-400"></i>
                       </div>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{rider.name}</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">{rider.full_name}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{rider.phone}</td>
@@ -175,18 +238,23 @@ export default function RiderManagement() {
                       {rider.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{rider.pickups}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{rider.total_pickups}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-1">
                       <i className="ri-star-fill text-amber-400 text-sm"></i>
                       <span className="text-sm text-gray-700 dark:text-gray-300">{rider.rating}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{rider.earnings}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                    ₵{rider.total_earnings.toLocaleString()}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => setShowDetailsModal(true)}
+                        onClick={() => {
+                          setSelectedRider(rider);
+                          setShowDetailsModal(true);
+                        }}
                         className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
                       >
                         <i className="ri-eye-line text-gray-600 dark:text-gray-400"></i>
@@ -203,7 +271,7 @@ export default function RiderManagement() {
         </div>
       </div>
 
-      {showDetailsModal && (
+      {showDetailsModal && selectedRider && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
@@ -221,11 +289,11 @@ export default function RiderManagement() {
                   <i className="ri-user-line text-teal-600 dark:text-teal-400 text-3xl"></i>
                 </div>
                 <div>
-                  <h4 className="text-xl font-semibold text-gray-900 dark:text-white">Kofi Adu</h4>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Rider ID: RD-2847</p>
+                  <h4 className="text-xl font-semibold text-gray-900 dark:text-white">{selectedRider.full_name}</h4>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Rider ID: RD-{selectedRider.id.slice(0, 8)}</p>
                   <div className="flex items-center gap-2 mt-2">
-                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                      Active
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedRider.status)}`}>
+                      {selectedRider.status}
                     </span>
                   </div>
                 </div>
@@ -233,30 +301,30 @@ export default function RiderManagement() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Phone Number</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">+233 24 123 4567</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedRider.phone}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Operating Zone</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">Accra Central</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedRider.zone}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Pickups</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">245</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedRider.total_pickups}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Rating</p>
                   <div className="flex items-center gap-1">
                     <i className="ri-star-fill text-amber-400"></i>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">4.9</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedRider.rating}</p>
                   </div>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Earnings</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">₵4,890</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">₵{selectedRider.total_earnings.toLocaleString()}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Completion Rate</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">98.5%</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Tricycle Number</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedRider.tricycle_number}</p>
                 </div>
               </div>
               <div className="flex gap-3 pt-4">

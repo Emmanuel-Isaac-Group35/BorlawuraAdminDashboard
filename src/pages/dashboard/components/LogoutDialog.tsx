@@ -9,7 +9,7 @@ export default function LogoutDialog({ isOpen, onClose }: LogoutDialogProps) {
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminUser');
     sessionStorage.clear();
-    
+
     // Show success message
     const toast = document.createElement('div');
     toast.className = 'fixed top-4 right-4 bg-teal-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2';
@@ -18,11 +18,11 @@ export default function LogoutDialog({ isOpen, onClose }: LogoutDialogProps) {
       <span class="font-medium">Logged out successfully</span>
     `;
     document.body.appendChild(toast);
-    
+
     setTimeout(() => {
       toast.remove();
-      // Redirect to login page or home
-      window.location.href = '/';
+      // Redirect to login page
+      window.location.href = '/login';
     }, 1500);
   };
 
@@ -30,11 +30,11 @@ export default function LogoutDialog({ isOpen, onClose }: LogoutDialogProps) {
 
   return (
     <>
-      <div 
+      <div
         className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
         onClick={onClose}
       >
-        <div 
+        <div
           className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >

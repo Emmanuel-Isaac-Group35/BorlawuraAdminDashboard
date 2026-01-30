@@ -1,25 +1,73 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '../../../lib/supabase';
+
+interface User {
+  id: string;
+  full_name: string;
+  phone: string;
+  email: string;
+  location: string;
+  status: string;
+  subscription_type: string;
+  created_at: string;
+  total_spent: number;
+  total_pickups: number;
+  registration_status: string;
+}
 
 export default function UserManagement() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'pending'>('all');
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const allUsers = [
-    { id: 1, name: 'Akosua Mensah', phone: '+233 24 111 2222', email: 'akosua@gmail.com', location: 'Accra Central', status: 'active', type: 'subscription', joined: '2024-01-15', pickups: 24, spent: '₵480' },
-    { id: 2, name: 'Kwame Osei', phone: '+233 24 222 3333', email: 'kwame@gmail.com', location: 'Osu', status: 'active', type: 'pay-as-you-go', joined: '2024-02-10', pickups: 12, spent: '₵240' },
-    { id: 3, name: 'Abena Boateng', phone: '+233 24 333 4444', email: 'abena@gmail.com', location: 'Tema', status: 'active', type: 'subscription', joined: '2024-01-20', pickups: 18, spent: '₵360' },
-    { id: 4, name: 'Yaw Asante', phone: '+233 24 444 5555', email: 'yaw@gmail.com', location: 'Madina', status: 'flagged', type: 'pay-as-you-go', joined: '2024-03-05', pickups: 8, spent: '₵160' },
-    { id: 5, name: 'Esi Owusu', phone: '+233 24 555 6666', email: 'esi@gmail.com', location: 'Legon', status: 'active', type: 'subscription', joined: '2024-02-28', pickups: 15, spent: '₵300' },
-    { id: 6, name: 'Kofi Adjei', phone: '+233 24 666 7777', email: 'kofi@gmail.com', location: 'Spintex', status: 'suspended', type: 'pay-as-you-go', joined: '2024-03-12', pickups: 3, spent: '₵60' },
-  ];
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
-  const pendingUsers = [
-    { id: 101, name: 'Ama Serwaa', phone: '+233 24 777 8888', email: 'ama@gmail.com', location: 'Dansoman', type: 'subscription', applied: '2 hours ago', documents: 'complete' },
-    { id: 102, name: 'Kwabena Frimpong', phone: '+233 24 888 9999', email: 'kwabena@gmail.com', location: 'Achimota', type: 'pay-as-you-go', applied: '5 hours ago', documents: 'complete' },
-    { id: 103, name: 'Adwoa Agyeman', phone: '+233 24 999 0000', email: 'adwoa@gmail.com', location: 'Kaneshie', type: 'subscription', applied: '1 day ago', documents: 'incomplete' },
-  ];
+  const fetchUsers = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching users:', error);
+    } else {
+      setUsers(data || []);
+    }
+    setLoading(false);
+  };
+
+  const handleApproveAction = async () => {
+    if (!selectedUser) return;
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ registration_status: 'approved', status: 'active' })
+        .eq('id', selectedUser.id);
+
+      if (error) throw error;
+
+      fetchUsers();
+      setShowApprovalModal(false);
+      setActiveTab('all');
+    } catch (error) {
+      console.error('Error approving user:', error);
+    }
+  };
+
+  const allFilteredUsers = users.filter(u => u.registration_status === 'approved');
+  const pendingUsers = users.filter(u => u.registration_status === 'pending');
+
+  // Stats
+  const totalUsers = users.length;
+  const activeUsersCount = users.filter(u => u.status === 'active').length;
+  const pendingCount = pendingUsers.length;
+  const subscriptionCount = users.filter(u => u.subscription_type === 'subscription').length;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -61,7 +109,7 @@ export default function UserManagement() {
               <i className="ri-user-line text-teal-600 dark:text-teal-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">2,847</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{totalUsers}</p>
           <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">+12% this month</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
@@ -71,7 +119,7 @@ export default function UserManagement() {
               <i className="ri-checkbox-circle-line text-emerald-600 dark:text-emerald-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">2,654</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{activeUsersCount}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-2">
@@ -80,7 +128,7 @@ export default function UserManagement() {
               <i className="ri-time-line text-amber-600 dark:text-amber-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">{pendingUsers.length}</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{pendingCount}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-2">
@@ -89,7 +137,7 @@ export default function UserManagement() {
               <i className="ri-vip-crown-line text-purple-600 dark:text-purple-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">1,456</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{subscriptionCount}</p>
         </div>
       </div>
 
@@ -98,21 +146,19 @@ export default function UserManagement() {
           <div className="flex items-center gap-1 px-6 pt-4">
             <button
               onClick={() => setActiveTab('all')}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors whitespace-nowrap cursor-pointer ${
-                activeTab === 'all'
-                  ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors whitespace-nowrap cursor-pointer ${activeTab === 'all'
+                ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
             >
-              All Users ({allUsers.length})
+              All Users ({allFilteredUsers.length})
             </button>
             <button
               onClick={() => setActiveTab('pending')}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors whitespace-nowrap cursor-pointer ${
-                activeTab === 'pending'
-                  ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors whitespace-nowrap cursor-pointer ${activeTab === 'pending'
+                ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
             >
               Pending Approval ({pendingUsers.length})
             </button>
@@ -170,18 +216,18 @@ export default function UserManagement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {allUsers.map((user) => (
+                {allFilteredUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
                           <span className="text-sm font-semibold text-teal-600 dark:text-teal-400">
-                            {user.name.split(' ').map(n => n[0]).join('')}
+                            {user.full_name?.split(' ').map(n => n[0]).join('') || 'U'}
                           </span>
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{user.name}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Joined {user.joined}</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{user.full_name}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Joined {new Date(user.created_at).toLocaleDateString()}</p>
                         </div>
                       </div>
                     </td>
@@ -192,7 +238,7 @@ export default function UserManagement() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{user.location}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
-                        {user.type}
+                        {user.subscription_type}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -200,8 +246,10 @@ export default function UserManagement() {
                         {user.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{user.pickups}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{user.spent}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{user.total_pickups}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                      ₵{user.total_spent?.toLocaleString() || '0'}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <button
@@ -241,10 +289,10 @@ export default function UserManagement() {
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
                           <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">
-                            {user.name.split(' ').map(n => n[0]).join('')}
+                            {user.full_name?.split(' ').map(n => n[0]).join('') || 'U'}
                           </span>
                         </div>
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">{user.name}</span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">{user.full_name}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -254,17 +302,15 @@ export default function UserManagement() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{user.location}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
-                        {user.type}
+                        {user.subscription_type}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{user.applied}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {new Date(user.created_at).toLocaleDateString()}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        user.documents === 'complete'
-                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                          : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                      }`}>
-                        {user.documents}
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400`}>
+                        complete
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -304,18 +350,18 @@ export default function UserManagement() {
               <div className="flex items-center gap-4 pb-6 border-b border-gray-200 dark:border-gray-700">
                 <div className="w-20 h-20 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
                   <span className="text-2xl font-bold text-teal-600 dark:text-teal-400">
-                    {selectedUser.name.split(' ').map((n: string) => n[0]).join('')}
+                    {selectedUser.full_name?.split(' ').map((n: string) => n[0]).join('') || 'U'}
                   </span>
                 </div>
                 <div>
-                  <h4 className="text-xl font-semibold text-gray-900 dark:text-white">{selectedUser.name}</h4>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">User ID: USR-{selectedUser.id}</p>
+                  <h4 className="text-xl font-semibold text-gray-900 dark:text-white">{selectedUser.full_name}</h4>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">User ID: USR-{selectedUser.id.slice(0, 8)}</p>
                   <div className="flex items-center gap-2 mt-2">
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedUser.status)}`}>
                       {selectedUser.status}
                     </span>
                     <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
-                      {selectedUser.type}
+                      {selectedUser.subscription_type}
                     </span>
                   </div>
                 </div>
@@ -335,15 +381,15 @@ export default function UserManagement() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Joined Date</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedUser.joined}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{new Date(selectedUser.created_at).toLocaleDateString()}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Pickups</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedUser.pickups}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedUser.total_pickups}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Spent</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedUser.spent}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">₵{selectedUser.total_spent?.toLocaleString() || '0'}</p>
                 </div>
               </div>
               <div className="flex gap-3 pt-4">
@@ -378,11 +424,11 @@ export default function UserManagement() {
                     <i className="ri-user-add-line text-emerald-600 dark:text-emerald-400"></i>
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-1">{selectedUser.name}</h4>
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-1">{selectedUser.full_name}</h4>
                     <p className="text-sm text-gray-600 dark:text-gray-400">{selectedUser.phone}</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">{selectedUser.email}</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Location: {selectedUser.location}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Type: {selectedUser.type}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Type: {selectedUser.subscription_type}</p>
                   </div>
                 </div>
               </div>
@@ -398,8 +444,7 @@ export default function UserManagement() {
                 </button>
                 <button
                   onClick={() => {
-                    setShowApprovalModal(false);
-                    setActiveTab('all');
+                    handleApproveAction();
                   }}
                   className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors whitespace-nowrap cursor-pointer"
                 >

@@ -1,12 +1,39 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '../../../lib/supabase';
+
+interface Household {
+  id: string;
+  full_name: string;
+  phone: string;
+  location: string;
+  subscription_type: string;
+  status: string;
+  total_pickups: number;
+}
+
 export default function HouseholdManagement() {
-  const households = [
-    { id: 1, name: 'Kwame Mensah', phone: '+233 24 111 2222', location: 'Accra Central', type: 'Pay-as-you-go', requests: 24, status: 'active' },
-    { id: 2, name: 'Ama Serwaa', phone: '+233 24 222 3333', location: 'Osu', type: 'Subscription', requests: 18, status: 'active' },
-    { id: 3, name: 'Kwesi Appiah', phone: '+233 24 333 4444', location: 'Tema', type: 'Pay-as-you-go', requests: 15, status: 'active' },
-    { id: 4, name: 'Abena Owusu', phone: '+233 24 444 5555', location: 'Madina', type: 'Subscription', requests: 32, status: 'active' },
-    { id: 5, name: 'Yaa Asantewaa', phone: '+233 24 555 6666', location: 'Legon', type: 'Pay-as-you-go', requests: 8, status: 'flagged' },
-    { id: 6, name: 'Kofi Mensah', phone: '+233 24 666 7777', location: 'Spintex', type: 'Subscription', requests: 45, status: 'active' },
-  ];
+  const [households, setHouseholds] = useState<Household[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchHouseholds();
+  }, []);
+
+  const fetchHouseholds = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('registration_status', 'approved') // Only show approved users as active households
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching households:', error);
+    } else {
+      setHouseholds(data || []);
+    }
+    setLoading(false);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -18,6 +45,12 @@ export default function HouseholdManagement() {
         return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
     }
   };
+
+  // Stats
+  const totalHouseholds = households.length;
+  const subscriptionCount = households.filter(h => h.subscription_type === 'subscription').length;
+  const payAsYouGoCount = households.filter(h => h.subscription_type === 'pay-as-you-go').length;
+  const flaggedCount = households.filter(h => h.status === 'flagged').length;
 
   return (
     <div className="space-y-6">
@@ -36,7 +69,7 @@ export default function HouseholdManagement() {
               <i className="ri-home-4-line text-teal-600 dark:text-teal-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">1,842</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{totalHouseholds}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-2">
@@ -45,7 +78,7 @@ export default function HouseholdManagement() {
               <i className="ri-vip-crown-line text-emerald-600 dark:text-emerald-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">742</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{subscriptionCount}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-2">
@@ -54,7 +87,7 @@ export default function HouseholdManagement() {
               <i className="ri-wallet-line text-amber-600 dark:text-amber-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">1,100</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{payAsYouGoCount}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-2">
@@ -63,7 +96,7 @@ export default function HouseholdManagement() {
               <i className="ri-error-warning-line text-red-600 dark:text-red-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">12</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{flaggedCount}</p>
         </div>
       </div>
 
@@ -116,17 +149,17 @@ export default function HouseholdManagement() {
                       <div className="w-10 h-10 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
                         <i className="ri-home-4-line text-teal-600 dark:text-teal-400"></i>
                       </div>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{household.name}</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">{household.full_name}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{household.phone}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{household.location}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="px-3 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400">
-                      {household.type}
+                      {household.subscription_type}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{household.requests}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{household.total_pickups}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(household.status)}`}>
                       {household.status}

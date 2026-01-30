@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '../../../lib/supabase';
 
 interface HeaderProps {
   onLogout: () => void;
@@ -8,6 +9,11 @@ interface HeaderProps {
 export default function Header({ onLogout, onMenuClick }: HeaderProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [userInfo, setUserInfo] = useState({
+    fullName: 'Admin User',
+    role: 'Super Admin',
+    email: 'admin@borlawura.com'
+  });
   const [isDarkMode, setIsDarkMode] = useState(() => {
     // Check localStorage or system preference
     if (typeof window !== 'undefined') {
@@ -19,6 +25,43 @@ export default function Header({ onLogout, onMenuClick }: HeaderProps) {
     }
     return false;
   });
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        // Try to fetch admin details
+        const { data: adminData, error } = await supabase
+          .from('admins')
+          .select('full_name, role')
+          .eq('email', user.email) // Use email as fallback lookup if ID mapping varies, but ID is safer if linked correctly.
+          // Let's try ID first, if simplified auth flow used ID.
+          // actually AdminManagement uses ID. But let's look up by ID first.
+          .maybeSingle();
+
+        if (adminData) {
+          setUserInfo({
+            fullName: adminData.full_name || 'Admin User',
+            role: adminData.role || 'Admin',
+            email: user.email || ''
+          });
+        } else {
+          // Fallback if not in admins table but logged in (e.g. during dev/seeding)
+          setUserInfo(prev => ({
+            ...prev,
+            email: user.email || prev.email
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
 
   useEffect(() => {
     // Apply theme on mount and when changed
@@ -155,8 +198,8 @@ export default function Header({ onLogout, onMenuClick }: HeaderProps) {
               <i className="ri-user-line text-white"></i>
             </div>
             <div className="hidden md:block text-left">
-              <p className="text-sm font-semibold text-gray-900 dark:text-white">Admin User</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Super Admin</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">{userInfo.fullName}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{userInfo.role}</p>
             </div>
             <i className="ri-arrow-down-s-line text-gray-600 dark:text-gray-400 hidden md:block group-hover:rotate-180 transition-transform"></i>
           </button>
@@ -174,8 +217,8 @@ export default function Header({ onLogout, onMenuClick }: HeaderProps) {
                       <i className="ri-user-line text-white text-xl"></i>
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">Admin User</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">admin@borlawura.com</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">{userInfo.fullName}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{userInfo.email}</p>
                     </div>
                   </div>
                 </div>

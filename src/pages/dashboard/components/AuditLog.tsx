@@ -1,130 +1,86 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '../../../lib/supabase';
+
+interface AuditLogEntry {
+  id: string;
+  timestamp: string;
+  user: string;
+  userRole: string;
+  action: string;
+  target: string;
+  targetType: string;
+  ipAddress: string;
+  device: string;
+  status: 'Success' | 'Failed';
+  details: string;
+  changes: {
+    before: any;
+    after: any;
+  } | null;
+}
 
 export default function AuditLog() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAction, setFilterAction] = useState('all');
   const [filterUser, setFilterUser] = useState('all');
-  const [selectedLog, setSelectedLog] = useState<any>(null);
+  const [selectedLog, setSelectedLog] = useState<AuditLogEntry | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [logs, setLogs] = useState<AuditLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const auditLogs = [
-    {
-      id: 'AL-001',
-      timestamp: '2024-01-15 14:32:15',
-      user: 'Admin User',
-      userRole: 'Super Admin',
-      action: 'User Created',
-      target: 'Kwame Mensah',
-      targetType: 'User Account',
-      ipAddress: '192.168.1.100',
-      device: 'Chrome on Windows',
-      status: 'Success',
-      details: 'Created new user account with subscription plan',
-      changes: {
-        before: null,
-        after: {
-          name: 'Kwame Mensah',
-          email: 'kwame@example.com',
-          phone: '+233 24 123 4567',
-          plan: 'Monthly Subscription',
-          status: 'Active'
-        }
-      }
-    },
-    {
-      id: 'AL-002',
-      timestamp: '2024-01-15 14:28:42',
-      user: 'John Doe',
-      userRole: 'Admin',
-      action: 'Pickup Assigned',
-      target: 'PU-2847',
-      targetType: 'Pickup Request',
-      ipAddress: '192.168.1.105',
-      device: 'Safari on MacOS',
-      status: 'Success',
-      details: 'Assigned pickup to rider Kofi Adu',
-      changes: {
-        before: { status: 'Pending', rider: null },
-        after: { status: 'Assigned', rider: 'Kofi Adu' }
-      }
-    },
-    {
-      id: 'AL-003',
-      timestamp: '2024-01-15 14:15:23',
-      user: 'Admin User',
-      userRole: 'Super Admin',
-      action: 'Settings Modified',
-      target: 'Service Zone',
-      targetType: 'System Settings',
-      ipAddress: '192.168.1.100',
-      device: 'Chrome on Windows',
-      status: 'Success',
-      details: 'Updated Accra Central service zone pricing',
-      changes: {
-        before: { basePrice: '₵15', perKgPrice: '₵2' },
-        after: { basePrice: '₵18', perKgPrice: '₵2.50' }
-      }
-    },
-    {
-      id: 'AL-004',
-      timestamp: '2024-01-15 13:45:10',
-      user: 'Jane Smith',
-      userRole: 'Admin',
-      action: 'Login Failed',
-      target: 'admin@borlawura.com',
-      targetType: 'Authentication',
-      ipAddress: '192.168.1.120',
-      device: 'Firefox on Linux',
-      status: 'Failed',
-      details: 'Failed login attempt - incorrect password',
-      changes: null
-    },
-    {
-      id: 'AL-005',
-      timestamp: '2024-01-15 13:30:55',
-      user: 'Admin User',
-      userRole: 'Super Admin',
-      action: 'Rider Suspended',
-      target: 'Yaw Boateng',
-      targetType: 'Rider Account',
-      ipAddress: '192.168.1.100',
-      device: 'Chrome on Windows',
-      status: 'Success',
-      details: 'Suspended rider due to multiple complaints',
-      changes: {
-        before: { status: 'Active', rating: 3.2 },
-        after: { status: 'Suspended', rating: 3.2, suspensionReason: 'Multiple complaints' }
-      }
-    },
-    {
-      id: 'AL-006',
-      timestamp: '2024-01-15 12:15:30',
-      user: 'John Doe',
-      userRole: 'Admin',
-      action: 'Payment Processed',
-      target: 'PAY-1523',
-      targetType: 'Payment',
-      ipAddress: '192.168.1.105',
-      device: 'Safari on MacOS',
-      status: 'Success',
-      details: 'Processed payment for pickup PU-2840',
-      changes: {
-        before: { status: 'Pending', amount: '₵45' },
-        after: { status: 'Completed', amount: '₵45', method: 'Mobile Money' }
-      }
-    },
-  ];
+  useEffect(() => {
+    fetchLogs();
+  }, []);
 
-  const filteredLogs = auditLogs.filter(log => {
+  const fetchLogs = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        const formattedLogs: AuditLogEntry[] = data.map((item: any) => ({
+          id: item.id,
+          timestamp: new Date(item.created_at).toLocaleString(),
+          user: item.user_name || 'System',
+          userRole: item.user_role || 'System',
+          action: item.action,
+          target: item.target,
+          targetType: item.target_type,
+          ipAddress: item.ip_address,
+          device: item.device,
+          status: item.status,
+          details: item.details,
+          changes: item.changes
+        }));
+        setLogs(formattedLogs);
+      }
+    } catch (err) {
+      console.error('Error fetching audit logs:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredLogs = logs.filter(log => {
     const matchesSearch = log.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         log.target.toLowerCase().includes(searchTerm.toLowerCase());
+      log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.target.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesAction = filterAction === 'all' || log.action === filterAction;
     const matchesUser = filterUser === 'all' || log.user === filterUser;
     return matchesSearch && matchesAction && matchesUser;
   });
 
-  const handleViewDetails = (log: any) => {
+  const totalActions = logs.length;
+  const adminActions = logs.filter(l => l.userRole.toLowerCase().includes('admin')).length;
+  const financialActions = logs.filter(l => l.targetType === 'Payment' || l.action.toLowerCase().includes('payment')).length;
+  const systemActions = logs.filter(l => l.userRole === 'System' || l.targetType === 'System').length;
+
+  const handleViewDetails = (log: AuditLogEntry) => {
     setSelectedLog(log);
     setShowDetailsModal(true);
   };
@@ -180,6 +136,48 @@ Report Generated: ${new Date().toLocaleString()}
     setTimeout(() => toast.remove(), 3000);
   };
 
+  const handleExportAll = () => {
+    // Generate CSV content
+    const headers = ['ID', 'Timestamp', 'User', 'Role', 'Action', 'Target', 'Target Type', 'IP Address', 'Device', 'Status', 'Details'];
+    const csvContent = [
+      headers.join(','),
+      ...filteredLogs.map(log => [
+        log.id,
+        `"${log.timestamp}"`,
+        `"${log.user}"`,
+        `"${log.userRole}"`,
+        `"${log.action}"`,
+        `"${log.target}"`,
+        `"${log.targetType}"`,
+        `"${log.ipAddress}"`,
+        `"${log.device}"`,
+        log.status,
+        `"${log.details.replace(/"/g, '""')}"`
+      ].join(','))
+    ].join('\n');
+
+    // Download file
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audit-logs-export-${Date.now()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    // Toast
+    const toast = document.createElement('div');
+    toast.className = 'fixed top-4 right-4 bg-teal-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2';
+    toast.innerHTML = `
+      <i class="ri-file-download-line text-lg"></i>
+      <span class="font-medium">Logs exported successfully</span>
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -187,7 +185,10 @@ Report Generated: ${new Date().toLocaleString()}
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Audit & Compliance Log</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Complete system activity tracking and traceability</p>
         </div>
-        <button className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors whitespace-nowrap cursor-pointer">
+        <button
+          onClick={handleExportAll}
+          className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors whitespace-nowrap cursor-pointer"
+        >
           <i className="ri-download-line"></i>
           Export Logs
         </button>
@@ -196,12 +197,12 @@ Report Generated: ${new Date().toLocaleString()}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Total Actions Today</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Total Logged Actions</span>
             <div className="w-10 h-10 rounded-lg bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
               <i className="ri-file-list-3-line text-teal-600 dark:text-teal-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">247</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{totalActions}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-2">
@@ -210,7 +211,7 @@ Report Generated: ${new Date().toLocaleString()}
               <i className="ri-admin-line text-rose-600 dark:text-rose-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">42</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{adminActions}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-2">
@@ -219,7 +220,7 @@ Report Generated: ${new Date().toLocaleString()}
               <i className="ri-money-dollar-circle-line text-emerald-600 dark:text-emerald-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">38</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{financialActions}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-2">
@@ -228,7 +229,7 @@ Report Generated: ${new Date().toLocaleString()}
               <i className="ri-settings-3-line text-amber-600 dark:text-amber-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">15</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{systemActions}</p>
         </div>
       </div>
 
@@ -263,12 +264,9 @@ Report Generated: ${new Date().toLocaleString()}
               className="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
             >
               <option value="all">All Actions</option>
-              <option value="User Created">User Created</option>
-              <option value="Pickup Assigned">Pickup Assigned</option>
-              <option value="Settings Modified">Settings Modified</option>
-              <option value="Login Failed">Login Failed</option>
-              <option value="Rider Suspended">Rider Suspended</option>
-              <option value="Payment Processed">Payment Processed</option>
+              {Array.from(new Set(logs.map(l => l.action))).map((action) => (
+                <option key={action} value={action}>{action}</option>
+              ))}
             </select>
           </div>
 
@@ -282,9 +280,9 @@ Report Generated: ${new Date().toLocaleString()}
               className="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
             >
               <option value="all">All Users</option>
-              <option value="Admin User">Admin User</option>
-              <option value="John Doe">John Doe</option>
-              <option value="Jane Smith">Jane Smith</option>
+              {Array.from(new Set(logs.map(l => l.user))).map((user) => (
+                <option key={user} value={user}>{user}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -338,11 +336,10 @@ Report Generated: ${new Date().toLocaleString()}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap ${
-                      log.status === 'Success'
-                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                        : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                    }`}>
+                    <span className={`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap ${log.status === 'Success'
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                      : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                      }`}>
                       {log.status}
                     </span>
                   </td>
@@ -412,11 +409,10 @@ Report Generated: ${new Date().toLocaleString()}
                     </div>
                     <div>
                       <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
-                      <span className={`inline-block px-3 py-1 text-xs font-medium rounded-full mt-1 whitespace-nowrap ${
-                        selectedLog.status === 'Success'
-                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                          : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                      }`}>
+                      <span className={`inline-block px-3 py-1 text-xs font-medium rounded-full mt-1 whitespace-nowrap ${selectedLog.status === 'Success'
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                        : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                        }`}>
                         {selectedLog.status}
                       </span>
                     </div>

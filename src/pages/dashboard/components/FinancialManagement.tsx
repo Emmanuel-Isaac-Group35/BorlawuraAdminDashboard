@@ -1,23 +1,83 @@
-export default function FinancialManagement() {
-  const transactions = [
-    { id: 'TXN-8472', household: 'Kwame Mensah', amount: '₵25', type: 'Pickup Payment', status: 'completed', date: 'Today, 10:30 AM' },
-    { id: 'TXN-8471', rider: 'Kofi Adu', amount: '₵450', type: 'Rider Payout', status: 'pending', date: 'Today, 9:15 AM' },
-    { id: 'TXN-8470', household: 'Ama Serwaa', amount: '₵120', type: 'Subscription', status: 'completed', date: 'Yesterday, 4:20 PM' },
-    { id: 'TXN-8469', rider: 'Yaw Boateng', amount: '₵380', type: 'Rider Payout', status: 'completed', date: 'Yesterday, 2:10 PM' },
-    { id: 'TXN-8468', household: 'Kwesi Appiah', amount: '₵25', type: 'Pickup Payment', status: 'completed', date: 'Yesterday, 11:45 AM' },
-  ];
+import { useState, useEffect } from 'react';
+import { supabase } from '../../../lib/supabase';
 
-  const payouts = [
-    { rider: 'Kofi Adu', pickups: 45, earnings: '₵890', commission: '₵89', netPayout: '₵801', status: 'pending' },
-    { rider: 'Yaw Boateng', pickups: 42, earnings: '₵840', commission: '₵84', netPayout: '₵756', status: 'pending' },
-    { rider: 'Akua Mensah', pickups: 38, earnings: '₵760', commission: '₵76', netPayout: '₵684', status: 'approved' },
-    { rider: 'Kwabena Asante', pickups: 35, earnings: '₵700', commission: '₵70', netPayout: '₵630', status: 'approved' },
-  ];
+interface Payment {
+  id: string;
+  amount: number;
+  status: string;
+  created_at: string;
+  users?: {
+    full_name: string;
+  };
+}
+
+interface Rider {
+  id: string;
+  full_name: string;
+  total_earnings: number;
+  total_pickups: number;
+  status: string;
+}
+
+export default function FinancialManagement() {
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [riders, setRiders] = useState<Rider[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchFinancials();
+  }, []);
+
+  const fetchFinancials = async () => {
+    setLoading(true);
+    // Fetch Payments with User details
+    const { data: paymentsData, error: paymentsError } = await supabase
+      .from('payments')
+      .select('*, users(full_name)')
+      .order('created_at', { ascending: false });
+
+    if (paymentsError) console.error('Error fetching payments:', paymentsError);
+    else setPayments(paymentsData || []);
+
+    // Fetch Riders for Payouts view
+    const { data: ridersData, error: ridersError } = await supabase
+      .from('riders')
+      .select('*')
+      .order('total_earnings', { ascending: false });
+
+    if (ridersError) console.error('Error fetching riders:', ridersError);
+    else setRiders(ridersData || []);
+
+    setLoading(false);
+  };
+
+  const calculateStats = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const currentMonth = new Date().getMonth();
+
+    const todayRevenue = payments
+      .filter(p => p.status === 'paid' && p.created_at.startsWith(today))
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+    const monthlyRevenue = payments
+      .filter(p => p.status === 'paid' && new Date(p.created_at).getMonth() === currentMonth)
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+    // Mock pending payouts logic based on earnings
+    const pendingPayouts = riders.reduce((sum, r) => sum + (Number(r.total_earnings) || 0), 0);
+    const commission = monthlyRevenue * 0.1; // 10% commission
+
+    return { todayRevenue, monthlyRevenue, pendingPayouts, commission };
+  };
+
+  const stats = calculateStats();
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'paid':
       case 'completed':
       case 'approved':
+      case 'active':
         return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
       case 'pending':
         return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
@@ -47,7 +107,7 @@ export default function FinancialManagement() {
               <i className="ri-money-dollar-circle-line text-emerald-600 dark:text-emerald-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">₵4,850</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">₵{stats.todayRevenue.toLocaleString()}</p>
           <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-2">+8% from yesterday</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
@@ -57,7 +117,7 @@ export default function FinancialManagement() {
               <i className="ri-line-chart-line text-teal-600 dark:text-teal-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">₵89,420</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">₵{stats.monthlyRevenue.toLocaleString()}</p>
           <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-2">+12% from last month</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
@@ -67,8 +127,8 @@ export default function FinancialManagement() {
               <i className="ri-wallet-line text-amber-600 dark:text-amber-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">₵12,450</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">45 riders awaiting</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">₵{stats.pendingPayouts.toLocaleString()}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{riders.length} riders</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-2">
@@ -77,7 +137,7 @@ export default function FinancialManagement() {
               <i className="ri-percent-line text-rose-600 dark:text-rose-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">₵8,942</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">₵{stats.commission.toLocaleString()}</p>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">10% platform fee</p>
         </div>
       </div>
@@ -99,12 +159,12 @@ export default function FinancialManagement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {transactions.map((txn) => (
+                {payments.map((txn) => (
                   <tr key={txn.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{txn.id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{txn.household || txn.rider}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">{txn.amount}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{txn.type}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{txn.id.slice(0, 8)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{txn.users?.full_name || 'Unknown User'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">₵{txn.amount}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">Payment</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(txn.status)}`}>
                         {txn.status}
@@ -138,22 +198,18 @@ export default function FinancialManagement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {payouts.map((payout, index) => (
-                  <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{payout.rider}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{payout.pickups}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">{payout.netPayout}</td>
+                {riders.map((rider) => (
+                  <tr key={rider.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{rider.full_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{rider.total_pickups}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">₵{rider.total_earnings}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(payout.status)}`}>
-                        {payout.status}
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(rider.status === 'active' ? 'pending' : rider.status)}`}>
+                        {rider.status === 'active' ? 'pending' : rider.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {payout.status === 'pending' && (
-                        <button className="px-3 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-medium transition-colors whitespace-nowrap cursor-pointer">
-                          Approve
-                        </button>
-                      )}
+
                     </td>
                   </tr>
                 ))}

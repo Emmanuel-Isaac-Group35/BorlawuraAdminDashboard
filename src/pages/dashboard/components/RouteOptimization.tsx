@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '../../../lib/supabase';
 
 interface RouteStop {
   id: string;
@@ -18,71 +19,115 @@ interface OptimizedRoute {
   totalStops: number;
   completedStops: number;
   totalDistance: string;
+  distanceValue: number; // For calculations
   estimatedDuration: string;
+  durationValue: number; // Minutes
   fuelSaved: string;
-  stops: RouteStop[];
+  fuelSavedValue: number; // Liters or monetary value, or just %
   status: 'active' | 'completed' | 'planned';
+  stops: RouteStop[];
 }
 
 export default function RouteOptimization() {
   const [selectedRoute, setSelectedRoute] = useState<OptimizedRoute | null>(null);
   const [optimizing, setOptimizing] = useState(false);
+  const [routes, setRoutes] = useState<OptimizedRoute[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const routes: OptimizedRoute[] = [
-    {
-      id: 'RT-001',
-      riderId: 'R-2847',
-      riderName: 'Kofi Adu',
-      zone: 'Accra Central',
-      totalStops: 12,
-      completedStops: 8,
-      totalDistance: '18.5 km',
-      estimatedDuration: '2h 15m',
-      fuelSaved: '15%',
-      status: 'active',
-      stops: [
-        { id: 'S1', address: 'Ring Road Central, Accra', pickupId: 'PU-2847', priority: 'high', estimatedTime: '10:00 AM', wasteType: 'Mixed', status: 'completed' },
-        { id: 'S2', address: 'Kwame Nkrumah Avenue', pickupId: 'PU-2848', priority: 'high', estimatedTime: '10:15 AM', wasteType: 'Organic', status: 'completed' },
-        { id: 'S3', address: 'Castle Road', pickupId: 'PU-2849', priority: 'medium', estimatedTime: '10:30 AM', wasteType: 'Recyclable', status: 'pending' },
-      ]
-    },
-    {
-      id: 'RT-002',
-      riderId: 'R-1523',
-      riderName: 'Yaw Boateng',
-      zone: 'Osu',
-      totalStops: 15,
-      completedStops: 15,
-      totalDistance: '22.3 km',
-      estimatedDuration: '2h 45m',
-      fuelSaved: '18%',
-      status: 'completed',
-      stops: []
-    },
-    {
-      id: 'RT-003',
-      riderId: 'R-3421',
-      riderName: 'Akua Mensah',
-      zone: 'Tema',
-      totalStops: 10,
-      completedStops: 0,
-      totalDistance: '16.2 km',
-      estimatedDuration: '1h 50m',
-      fuelSaved: '12%',
-      status: 'planned',
-      stops: []
+  useEffect(() => {
+    generateRoutes();
+  }, []);
+
+  const generateRoutes = async () => {
+    setLoading(true);
+
+    // 1. Fetch Active Riders
+    const { data: riders } = await supabase
+      .from('riders')
+      .select('*')
+      .eq('status', 'active');
+
+    // 2. Fetch Pending Pickups with User Location
+    const { data: pickups } = await supabase
+      .from('pickups')
+      .select('*, users(location, full_name)')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true });
+
+    if (!riders || !pickups) {
+      setLoading(false);
+      return;
     }
-  ];
+
+    // 3. Mock "Optimization" Algorithm: Distribute pickups to riders by Zone
+    const generatedRoutes: OptimizedRoute[] = riders.map((rider, index) => {
+      // Find pickups in rider's zone (or fallback for demo if no matches)
+      let riderPickups = pickups.filter(p =>
+        p.users?.location?.toLowerCase().includes(rider.zone?.toLowerCase())
+      );
+
+      // If no exact match, just take a slice for demo purposes so the UI isn't empty
+      if (riderPickups.length === 0 && pickups.length > 0) {
+        const sliceSize = Math.ceil(pickups.length / riders.length);
+        const start = index * sliceSize;
+        riderPickups = pickups.slice(start, start + sliceSize);
+      }
+
+      if (riderPickups.length === 0) return null; // Skip if no pickups
+
+      // Create Route Stops
+      const stops: RouteStop[] = riderPickups.map((p, i) => ({
+        id: `STOP-${i + 1}`,
+        address: p.users?.location || 'Unknown Location',
+        pickupId: p.id.slice(0, 8),
+        priority: i % 3 === 0 ? 'high' : 'medium', // Mock priority
+        estimatedTime: new Date(new Date().getTime() + (i + 1) * 30 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        wasteType: p.waste_type || 'General',
+        status: 'pending'
+      }));
+
+      const totalStops = stops.length;
+      const distVal = totalStops * 2.5;
+      const durationVal = totalStops * 20; // minutes
+
+      return {
+        id: `RT-${rider.id.slice(0, 5).toUpperCase()}`,
+        riderId: `R-${rider.id.slice(0, 4)}`,
+        riderName: rider.full_name,
+        zone: rider.zone || 'General',
+        totalStops: totalStops,
+        completedStops: 0, // Freshly optimized
+        totalDistance: `${distVal.toFixed(1)} km`,
+        distanceValue: distVal,
+        estimatedDuration: `${Math.floor(durationVal / 60)}h ${durationVal % 60}m`,
+        durationValue: durationVal,
+        fuelSaved: '15%',
+        fuelSavedValue: 15,
+        status: 'active', // Set as active for now
+        stops: stops
+      };
+    }).filter((r): r is OptimizedRoute => r !== null); // Filter out nulls
+
+    setRoutes(generatedRoutes);
+    setLoading(false);
+  };
+
+  // Calculate Aggregates
+  const totalDistance = routes.reduce((sum, r) => sum + r.distanceValue, 0);
+  const totalTimeSaved = Math.round(routes.reduce((sum, r) => sum + (r.durationValue * 0.15), 0)); // Assume 15% time saved
+  const avgFuelSaved = routes.length > 0 ? 15 : 0; // Hardcoded avg for simplicity or avg of r.fuelSavedValue
 
   const handleOptimizeRoutes = () => {
     setOptimizing(true);
+    // Re-run generation to simulate "re-optimization"
     setTimeout(() => {
+      generateRoutes();
       setOptimizing(false);
       const toast = document.createElement('div');
       toast.className = 'fixed top-4 right-4 bg-teal-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2';
       toast.innerHTML = `
         <i class="ri-check-line text-lg"></i>
-        <span class="font-medium">Routes optimized successfully! Saved 45 minutes and 15% fuel</span>
+        <span class="font-medium">Routes optimized successfully!</span>
       `;
       document.body.appendChild(toast);
       setTimeout(() => toast.remove(), 3000);
@@ -165,7 +210,7 @@ export default function RouteOptimization() {
               <i className="ri-map-pin-distance-line text-blue-600 dark:text-blue-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">57 km</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{totalDistance.toFixed(1)} km</p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Today's coverage</p>
         </div>
 
@@ -176,8 +221,8 @@ export default function RouteOptimization() {
               <i className="ri-gas-station-line text-teal-600 dark:text-teal-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">15%</p>
-          <p className="text-xs text-teal-600 dark:text-teal-400 mt-2">₵245 saved today</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{avgFuelSaved}%</p>
+          <p className="text-xs text-teal-600 dark:text-teal-400 mt-2">₵{Math.round(totalDistance * 4.3)} saved today</p>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
@@ -187,7 +232,7 @@ export default function RouteOptimization() {
               <i className="ri-time-line text-amber-600 dark:text-amber-400"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">45 min</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{totalTimeSaved} min</p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">vs. manual routing</p>
         </div>
       </div>
@@ -271,7 +316,7 @@ export default function RouteOptimization() {
 
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Optimization Insights</h3>
-          
+
           <div className="space-y-4">
             <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
               <div className="flex items-start gap-3">
@@ -390,10 +435,9 @@ export default function RouteOptimization() {
                         className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
                       >
                         <div className="flex items-start gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                            stop.status === 'completed' ? 'bg-emerald-500' :
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${stop.status === 'completed' ? 'bg-emerald-500' :
                             stop.status === 'pending' ? 'bg-blue-500' : 'bg-gray-400'
-                          } text-white font-semibold text-sm`}>
+                            } text-white font-semibold text-sm`}>
                             {index + 1}
                           </div>
                           <div className="flex-1">
@@ -409,11 +453,10 @@ export default function RouteOptimization() {
                             <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
                               <span><i className="ri-time-line mr-1"></i>{stop.estimatedTime}</span>
                               <span><i className="ri-delete-bin-line mr-1"></i>{stop.wasteType}</span>
-                              <span className={`font-medium ${
-                                stop.status === 'completed' ? 'text-emerald-600 dark:text-emerald-400' :
+                              <span className={`font-medium ${stop.status === 'completed' ? 'text-emerald-600 dark:text-emerald-400' :
                                 stop.status === 'pending' ? 'text-blue-600 dark:text-blue-400' :
-                                'text-gray-600 dark:text-gray-400'
-                              }`}>
+                                  'text-gray-600 dark:text-gray-400'
+                                }`}>
                                 {stop.status}
                               </span>
                             </div>
