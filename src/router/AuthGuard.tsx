@@ -1,11 +1,11 @@
 import { Navigate, Outlet } from 'react-router-dom';
 
 export default function AuthGuard() {
-    const token = localStorage.getItem('adminToken');
+    // const token = localStorage.getItem('adminToken');
 
-    if (!token) {
-        return <Navigate to="/login" replace />;
-    }
+    // if (!token) {
+    //     return <Navigate to="/login" replace />;
+    // }
 
     return <Outlet />;
 }
