@@ -37,6 +37,8 @@ CREATE TABLE public.riders (
     rating NUMERIC(3, 2) DEFAULT 5.00,
     total_earnings NUMERIC(10, 2) DEFAULT 0.00,
     total_pickups INTEGER DEFAULT 0,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now())
 );
 

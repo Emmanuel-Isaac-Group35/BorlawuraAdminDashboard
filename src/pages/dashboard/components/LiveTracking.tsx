@@ -64,12 +64,23 @@ export default function LiveTracking() {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'riders' }, (payload) => {
         const updatedRider = payload.new;
         setRiders((prev) =>
-          prev.map((r) => r.id === updatedRider.id ? {
-            ...r,
-            status: mapStatus(updatedRider.status),
-            name: updatedRider.full_name, // Sync name if changed
-            zone: updatedRider.zone
-          } : r)
+          prev.map((r) => {
+            if (r.id === updatedRider.id) {
+              return {
+                ...r,
+                status: mapStatus(updatedRider.status),
+                name: updatedRider.full_name,
+                zone: updatedRider.zone,
+                location: {
+                  lat: updatedRider.latitude ?? r.location.lat,
+                  lng: updatedRider.longitude ?? r.location.lng,
+                  address: updatedRider.address ?? r.location.address
+                },
+                lastUpdate: 'Just now'
+              };
+            }
+            return r;
+          })
         );
       })
       .subscribe();
@@ -79,23 +90,36 @@ export default function LiveTracking() {
     };
   }, []);
 
-  // Poll for simulated GPS movement (Simulate LIVE Movement)
+  // Poll for simulated GPS movement (Simulate LIVE Movement if no real data is flowing)
+  // We keep this optionally or maybe only for 'busy' riders if lat/lng is missing? 
+  // For now, let's keep it but make it subtle, or remove it in favor of real updates if that's what the user wants.
+  // The user asked to "be able to live track", which implies real functionality. 
+  // Often purely random movement is confusing if you are testing real updates.
+  // I will comment out the simulation or make it conditional on a "Demo Mode" flag, 
+  // but to satisfy "when a rider comes online... live track", I should prioritize real data.
+  // I'll leave the existing simulation logic as it is for now but ensure real updates override it.
+
   useEffect(() => {
+    // Only simulate if we don't have real updates coming in, or just for visual effect on static ones
+    // For this task, I'll rely on the real subscription above.
+    // However, the original code had a simulation interval. I'll keep it but make it respect existing coordinates if they are stable? 
+    // No, let's strictly rely on the DB updates for "live tracking" as requested, 
+    // but maybe keep the battery/speed simulation for liveliness if those aren't in DB.
+
     const interval = setInterval(() => {
       setRiders(prevRiders =>
         prevRiders.map(rider => ({
           ...rider,
-          lastUpdate: rider.status === 'offline' ? rider.lastUpdate : 'Just now',
+          // Only simulate small jitter if status is busy/online and valid real coords exist?
+          // Actually, let's keep the battery/speed sim but STOP moving the location randomly 
+          // to prove that the "Online" location tracking works from the DB.
+          lastUpdate: rider.status === 'offline' ? rider.lastUpdate : 'Just now', // Keep updating time
           speed: rider.status === 'busy' ? Math.floor(Math.random() * 30) + 10 : 0,
           battery: Math.max(20, rider.battery - 0.1),
-          location: rider.status !== 'offline' ? {
-            ...rider.location,
-            lat: rider.location.lat + (Math.random() - 0.5) * 0.002, // Increased movement slightly
-            lng: rider.location.lng + (Math.random() - 0.5) * 0.002
-          } : rider.location
+          // location: ... // REMOVED random location jitter to allow real tracking verification
         }))
       );
-    }, 2000); // Faster updates
+    }, 5000);
 
     return () => clearInterval(interval);
   }, []);
@@ -119,9 +143,9 @@ export default function LiveTracking() {
         zone: r.zone || 'Unknown',
         status: mapStatus(r.status),
         location: {
-          // Distribute riders around Accra
-          lat: BASE_LAT + (Math.random() - 0.5) * 0.1,
-          lng: BASE_LNG + (Math.random() - 0.5) * 0.1,
+          // Use DB latitude/longitude if available, else fall back to base + random spread
+          lat: r.latitude || (BASE_LAT + (Math.random() - 0.5) * 0.1),
+          lng: r.longitude || (BASE_LNG + (Math.random() - 0.5) * 0.1),
           address: r.address || 'Accra'
         },
         lastUpdate: 'Just now',
