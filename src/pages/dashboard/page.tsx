@@ -23,7 +23,7 @@ export default function Dashboard() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+    <div className="h-screen overflow-hidden bg-gray-50 dark:bg-gray-900 flex">
       <Sidebar
         activeSection={activeSection}
         setActiveSection={(section) => {
@@ -47,19 +47,21 @@ export default function Dashboard() {
           onLogout={() => setShowLogoutDialog(true)}
           onMenuClick={() => setIsSidebarOpen(true)}
         />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          {activeSection === 'overview' && <Overview onNavigate={setActiveSection} />}
-          {activeSection === 'admins' && <AdminManagement />}
-          {activeSection === 'riders' && <RiderManagement />}
-          {activeSection === 'users' && <UserManagement />}
-          {activeSection === 'pickups' && <PickupOperations />}
-          {activeSection === 'live-tracking' && <LiveTracking />}
-          {activeSection === 'route-optimization' && <RouteOptimization />}
-          {activeSection === 'analytics' && <Analytics />}
-          {activeSection === 'sms' && <SMSManagement />}
-          {activeSection === 'feedback' && <FeedbackRatings />}
-          {activeSection === 'settings' && <SystemSettings />}
-          {activeSection === 'audit' && <AuditLog />}
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 scroll-smooth">
+          <div key={activeSection} className="animate-fade-in">
+            {activeSection === 'overview' && <Overview onNavigate={setActiveSection} />}
+            {activeSection === 'admins' && <AdminManagement />}
+            {activeSection === 'riders' && <RiderManagement />}
+            {activeSection === 'users' && <UserManagement />}
+            {activeSection === 'pickups' && <PickupOperations />}
+            {activeSection === 'live-tracking' && <LiveTracking />}
+            {activeSection === 'route-optimization' && <RouteOptimization />}
+            {activeSection === 'analytics' && <Analytics />}
+            {activeSection === 'sms' && <SMSManagement />}
+            {activeSection === 'feedback' && <FeedbackRatings />}
+            {activeSection === 'settings' && <SystemSettings />}
+            {activeSection === 'audit' && <AuditLog />}
+          </div>
         </main>
       </div>
 

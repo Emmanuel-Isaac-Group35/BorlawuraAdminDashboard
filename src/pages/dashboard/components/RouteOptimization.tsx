@@ -41,75 +41,85 @@ export default function RouteOptimization() {
   const generateRoutes = async () => {
     setLoading(true);
 
-    // 1. Fetch Active Riders
-    const { data: riders } = await supabase
-      .from('riders')
-      .select('*')
-      .eq('status', 'active');
+    try {
+      // 1. Fetch Active Riders
+      const { data: riders, error: ridersError } = await supabase
+        .from('riders')
+        .select('*')
+        .eq('status', 'active');
 
-    // 2. Fetch Pending Pickups with User Location
-    const { data: pickups } = await supabase
-      .from('pickups')
-      .select('*, users(location, full_name)')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: true });
+      if (ridersError) throw ridersError;
 
-    if (!riders || !pickups) {
-      setLoading(false);
-      return;
-    }
+      // 2. Fetch Pending Pickups with User Location
+      const { data: pickups, error: pickupsError } = await supabase
+        .from('pickups')
+        .select('*, users(location, full_name)')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true });
 
-    // 3. Mock "Optimization" Algorithm: Distribute pickups to riders by Zone
-    const generatedRoutes: OptimizedRoute[] = riders.map((rider, index) => {
-      // Find pickups in rider's zone (or fallback for demo if no matches)
-      let riderPickups = pickups.filter(p =>
-        p.users?.location?.toLowerCase().includes(rider.zone?.toLowerCase())
-      );
+      if (pickupsError) throw pickupsError;
 
-      // If no exact match, just take a slice for demo purposes so the UI isn't empty
-      if (riderPickups.length === 0 && pickups.length > 0) {
-        const sliceSize = Math.ceil(pickups.length / riders.length);
-        const start = index * sliceSize;
-        riderPickups = pickups.slice(start, start + sliceSize);
+      if (!riders || !pickups || riders.length === 0) {
+        setRoutes([]);
+        setLoading(false);
+        return;
       }
 
-      if (riderPickups.length === 0) return null; // Skip if no pickups
+      // 3. Mock "Optimization" Algorithm: Distribute pickups to riders by Zone
+      const generatedRoutes: OptimizedRoute[] = riders.map((rider, index) => {
+        // Find pickups in rider's zone (or fallback for demo if no matches)
+        let riderPickups = pickups.filter(p =>
+          p.users?.location?.toLowerCase().includes(rider.zone?.toLowerCase())
+        );
 
-      // Create Route Stops
-      const stops: RouteStop[] = riderPickups.map((p, i) => ({
-        id: `STOP-${i + 1}`,
-        address: p.users?.location || 'Unknown Location',
-        pickupId: p.id.slice(0, 8),
-        priority: i % 3 === 0 ? 'high' : 'medium', // Mock priority
-        estimatedTime: new Date(new Date().getTime() + (i + 1) * 30 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        wasteType: p.waste_type || 'General',
-        status: 'pending'
-      }));
+        // If no exact match, just take a slice for demo purposes so the UI isn't empty
+        if (riderPickups.length === 0 && pickups.length > 0) {
+          const sliceSize = Math.ceil(pickups.length / riders.length);
+          const start = index * sliceSize;
+          riderPickups = pickups.slice(start, start + sliceSize);
+        }
 
-      const totalStops = stops.length;
-      const distVal = totalStops * 2.5;
-      const durationVal = totalStops * 20; // minutes
+        if (riderPickups.length === 0) return null; // Skip if no pickups
 
-      return {
-        id: `RT-${rider.id.slice(0, 5).toUpperCase()}`,
-        riderId: `R-${rider.id.slice(0, 4)}`,
-        riderName: rider.full_name,
-        zone: rider.zone || 'General',
-        totalStops: totalStops,
-        completedStops: 0, // Freshly optimized
-        totalDistance: `${distVal.toFixed(1)} km`,
-        distanceValue: distVal,
-        estimatedDuration: `${Math.floor(durationVal / 60)}h ${durationVal % 60}m`,
-        durationValue: durationVal,
-        fuelSaved: '15%',
-        fuelSavedValue: 15,
-        status: 'active', // Set as active for now
-        stops: stops
-      };
-    }).filter((r): r is OptimizedRoute => r !== null); // Filter out nulls
+        // Create Route Stops
+        const stops: RouteStop[] = riderPickups.map((p, i) => ({
+          id: `STOP-${i + 1}`,
+          address: p.users?.location || 'Unknown Location',
+          pickupId: p.id.slice(0, 8),
+          priority: i % 3 === 0 ? 'high' : 'medium', // Mock priority
+          estimatedTime: new Date(new Date().getTime() + (index * 60 + (i + 1) * 30) * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          wasteType: p.waste_type || 'General',
+          status: 'pending'
+        }));
 
-    setRoutes(generatedRoutes);
-    setLoading(false);
+        const totalStops = stops.length;
+        const distVal = totalStops * 2.5;
+        const durationVal = totalStops * 20; // minutes
+
+        return {
+          id: `RT-${rider.id.slice(0, 5).toUpperCase()}`,
+          riderId: `R-${rider.id.slice(0, 4)}`,
+          riderName: rider.full_name,
+          zone: rider.zone || 'General',
+          totalStops: totalStops,
+          completedStops: 0,
+          totalDistance: `${distVal.toFixed(1)} km`,
+          distanceValue: distVal,
+          estimatedDuration: `${Math.floor(durationVal / 60)}h ${durationVal % 60}m`,
+          durationValue: durationVal,
+          fuelSaved: '15%',
+          fuelSavedValue: 15,
+          status: 'active',
+          stops: stops
+        };
+      }).filter((r): r is OptimizedRoute => r !== null);
+
+      setRoutes(generatedRoutes);
+    } catch (error) {
+      console.error('Error generating routes:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Calculate Aggregates

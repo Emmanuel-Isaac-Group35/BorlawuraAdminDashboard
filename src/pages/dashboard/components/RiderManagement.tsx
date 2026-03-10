@@ -1,497 +1,397 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
+import ExportButton from './ExportButton';
 
 interface Rider {
   id: string;
   full_name: string;
-  phone: string;
+  phone_number: string;
   email: string;
-  zone: string;
-  status: string;
-  tricycle_number: string;
-  national_id: string;
-  address: string;
+  vehicle_type: string;
+  vehicle_number: string;
+  status: 'active' | 'suspended';
   rating: number;
-  total_earnings: number;
   total_pickups: number;
+  total_earnings: number;
+  created_at: string;
 }
 
 export default function RiderManagement() {
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showAddRiderModal, setShowAddRiderModal] = useState(false);
   const [riders, setRiders] = useState<Rider[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [showAddModal, setShowAddModal] = useState(false);
   const [selectedRider, setSelectedRider] = useState<Rider | null>(null);
-
-  const [formData, setFormData] = useState({
-    fullName: '',
-    phone: '',
+  const [newRider, setNewRider] = useState({
+    full_name: '',
+    phone_number: '',
     email: '',
-    nationalId: '',
-    tricycleNumber: '',
-    zone: '',
-    address: '',
+    vehicle_type: 'Motorbike',
+    vehicle_number: ''
   });
+
+  const currentRole = localStorage.getItem('simulatedRole') || 'Admin';
+  const canManage = currentRole === 'super_admin' || currentRole === 'manager' || currentRole === 'Admin';
 
   useEffect(() => {
     fetchRiders();
+    
+    const channel = supabase
+      .channel('public:riders')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'riders' }, () => {
+        fetchRiders();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchRiders = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('riders')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching riders:', error);
-    } else {
-      setRiders(data || []);
-    }
-    setLoading(false);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
-      case 'offline':
-        return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
-      case 'suspended':
-        return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-      default:
-        return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
-    }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
     try {
-      const { error } = await supabase.from('riders').insert([{
-        full_name: formData.fullName,
-        phone: formData.phone,
-        email: formData.email,
-        national_id: formData.nationalId,
-        tricycle_number: formData.tricycleNumber,
-        zone: formData.zone,
-        address: formData.address,
-        status: 'active', // Default to active or 'offline'
-        rating: 5.0,
-        total_earnings: 0,
-        total_pickups: 0
-      }]);
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('riders')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setRiders(data || []);
+    } catch (error) {
+      console.error('Error fetching riders:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canManage) {
+      alert('Access Denied.');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('riders')
+        .insert([{
+          ...newRider,
+          status: 'active',
+          rating: 5.0,
+          total_pickups: 0,
+          total_earnings: 0
+        }]);
 
       if (error) throw error;
 
-      // Refresh list
-      fetchRiders();
-
-      // Close and Reset
-      setShowAddRiderModal(false);
-      setFormData({
-        fullName: '',
-        phone: '',
+      alert('Rider registered successfully.');
+      setShowAddModal(false);
+      setNewRider({
+        full_name: '',
+        phone_number: '',
         email: '',
-        nationalId: '',
-        tricycleNumber: '',
-        zone: '',
-        address: '',
+        vehicle_type: 'Motorbike',
+        vehicle_number: ''
       });
-      alert('Rider registered successfully!');
-    } catch (error) {
-      console.error('Error registering rider:', error);
-      alert('Failed to register rider.');
+      fetchRiders();
+    } catch (err: any) {
+      console.error('Error registering rider:', err);
+      alert(`Registration Failed: ${err.message}`);
     }
   };
 
-  // Calculate stats from real data
-  const totalRiders = riders.length;
-  const activeRiders = riders.filter(r => r.status === 'active').length;
-  const suspendedRiders = riders.filter(r => r.status === 'suspended').length;
-  const avgRating = totalRiders > 0
-    ? (riders.reduce((acc, curr) => acc + (curr.rating || 0), 0) / totalRiders).toFixed(1)
-    : '0.0';
+  const filteredRiders = riders.filter(rider => {
+    const nameMatch = rider.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
+    const phoneMatch = rider.phone_number?.includes(searchQuery) || false;
+    const matchesSearch = nameMatch || phoneMatch;
+    const matchesStatus = statusFilter === 'all' || rider.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 font-['Montserrat'] animate-fade-in">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Rider Management</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage tricycle operators and their performance</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Rider Fleet</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Manage and monitor delivery personnel</p>
         </div>
-        <button
-          onClick={() => setShowAddRiderModal(true)}
-          className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors whitespace-nowrap cursor-pointer"
-        >
-          <i className="ri-add-line"></i>
-          Register New Rider
-        </button>
+        <div className="flex items-center gap-3">
+          <ExportButton 
+            data={filteredRiders.map(r => ({
+              Name: r.full_name,
+              Phone: r.phone_number,
+              Vehicle: r.vehicle_type,
+              Number: r.vehicle_number,
+              Status: r.status,
+              Rating: r.rating,
+              Pickups: r.total_pickups
+            }))}
+            fileName="Rider_Fleet_Report"
+            title="Rider Performance Report"
+          />
+          {canManage && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="px-4 py-2 bg-teal-500 text-white rounded-lg text-xs font-bold shadow-md hover:bg-teal-600 transition-all flex items-center gap-2"
+            >
+              <i className="ri-user-add-line"></i>
+              Register Rider
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Total Riders</span>
-            <div className="w-10 h-10 rounded-lg bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
-              <i className="ri-e-bike-2-line text-teal-600 dark:text-teal-400"></i>
+        {[
+          { label: 'Total Riders', value: riders.length, icon: 'ri-steering-2-line', color: 'teal' },
+          { label: 'Active', value: riders.filter(r => r.status === 'active').length, icon: 'ri-radar-line', color: 'emerald' },
+          { label: 'Suspended', value: riders.filter(r => r.status === 'suspended').length, icon: 'ri-error-warning-line', color: 'rose' },
+          { label: 'Avg Rating', value: riders.length ? (riders.reduce((acc, r) => acc + r.rating, 0) / riders.length).toFixed(1) : '5.0', icon: 'ri-star-line', color: 'amber' },
+        ].map((stat, i) => (
+          <div key={i} className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
+            <div className={`w-12 h-12 rounded-lg bg-${stat.color}-500/10 flex items-center justify-center text-${stat.color}-500`}>
+              <i className={`${stat.icon} text-xl`}></i>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white leading-none">{stat.value}</h3>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">{totalRiders}</p>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Active Now</span>
-            <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-              <i className="ri-checkbox-circle-line text-emerald-600 dark:text-emerald-400"></i>
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">{activeRiders}</p>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Avg Rating</span>
-            <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-              <i className="ri-star-line text-amber-600 dark:text-amber-400"></i>
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">{avgRating}</p>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Suspended</span>
-            <div className="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-              <i className="ri-error-warning-line text-red-600 dark:text-red-400"></i>
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">{suspendedRiders}</p>
-        </div>
+        ))}
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">All Riders</h3>
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <i className="ri-search-line text-gray-400 text-sm"></i>
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search riders..."
-                  className="pl-10 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                />
-              </div>
-              <select className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer">
-                <option>All Status</option>
-                <option>Active</option>
-                <option>Offline</option>
-                <option>Suspended</option>
-              </select>
-              <select className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer">
-                <option>All Zones</option>
-                <option>Accra Central</option>
-                <option>Osu</option>
-                <option>Tema</option>
-                <option>Madina</option>
-              </select>
-            </div>
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex flex-col md:flex-row gap-4 justify-between items-center">
+          <div className="relative flex-1 max-w-md w-full">
+            <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            <input 
+              type="text"
+              placeholder="Search riders..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+            />
+          </div>
+          <div className="flex gap-2">
+            {['all', 'active', 'suspended'].map((status) => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`px-4 py-2 text-xs font-bold uppercase rounded-lg transition-all ${
+                  statusFilter === status 
+                  ? 'bg-teal-500 text-white' 
+                  : 'bg-gray-50 dark:bg-gray-900 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                {status}
+              </button>
+            ))}
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700/50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Rider</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Phone</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Zone</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Pickups</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Rating</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Earnings</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {riders.map((rider) => (
-                <tr key={rider.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
-                        <i className="ri-user-line text-teal-600 dark:text-teal-400"></i>
-                      </div>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{rider.full_name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{rider.phone}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{rider.zone}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(rider.status)}`}>
-                      {rider.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{rider.total_pickups}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-1">
-                      <i className="ri-star-fill text-amber-400 text-sm"></i>
-                      <span className="text-sm text-gray-700 dark:text-gray-300">{rider.rating}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                    ₵{rider.total_earnings.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          setSelectedRider(rider);
-                          setShowDetailsModal(true);
-                        }}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-                      >
-                        <i className="ri-eye-line text-gray-600 dark:text-gray-400"></i>
-                      </button>
-                      <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer">
-                        <i className="ri-more-2-fill text-gray-600 dark:text-gray-400"></i>
-                      </button>
-                    </div>
-                  </td>
+
+        {loading ? (
+          <div className="p-20 flex justify-center">
+            <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-gray-50/50 dark:bg-gray-900/50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
+                  <th className="px-6 py-4">Rider Identity</th>
+                  <th className="px-6 py-4">Vehicle Details</th>
+                  <th className="px-6 py-4">Performance</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+                {filteredRiders.map((rider) => (
+                  <tr key={rider.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-teal-500 flex items-center justify-center text-white text-[10px] font-bold">
+                          {rider.full_name?.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-gray-900 dark:text-white uppercase">{rider.full_name}</p>
+                          <p className="text-[10px] text-gray-500">{rider.phone_number}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="text-xs font-bold text-gray-900 dark:text-white">{rider.vehicle_type}</p>
+                      <p className="text-[10px] text-teal-600 font-bold tracking-widest">{rider.vehicle_number}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-4">
+                         <div className="text-center">
+                            <p className="text-xs font-bold text-gray-900 dark:text-white">{rider.total_pickups}</p>
+                            <p className="text-[9px] text-gray-400 uppercase font-black">Trips</p>
+                         </div>
+                         <div className="flex items-center gap-1 text-amber-500">
+                            <i className="ri-star-fill text-[10px]"></i>
+                            <span className="text-xs font-bold">{rider.rating}</span>
+                         </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded text-[9px] font-bold uppercase ${
+                        rider.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/20'
+                      }`}>
+                        {rider.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button 
+                        onClick={() => setSelectedRider(rider)}
+                        className="p-2 text-gray-400 hover:text-teal-500 transition-colors"
+                      >
+                        <i className="ri-eye-line text-lg"></i>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {showDetailsModal && selectedRider && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Rider Details</h3>
-              <button
-                onClick={() => setShowDetailsModal(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-              >
-                <i className="ri-close-line text-gray-600 dark:text-gray-400"></i>
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowAddModal(false)}></div>
+          <div className="relative w-full max-w-lg bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden animate-scale-up border border-gray-100 dark:border-gray-700">
+            <div className="p-6 border-b border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50 flex justify-between items-center">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Register New Rider</h2>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-rose-500">
+                <i className="ri-close-line text-2xl"></i>
               </button>
             </div>
-            <div className="space-y-6">
-              <div className="flex items-center gap-4 pb-6 border-b border-gray-200 dark:border-gray-700">
-                <div className="w-20 h-20 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
-                  <i className="ri-user-line text-teal-600 dark:text-teal-400 text-3xl"></i>
-                </div>
-                <div>
-                  <h4 className="text-xl font-semibold text-gray-900 dark:text-white">{selectedRider.full_name}</h4>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Rider ID: RD-{selectedRider.id.slice(0, 8)}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedRider.status)}`}>
-                      {selectedRider.status}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Phone Number</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedRider.phone}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Operating Zone</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedRider.zone}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Pickups</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedRider.total_pickups}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Rating</p>
-                  <div className="flex items-center gap-1">
-                    <i className="ri-star-fill text-amber-400"></i>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedRider.rating}</p>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Earnings</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">₵{selectedRider.total_earnings.toLocaleString()}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Tricycle Number</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedRider.tricycle_number}</p>
-                </div>
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button className="flex-1 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors whitespace-nowrap cursor-pointer">
-                  Edit Details
-                </button>
-                <button className="flex-1 px-4 py-2 border border-red-300 dark:border-red-600 text-red-600 dark:text-red-400 rounded-lg font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors whitespace-nowrap cursor-pointer">
-                  Suspend Rider
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showAddRiderModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Register New Rider</h3>
-              <button
-                onClick={() => setShowAddRiderModal(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-              >
-                <i className="ri-close-line text-gray-600 dark:text-gray-400"></i>
-              </button>
-            </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            
+            <form onSubmit={handleRegister} className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Full Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="fullName"
-                    value={formData.fullName}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    placeholder="Enter full name"
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Full Name</label>
+                  <input 
+                    type="text" required
+                    value={newRider.full_name}
+                    onChange={e => setNewRider({...newRider, full_name: e.target.value})}
+                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    placeholder="Samuel Adu"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Phone Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    placeholder="+233 24 123 4567"
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Phone Number</label>
+                  <input 
+                    type="tel" required
+                    value={newRider.phone_number}
+                    onChange={e => setNewRider({...newRider, phone_number: e.target.value})}
+                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    placeholder="+233..."
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Email Address
-                  </label>
-                  <input
+                <div className="col-span-2 space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Email (Optional)</label>
+                  <input 
                     type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    placeholder="rider@example.com"
+                    value={newRider.email}
+                    onChange={e => setNewRider({...newRider, email: e.target.value})}
+                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    placeholder="rider@borlawura.gh"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    National ID Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="nationalId"
-                    value={formData.nationalId}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    placeholder="GHA-123456789-0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Tricycle Registration Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="tricycleNumber"
-                    value={formData.tricycleNumber}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    placeholder="GR-1234-24"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Operating Zone <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="zone"
-                    value={formData.zone}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Vehicle Type</label>
+                  <select 
+                    value={newRider.vehicle_type}
+                    onChange={e => setNewRider({...newRider, vehicle_type: e.target.value})}
+                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
                   >
-                    <option value="">Select zone</option>
-                    <option value="Accra Central">Accra Central</option>
-                    <option value="Osu">Osu</option>
-                    <option value="Tema">Tema</option>
-                    <option value="Madina">Madina</option>
-                    <option value="Legon">Legon</option>
-                    <option value="Spintex">Spintex</option>
-                    <option value="Dansoman">Dansoman</option>
-                    <option value="Achimota">Achimota</option>
-                    <option value="Kaneshie">Kaneshie</option>
+                    <option>Motorbike</option>
+                    <option>Tricycle (Aboboyaa)</option>
+                    <option>Mini-Truck</option>
+                    <option>Heavy Truck</option>
                   </select>
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Residential Address <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  placeholder="Enter residential address"
-                />
-              </div>
-              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6">
-                <div className="text-center">
-                  <div className="w-12 h-12 rounded-lg bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center mx-auto mb-3">
-                    <i className="ri-upload-cloud-line text-teal-600 dark:text-teal-400 text-2xl"></i>
-                  </div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">Upload Documents</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">National ID, Driver's License, Tricycle Registration</p>
-                  <button
-                    type="button"
-                    className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors whitespace-nowrap cursor-pointer"
-                  >
-                    Choose Files
-                  </button>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Vehicle Number</label>
+                  <input 
+                    type="text" required
+                    value={newRider.vehicle_number}
+                    onChange={e => setNewRider({...newRider, vehicle_number: e.target.value})}
+                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    placeholder="GW-829"
+                  />
                 </div>
               </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowAddRiderModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors whitespace-nowrap cursor-pointer"
-                >
+              
+              <div className="pt-6 flex gap-3">
+                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-xs font-bold uppercase rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors whitespace-nowrap cursor-pointer"
-                >
+                <button type="submit" className="flex-1 py-3 bg-teal-500 text-white rounded-lg text-xs font-bold shadow-lg hover:bg-teal-600">
                   Register Rider
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {selectedRider && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSelectedRider(null)}></div>
+          <div className="relative w-full max-w-lg bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden animate-scale-up border border-gray-100 dark:border-gray-700">
+            <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-900/50">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Rider Dossier</h2>
+              <button onClick={() => setSelectedRider(null)} className="text-gray-400 hover:text-rose-500">
+                <i className="ri-close-line text-2xl"></i>
+              </button>
+            </div>
+            
+            <div className="p-8">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-20 h-20 rounded-xl bg-teal-500 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
+                  {selectedRider.full_name?.charAt(0)}
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white uppercase">{selectedRider.full_name}</h3>
+                  <div className="flex items-center gap-1 mt-1 text-amber-500">
+                     <i className="ri-star-fill"></i>
+                     <span className="text-sm font-bold text-gray-600 dark:text-gray-400">{selectedRider.rating} / 5.0</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6 mb-8">
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Vehicle</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{selectedRider.vehicle_type}</p>
+                  <p className="text-[10px] text-teal-600 font-bold">{selectedRider.vehicle_number}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Contact</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{selectedRider.phone_number}</p>
+                </div>
+                <div>
+                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">History</p>
+                   <p className="text-sm font-bold text-gray-900 dark:text-white">{selectedRider.total_pickups} Total Trips</p>
+                </div>
+                <div>
+                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Record</p>
+                   <p className="text-sm font-bold text-emerald-600">₵{(selectedRider.total_earnings || 0).toLocaleString()} Generated</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button onClick={() => setSelectedRider(null)} className="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-white text-xs font-bold uppercase rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

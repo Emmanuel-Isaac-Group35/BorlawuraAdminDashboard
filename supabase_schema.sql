@@ -2,15 +2,16 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Drop existing tables if they exist to start fresh
-DROP TABLE IF EXISTS public.payments;
-DROP TABLE IF EXISTS public.pickups;
-DROP TABLE IF EXISTS public.users;
-DROP TABLE IF EXISTS public.riders;
-DROP TABLE IF EXISTS public.admins;
-DROP TABLE IF EXISTS public.profiles;
-DROP TABLE IF EXISTS public.sms_logs;
-DROP TABLE IF EXISTS public.feedback;
-DROP TABLE IF EXISTS public.audit_logs;
+-- Drop existing tables with CASCADE to handle dependencies
+DROP TABLE IF EXISTS public.payments CASCADE;
+DROP TABLE IF EXISTS public.pickups CASCADE;
+DROP TABLE IF EXISTS public.audit_logs CASCADE;
+DROP TABLE IF EXISTS public.feedback CASCADE;
+DROP TABLE IF EXISTS public.sms_logs CASCADE;
+DROP TABLE IF EXISTS public.users CASCADE;
+DROP TABLE IF EXISTS public.riders CASCADE;
+DROP TABLE IF EXISTS public.admins CASCADE;
+DROP TABLE IF EXISTS public.profiles CASCADE;
 
 -- 1. Admins Table
 CREATE TABLE public.admins (

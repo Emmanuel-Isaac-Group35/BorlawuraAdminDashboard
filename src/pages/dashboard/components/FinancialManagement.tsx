@@ -30,25 +30,29 @@ export default function FinancialManagement() {
 
   const fetchFinancials = async () => {
     setLoading(true);
-    // Fetch Payments with User details
-    const { data: paymentsData, error: paymentsError } = await supabase
-      .from('payments')
-      .select('*, users(full_name)')
-      .order('created_at', { ascending: false });
+    try {
+      // Fetch Payments with User details
+      const { data: paymentsData, error: paymentsError } = await supabase
+        .from('payments')
+        .select('*, users(full_name)')
+        .order('created_at', { ascending: false });
 
-    if (paymentsError) console.error('Error fetching payments:', paymentsError);
-    else setPayments(paymentsData || []);
+      if (paymentsError) console.error('Error fetching payments:', paymentsError);
+      else setPayments(paymentsData || []);
 
-    // Fetch Riders for Payouts view
-    const { data: ridersData, error: ridersError } = await supabase
-      .from('riders')
-      .select('*')
-      .order('total_earnings', { ascending: false });
+      // Fetch Riders for Payouts view
+      const { data: ridersData, error: ridersError } = await supabase
+        .from('riders')
+        .select('*')
+        .order('total_earnings', { ascending: false });
 
-    if (ridersError) console.error('Error fetching riders:', ridersError);
-    else setRiders(ridersData || []);
-
-    setLoading(false);
+      if (ridersError) console.error('Error fetching riders:', ridersError);
+      else setRiders(ridersData || []);
+    } catch (error) {
+      console.error('Error fetching financial data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const calculateStats = () => {

@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Fix default icon issue
+// Fix Leaflet marker icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
@@ -12,23 +12,22 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
 });
 
-// Custom Icons
 const createRiderIcon = (status: string) => {
   let color = '#9ca3af'; // gray-400
-  if (status === 'online') color = '#10b981'; // emerald-500
-  if (status === 'busy') color = '#f59e0b'; // amber-500
+  if (status === 'online') color = '#10b981';
+  if (status === 'busy') color = '#f59e0b';
 
   return L.divIcon({
     className: 'custom-rider-icon',
-    html: `<div style="background-color: ${color}; width: 100%; height: 100%; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>`,
-    iconSize: [20, 20],
-    iconAnchor: [10, 10], // Center
-    popupAnchor: [0, -10]
+    html: `<div style="background-color: ${color}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px ${color}80;"></div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+    popupAnchor: [0, -7]
   });
 };
 
 interface Rider {
-  id: string; // Changed to string (UUID)
+  id: string;
   name: string;
   phone: string;
   zone: string;
@@ -38,486 +37,246 @@ interface Rider {
     lng: number;
     address: string;
   };
-  currentPickup?: string;
   lastUpdate: string;
   speed: number;
-  battery: number;
 }
 
 export default function LiveTracking() {
-  const [selectedRider, setSelectedRider] = useState<Rider | null>(null);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState('');
   const [riders, setRiders] = useState<Rider[]>([]);
-  // const [loading, setLoading] = useState(true); // removed unused var warning
+  const [selectedRider, setSelectedRider] = useState<Rider | null>(null);
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  // ACCRA CENTER: 5.6037, -0.1870
   const BASE_LAT = 5.6037;
   const BASE_LNG = -0.1870;
 
   useEffect(() => {
     fetchRiders();
 
-    // Subscribe to Realtime Updates
-    const subscription = supabase
+    const channel = supabase
       .channel('public:riders')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'riders' }, (payload) => {
-        const updatedRider = payload.new;
-        setRiders((prev) =>
-          prev.map((r) => {
-            if (r.id === updatedRider.id) {
-              return {
-                ...r,
-                status: mapStatus(updatedRider.status),
-                name: updatedRider.full_name,
-                zone: updatedRider.zone,
-                location: {
-                  lat: updatedRider.latitude ?? r.location.lat,
-                  lng: updatedRider.longitude ?? r.location.lng,
-                  address: updatedRider.address ?? r.location.address
-                },
-                lastUpdate: 'Just now'
-              };
-            }
-            return r;
-          })
-        );
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'riders' }, () => {
+        fetchRiders();
       })
       .subscribe();
 
     return () => {
-      supabase.removeChannel(subscription);
+      supabase.removeChannel(channel);
     };
   }, []);
 
-  // Poll for simulated GPS movement (Simulate LIVE Movement if no real data is flowing)
-  // We keep this optionally or maybe only for 'busy' riders if lat/lng is missing? 
-  // For now, let's keep it but make it subtle, or remove it in favor of real updates if that's what the user wants.
-  // The user asked to "be able to live track", which implies real functionality. 
-  // Often purely random movement is confusing if you are testing real updates.
-  // I will comment out the simulation or make it conditional on a "Demo Mode" flag, 
-  // but to satisfy "when a rider comes online... live track", I should prioritize real data.
-  // I'll leave the existing simulation logic as it is for now but ensure real updates override it.
-
-  useEffect(() => {
-    // Only simulate if we don't have real updates coming in, or just for visual effect on static ones
-    // For this task, I'll rely on the real subscription above.
-    // However, the original code had a simulation interval. I'll keep it but make it respect existing coordinates if they are stable? 
-    // No, let's strictly rely on the DB updates for "live tracking" as requested, 
-    // but maybe keep the battery/speed simulation for liveliness if those aren't in DB.
-
-    const interval = setInterval(() => {
-      setRiders(prevRiders =>
-        prevRiders.map(rider => ({
-          ...rider,
-          // Only simulate small jitter if status is busy/online and valid real coords exist?
-          // Actually, let's keep the battery/speed sim but STOP moving the location randomly 
-          // to prove that the "Online" location tracking works from the DB.
-          lastUpdate: rider.status === 'offline' ? rider.lastUpdate : 'Just now', // Keep updating time
-          speed: rider.status === 'busy' ? Math.floor(Math.random() * 30) + 10 : 0,
-          battery: Math.max(20, rider.battery - 0.1),
-          // location: ... // REMOVED random location jitter to allow real tracking verification
-        }))
-      );
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const mapStatus = (dbStatus: string): 'online' | 'offline' | 'busy' => {
-    if (dbStatus === 'active') return 'online';
-    if (dbStatus === 'busy') return 'busy';
-    return 'offline'; // 'suspended' or 'offline'
-  };
-
   const fetchRiders = async () => {
-    // setLoading(true);
-    const { data, error } = await supabase.from('riders').select('*');
-    if (error) {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.from('riders').select('*');
+      if (error) throw error;
+
+      if (data) {
+        setRiders(data.map(r => ({
+          id: r.id,
+          name: r.full_name,
+          phone: r.phone_number || r.phone || 'N/A',
+          zone: r.zone || 'Central',
+          status: r.status === 'active' ? 'online' : (r.status === 'busy' ? 'busy' : 'offline'),
+          location: {
+            lat: r.latitude || BASE_LAT + (Math.random() - 0.5) * 0.05,
+            lng: r.longitude || BASE_LNG + (Math.random() - 0.5) * 0.05,
+            address: r.address || 'Accra, Ghana'
+          },
+          lastUpdate: new Date().toLocaleTimeString(),
+          speed: r.status === 'busy' ? Math.floor(Math.random() * 20) + 10 : 0
+        })));
+      }
+    } catch (error) {
       console.error('Error fetching riders:', error);
-    } else if (data) {
-      const mappedRiders: Rider[] = data.map((r) => ({
-        id: r.id,
-        name: r.full_name,
-        phone: r.phone,
-        zone: r.zone || 'Unknown',
-        status: mapStatus(r.status),
-        location: {
-          // Use DB latitude/longitude if available, else fall back to base + random spread
-          lat: r.latitude || (BASE_LAT + (Math.random() - 0.5) * 0.1),
-          lng: r.longitude || (BASE_LNG + (Math.random() - 0.5) * 0.1),
-          address: r.address || 'Accra'
-        },
-        lastUpdate: 'Just now',
-        speed: 0,
-        battery: 100 - Math.floor(Math.random() * 30)
-      }));
-      setRiders(mappedRiders);
-    }
-    // setLoading(false);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'online':
-        return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
-      case 'busy':
-        return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
-      case 'offline':
-        return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
-      default:
-        return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'online':
-        return 'ri-checkbox-circle-fill';
-      case 'busy':
-        return 'ri-time-fill';
-      case 'offline':
-        return 'ri-close-circle-fill';
-      default:
-        return 'ri-question-fill';
-    }
-  };
-
-  const getBatteryColor = (battery: number) => {
-    if (battery > 60) return 'text-emerald-600 dark:text-emerald-400';
-    if (battery > 30) return 'text-amber-600 dark:text-amber-400';
-    return 'text-red-600 dark:text-red-400';
-  };
-
-  const filteredRiders = riders.filter(rider => {
-    const matchesStatus = filterStatus === 'all' || rider.status === filterStatus;
-    const matchesSearch = rider.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      rider.zone.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredRiders = riders.filter(r => {
+    const matchesStatus = filterStatus === 'all' || r.status === filterStatus;
+    const matchesSearch = r.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
-  const onlineCount = riders.filter(r => r.status === 'online').length;
-  const busyCount = riders.filter(r => r.status === 'busy').length;
-  const offlineCount = riders.filter(r => r.status === 'offline').length;
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'online': return 'text-emerald-500 bg-emerald-100 dark:bg-emerald-900/20';
+      case 'busy': return 'text-amber-500 bg-amber-100 dark:bg-amber-900/20';
+      default: return 'text-gray-500 bg-gray-100 dark:bg-gray-900/20';
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Live Rider Tracking</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Real-time location monitoring and status updates</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Total Riders</span>
-            <div className="w-10 h-10 rounded-lg bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
-              <i className="ri-e-bike-2-line text-teal-600 dark:text-teal-400"></i>
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">{riders.length}</p>
+    <div className="space-y-6 font-['Montserrat'] animate-fade-in">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Live Tracking</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Real-time GPS monitoring across the service network</p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Online</span>
-            <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-              <i className="ri-checkbox-circle-line text-emerald-600 dark:text-emerald-400"></i>
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">{onlineCount}</p>
-          <div className="flex items-center gap-1 mt-2">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-            <span className="text-xs text-emerald-600 dark:text-emerald-400">Available</span>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500 dark:text-gray-400">On Duty</span>
-            <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-              <i className="ri-truck-line text-amber-600 dark:text-amber-400"></i>
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">{busyCount}</p>
-          <div className="flex items-center gap-1 mt-2">
-            <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
-            <span className="text-xs text-amber-600 dark:text-amber-400">Active pickups</span>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Offline</span>
-            <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-              <i className="ri-close-circle-line text-gray-600 dark:text-gray-400"></i>
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">{offlineCount}</p>
+        <div className="flex items-center gap-2 bg-white dark:bg-gray-800 p-1.5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+           <span className="flex h-2 w-2 relative mx-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
+           </span>
+           <span className="text-[10px] font-bold text-teal-600 uppercase tracking-widest pr-2">GNSS Active</span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Live Map View</h3>
-              <div className="flex items-center gap-2">
-                <button className="px-3 py-1.5 text-xs font-medium bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 rounded-lg hover:bg-teal-200 dark:hover:bg-teal-900/50 transition-colors whitespace-nowrap cursor-pointer">
-                  <i className="ri-refresh-line mr-1"></i>
-                  Auto-refresh: ON
-                </button>
-              </div>
-            </div>
-          </div>
-          <div className="p-6">
-            <div className="w-full h-[600px] z-0 relative rounded-lg overflow-hidden">
-              <MapContainer center={[5.6037, -0.1870]} zoom={13} style={{ height: '100%', width: '100%' }}>
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                {riders.filter(r => r.status !== 'offline').map((rider) => (
-                  <Marker
-                    key={rider.id}
-                    position={[rider.location.lat, rider.location.lng]}
-                    icon={createRiderIcon(rider.status)}
-                    eventHandlers={{
-                      click: () => setSelectedRider(rider),
-                    }}
-                  >
-                    <Popup>
-                      <div className="font-semibold text-gray-900">{rider.name}</div>
-                      <div className="text-xs text-gray-600">{rider.zone}</div>
-                      <div className={`text-xs mt-1 font-medium ${rider.status === 'online' ? 'text-emerald-600' : 'text-amber-600'}`}>
-                        {rider.status.toUpperCase()}
-                      </div>
-                    </Popup>
-                  </Marker>
-                ))}
-              </MapContainer>
-
-              {/* Legend Overlay */}
-              <div className="absolute top-4 right-4 bg-white dark:bg-gray-800 rounded-lg p-3 shadow-lg z-[1000]">
-                <div className="flex flex-col gap-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-emerald-500 border border-white dark:border-gray-700"></div>
-                    <span className="text-gray-700 dark:text-gray-300">Online</span>
+        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden h-[650px] z-0 relative">
+          <MapContainer center={[BASE_LAT, BASE_LNG]} zoom={12} style={{ height: '100%', width: '100%' }}>
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            {riders.filter(r => r.status !== 'offline').map((rider) => (
+              <Marker
+                key={rider.id}
+                position={[rider.location.lat, rider.location.lng]}
+                icon={createRiderIcon(rider.status)}
+                eventHandlers={{ click: () => setSelectedRider(rider) }}
+              >
+                <Popup>
+                  <div className="p-1">
+                    <p className="font-bold text-xs uppercase">{rider.name}</p>
+                    <p className="text-[9px] text-gray-500 font-bold uppercase">{rider.status}</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-amber-500 border border-white dark:border-gray-700"></div>
-                    <span className="text-gray-700 dark:text-gray-300">Busy</span>
-                  </div>
+                </Popup>
+              </Marker>
+            ))}
+          </MapContainer>
+          
+          <div className="absolute top-4 right-4 z-[500] bg-white/90 dark:bg-gray-800/90 backdrop-blur p-3 rounded-lg shadow-xl border border-gray-100 dark:border-gray-700">
+             <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                   <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+                   <span className="text-[9px] font-bold text-gray-600 dark:text-gray-300 uppercase">Available</span>
                 </div>
-              </div>
-            </div>
+                <div className="flex items-center gap-2">
+                   <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
+                   <span className="text-[9px] font-bold text-gray-600 dark:text-gray-300 uppercase">In-Transit</span>
+                </div>
+             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Active Riders</h3>
-            <div className="space-y-3">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <i className="ri-search-line text-gray-400 text-sm"></i>
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col h-[650px]">
+             <div className="p-4 border-b border-gray-50 dark:border-gray-700 space-y-4">
+                <div className="relative">
+                   <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                   <input 
+                     type="text"
+                     placeholder="Intercept rider ID..."
+                     value={searchQuery}
+                     onChange={(e) => setSearchQuery(e.target.value)}
+                     className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-teal-500"
+                   />
                 </div>
-                <input
-                  type="text"
-                  placeholder="Search riders..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                />
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setFilterStatus('all')}
-                  className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${filterStatus === 'all'
-                    ? 'bg-teal-600 text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    }`}
-                >
-                  All
-                </button>
-                <button
-                  onClick={() => setFilterStatus('online')}
-                  className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${filterStatus === 'online'
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    }`}
-                >
-                  Online
-                </button>
-                <button
-                  onClick={() => setFilterStatus('busy')}
-                  className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${filterStatus === 'busy'
-                    ? 'bg-amber-600 text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    }`}
-                >
-                  Busy
-                </button>
-              </div>
-            </div>
-          </div>
-          <div className="p-4 space-y-3 max-h-[520px] overflow-y-auto">
-            {filteredRiders.map((rider) => (
-              <div
-                key={rider.id}
-                onClick={() => setSelectedRider(rider)}
-                className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${selectedRider?.id === rider.id
-                  ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/20'
-                  : 'border-gray-200 dark:border-gray-700 hover:border-teal-300 dark:hover:border-teal-700 bg-gray-50 dark:bg-gray-700/50'
-                  }`}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <div className="w-10 h-10 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
-                        <i className="ri-user-line text-teal-600 dark:text-teal-400"></i>
-                      </div>
-                      <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center ${rider.status === 'online' ? 'bg-emerald-500' :
-                        rider.status === 'busy' ? 'bg-amber-500' : 'bg-gray-400'
-                        }`}>
-                        <i className={`${getStatusIcon(rider.status)} text-white text-xs`}></i>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{rider.name}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{rider.zone}</p>
-                    </div>
-                  </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(rider.status)}`}>
-                    {rider.status}
-                  </span>
+                <div className="flex gap-1 overflow-x-auto pb-1">
+                   {['all', 'online', 'busy', 'offline'].map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setFilterStatus(s)}
+                        className={`px-3 py-1.5 text-[9px] font-bold uppercase rounded-lg transition-all ${
+                          filterStatus === s ? 'bg-teal-500 text-white' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                         {s}
+                      </button>
+                   ))}
                 </div>
+             </div>
 
-                <div className="space-y-2 mt-3">
-                  <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                    <i className="ri-map-pin-line"></i>
-                    <span className="truncate">{rider.location.address}</span>
-                  </div>
-
-                  {rider.currentPickup && (
-                    <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
-                      <i className="ri-truck-line"></i>
-                      <span>Active: {rider.currentPickup}</span>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-600">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1">
-                        <i className="ri-speed-line text-gray-500 dark:text-gray-400 text-xs"></i>
-                        <span className="text-xs text-gray-600 dark:text-gray-400">{rider.speed} km/h</span>
+             <div className="flex-1 overflow-y-auto divide-y divide-gray-50 dark:divide-gray-700 scrollbar-hide">
+                {filteredRiders.map((rider) => (
+                   <div 
+                     key={rider.id}
+                     onClick={() => setSelectedRider(rider)}
+                     className={`p-4 hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer ${selectedRider?.id === rider.id ? 'bg-teal-50/50 dark:bg-teal-900/10' : ''}`}
+                   >
+                      <div className="flex justify-between items-start mb-2">
+                         <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-teal-500/10 flex items-center justify-center text-teal-600 font-bold text-xs">
+                               {rider.name.charAt(0)}
+                            </div>
+                            <div>
+                               <p className="text-[11px] font-bold text-gray-900 dark:text-white uppercase truncate max-w-[120px]">{rider.name}</p>
+                               <p className="text-[9px] text-gray-400 font-bold uppercase">{rider.zone}</p>
+                            </div>
+                         </div>
+                         <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase ${getStatusColor(rider.status)}`}>
+                            {rider.status}
+                         </span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <i className={`ri-battery-2-charge-line ${getBatteryColor(rider.battery)} text-xs`}></i>
-                        <span className="text-xs text-gray-600 dark:text-gray-400">{Math.round(rider.battery)}%</span>
+                      <div className="space-y-2 mt-3">
+                         <div className="flex items-center gap-2 text-gray-500">
+                            <i className="ri-map-pin-line text-[10px]"></i>
+                            <span className="text-[9px] font-medium truncate">{rider.location.address}</span>
+                         </div>
+                         <div className="flex items-center justify-between text-[8px] font-bold uppercase text-gray-400">
+                            <div className="flex gap-3">
+                               <span>{rider.speed} KM/H</span>
+                               <span>LITE-BAND</span>
+                            </div>
+                            <span>{rider.lastUpdate}</span>
+                         </div>
                       </div>
-                    </div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">{rider.lastUpdate}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+                   </div>
+                ))}
+             </div>
           </div>
         </div>
       </div>
 
       {selectedRider && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Rider Details</h3>
-              <button
-                onClick={() => setSelectedRider(null)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-              >
-                <i className="ri-close-line text-gray-600 dark:text-gray-400"></i>
-              </button>
-            </div>
-
-            <div className="space-y-6">
-              <div className="flex items-center gap-4 pb-6 border-b border-gray-200 dark:border-gray-700">
-                <div className="relative">
-                  <div className="w-20 h-20 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
-                    <i className="ri-user-line text-teal-600 dark:text-teal-400 text-3xl"></i>
-                  </div>
-                  <div className={`absolute -bottom-2 -right-2 w-6 h-6 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center ${selectedRider.status === 'online' ? 'bg-emerald-500' :
-                    selectedRider.status === 'busy' ? 'bg-amber-500' : 'bg-gray-400'
-                    }`}>
-                    <i className={`${getStatusIcon(selectedRider.status)} text-white text-sm`}></i>
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <h4 className="text-xl font-semibold text-gray-900 dark:text-white">{selectedRider.name}</h4>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{selectedRider.phone}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedRider.status)}`}>
-                      {selectedRider.status}
-                    </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">Last update: {selectedRider.lastUpdate}</span>
-                  </div>
-                </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSelectedRider(null)}></div>
+           <div className="relative w-full max-w-lg bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden animate-scale-up border border-gray-100 dark:border-gray-700">
+              <div className="p-6 border-b border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50 flex justify-between items-center">
+                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">Telemetry Intel</h2>
+                 <button onClick={() => setSelectedRider(null)} className="text-gray-400 hover:text-rose-500">
+                    <i className="ri-close-line text-2xl"></i>
+                 </button>
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Operating Zone</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedRider.zone}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Current Speed</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedRider.speed} km/h</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Battery Level</p>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full ${selectedRider.battery > 60 ? 'bg-emerald-500' :
-                          selectedRider.battery > 30 ? 'bg-amber-500' : 'bg-red-500'
-                          }`}
-                        style={{ width: `${selectedRider.battery}%` }}
-                      ></div>
+              <div className="p-6 space-y-6">
+                 <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-xl bg-teal-500 flex items-center justify-center text-white text-2xl font-bold">
+                       {selectedRider.name.charAt(0)}
                     </div>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">{Math.round(selectedRider.battery)}%</span>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Active Pickup</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {selectedRider.currentPickup || 'None'}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Current Location</p>
-                <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <i className="ri-map-pin-line text-teal-600 dark:text-teal-400 mt-0.5"></i>
                     <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedRider.location.address}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Lat: {selectedRider.location.lat.toFixed(4)}, Lng: {selectedRider.location.lng.toFixed(4)}
-                      </p>
+                       <h3 className="text-xl font-bold text-gray-900 dark:text-white uppercase">{selectedRider.name}</h3>
+                       <p className="text-xs font-bold text-teal-600 uppercase tracking-widest">{selectedRider.phone}</p>
                     </div>
-                  </div>
-                </div>
-              </div>
+                 </div>
 
-              <div className="flex gap-3 pt-4">
-                <button className="flex-1 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors whitespace-nowrap cursor-pointer">
-                  <i className="ri-phone-line mr-2"></i>
-                  Call Rider
-                </button>
-                <button className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors whitespace-nowrap cursor-pointer">
-                  <i className="ri-message-3-line mr-2"></i>
-                  Send Message
-                </button>
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                       <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Status</p>
+                       <p className="text-xs font-bold text-teal-600 uppercase">{selectedRider.status}</p>
+                    </div>
+                    <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                       <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Velocity</p>
+                       <p className="text-xs font-bold text-gray-900 dark:text-white uppercase">{selectedRider.speed} KM/H</p>
+                    </div>
+                 </div>
+
+                 <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                    <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Geolocation</p>
+                    <p className="text-xs font-bold text-gray-900 dark:text-white">{selectedRider.location.address}</p>
+                    <p className="text-[9px] font-mono text-gray-500 mt-1">{selectedRider.location.lat.toFixed(6)}, {selectedRider.location.lng.toFixed(6)}</p>
+                 </div>
+
+                 <div className="flex gap-3">
+                    <button className="flex-1 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg text-xs font-bold uppercase shadow-lg">
+                       Emergency Comms
+                    </button>
+                    <button className="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-white rounded-lg text-xs font-bold uppercase transition-all">
+                       Audit History
+                    </button>
+                 </div>
               </div>
-            </div>
-          </div>
+           </div>
         </div>
       )}
     </div>

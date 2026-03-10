@@ -21,18 +21,23 @@ export default function HouseholdManagement() {
 
   const fetchHouseholds = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('registration_status', 'approved') // Only show approved users as active households
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('registration_status', 'approved') // Only show approved users as active households
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching households:', error);
-    } else {
-      setHouseholds(data || []);
+      if (error) {
+        console.error('Error fetching households:', error);
+      } else {
+        setHouseholds(data || []);
+      }
+    } catch (error) {
+      console.error('Error in fetchHouseholds:', error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const getStatusColor = (status: string) => {

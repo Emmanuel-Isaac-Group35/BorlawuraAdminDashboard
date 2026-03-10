@@ -1,307 +1,307 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { createClient } from '@supabase/supabase-js';
+import ExportButton from './ExportButton';
 
-interface Admin {
+interface AdminMember {
   id: string;
   full_name: string;
   email: string;
-  role: string;
-  status: string;
-  last_login: string;
+  role: 'super_admin' | 'manager' | 'dispatcher' | 'support';
+  status: 'active' | 'inactive';
+  created_at: string;
+  last_login: string | null;
 }
 
 export default function AdminManagement() {
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [admins, setAdmins] = useState<Admin[]>([]);
+  const [admins, setAdmins] = useState<AdminMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newAdmin, setNewAdmin] = useState({
+    full_name: '',
     email: '',
-    role: 'Select role',
+    role: 'dispatcher',
     password: ''
   });
 
+  const currentRole = localStorage.getItem('simulatedRole') || 'Admin';
+  const isSuperAdmin = currentRole === 'super_admin' || currentRole === 'Admin';
+
   useEffect(() => {
     fetchAdmins();
+    
+    const channel = supabase
+      .channel('public:admins')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'admins' }, () => {
+        fetchAdmins();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchAdmins = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('admins')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('admins')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching admins:', error);
-    } else {
+      if (error) throw error;
       setAdmins(data || []);
+    } catch (error) {
+      console.error('Error fetching admins:', error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  const handleSaveAdmin = async (e: React.FormEvent) => {
+  const handleAddAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
+    if (!isSuperAdmin) {
+      alert('Only Super Admins can add new personnel.');
+      return;
+    }
 
     try {
-      if (!formData.email || !formData.password || formData.name === '' || formData.role === 'Select role') {
-        alert('Please fill in all fields');
-        setSubmitting(false);
-        return;
-      }
-
-      // Create temporary client to avoid logging out current user
-      const tempClient = createClient(
-        import.meta.env.VITE_SUPABASE_URL,
-        import.meta.env.VITE_SUPABASE_ANON_KEY,
-        { auth: { persistSession: false } }
-      );
-
       // 1. Create Auth User
-      const { data: authData, error: authError } = await tempClient.auth.signUp({
-        email: formData.email,
-        password: formData.password,
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: newAdmin.email,
+        password: newAdmin.password,
         options: {
-          data: { full_name: formData.name, role: formData.role }
+          data: {
+            full_name: newAdmin.full_name,
+            role: newAdmin.role
+          }
         }
       });
 
       if (authError) throw authError;
 
-      if (authData.user) {
-        // 2. Insert into public.admins
-        // We use the Auth User ID as the Primary Key to link them
-        const { error: dbError } = await supabase.from('admins').insert({
-          id: authData.user.id,
-          full_name: formData.name,
-          email: formData.email,
-          role: formData.role,
+      // 2. Insert into admins table
+      const { error: profileError } = await supabase
+        .from('admins')
+        .insert([{
+          full_name: newAdmin.full_name,
+          email: newAdmin.email,
+          role: newAdmin.role,
           status: 'active'
-        });
+        }]);
 
-        if (dbError) throw dbError;
+      if (profileError) throw profileError;
 
-        // Success
-        alert('Admin created successfully! (User can now login)');
-        setShowAddModal(false);
-        setFormData({ name: '', email: '', role: 'Select role', password: '' });
-        fetchAdmins();
-      }
-
-    } catch (error: any) {
-      console.error('Error creating admin:', error);
-      alert('Error: ' + error.message);
-    } finally {
-      setSubmitting(false);
+      alert('New admin successfully added.');
+      setShowAddModal(false);
+      setNewAdmin({ full_name: '', email: '', role: 'dispatcher', password: '' });
+      fetchAdmins();
+    } catch (err: any) {
+      console.error('Error adding admin:', err);
+      alert(`Failed to add admin: ${err.message}`);
     }
   };
 
-  const roles = [
-    { name: 'Super Admin', permissions: ['All Permissions'], color: 'rose' },
-    { name: 'Operations Admin', permissions: ['Manage Riders', 'Manage Pickups', 'View Analytics'], color: 'teal' },
-    { name: 'Finance Admin', permissions: ['View Financial Data', 'Approve Payouts', 'Export Reports'], color: 'amber' },
-    { name: 'Support Admin', permissions: ['Manage Households', 'View Requests', 'Handle Support'], color: 'blue' },
-  ];
+  const toggleStatus = async (id: string, currentStatus: string) => {
+    if (!isSuperAdmin) {
+      alert('Permission denied.');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('admins')
+        .update({ status: currentStatus === 'active' ? 'inactive' : 'active' })
+        .eq('id', id);
+      
+      if (error) throw error;
+      alert(`Admin status updated to ${currentStatus === 'active' ? 'inactive' : 'active'}`);
+    } catch (error) {
+      console.error('Error toggling status:', error);
+      alert('Status update failed.');
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 font-['Montserrat'] animate-fade-in">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Admin & Role Management</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage administrator accounts and permissions</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Admin Management</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Manage system personnel and access levels</p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors whitespace-nowrap cursor-pointer"
-        >
-          <i className="ri-add-line"></i>
-          Add New Admin
-        </button>
+        <div className="flex items-center gap-3">
+          <ExportButton 
+            data={admins.map(a => ({
+              Name: a.full_name,
+              Email: a.email,
+              Role: a.role,
+              Status: a.status,
+              Last_Login: a.last_login || 'Never'
+            }))}
+            fileName="Admins_Registry"
+            title="Administrative Access Report"
+          />
+          {isSuperAdmin && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="px-4 py-2 bg-teal-500 text-white rounded-lg text-xs font-bold shadow-md hover:bg-teal-600 transition-all flex items-center gap-2"
+            >
+              <i className="ri-user-add-line"></i>
+              Add Admin
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {roles.map((role, index) => (
-          <div key={index} className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-            <div className={`w-12 h-12 rounded-lg bg-${role.color}-100 dark:bg-${role.color}-900/30 flex items-center justify-center mb-4`}>
-              <i className={`ri-shield-user-line text-${role.color}-600 dark:text-${role.color}-400 text-xl`}></i>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {[
+          { label: 'Total Staff', value: admins.length, icon: 'ri-team-line', color: 'teal' },
+          { label: 'Super Admins', value: admins.filter(a => a.role === 'super_admin').length, icon: 'ri-shield-star-line', color: 'rose' },
+          { label: 'Active', value: admins.filter(a => a.status === 'active').length, icon: 'ri-flashlight-line', color: 'emerald' },
+          { label: 'Inactive', value: admins.filter(a => a.status === 'inactive').length, icon: 'ri-error-warning-line', color: 'gray' },
+        ].map((stat, i) => (
+          <div key={i} className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
+            <div className={`w-12 h-12 rounded-lg bg-${stat.color}-500/10 flex items-center justify-center text-${stat.color}-500`}>
+              <i className={`${stat.icon} text-xl`}></i>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{role.name}</h3>
-            <ul className="space-y-2">
-              {role.permissions.map((permission, idx) => (
-                <li key={idx} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                  <i className="ri-check-line text-emerald-500"></i>
-                  {permission}
-                </li>
-              ))}
-            </ul>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white leading-none">{stat.value}</h3>
+            </div>
           </div>
         ))}
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Administrator Accounts</h3>
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <i className="ri-search-line text-gray-400 text-sm"></i>
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search admins..."
-                  className="pl-10 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                />
-              </div>
-              <select className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer">
-                <option>All Roles</option>
-                <option>Super Admin</option>
-                <option>Operations Admin</option>
-                <option>Finance Admin</option>
-                <option>Support Admin</option>
-              </select>
-            </div>
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-gray-50 dark:border-gray-700">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Personnel Directory</h2>
+        </div>
+        
+        {loading ? (
+          <div className="p-20 flex justify-center">
+            <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
           </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700/50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Admin</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Role</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Last Login</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {admins.map((admin) => (
-                <tr key={admin.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
-                        <span className="text-sm font-semibold text-teal-600 dark:text-teal-400">
-                          {admin.full_name?.split(' ').map(n => n[0]).join('') || 'A'}
-                        </span>
-                      </div>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{admin.full_name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{admin.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400">
-                      {admin.role}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${admin.status === 'active'
-                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                      : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                      }`}>
-                      {admin.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    {admin.last_login ? new Date(admin.last_login).toLocaleString() : 'Never'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer">
-                        <i className="ri-edit-line text-gray-600 dark:text-gray-400"></i>
-                      </button>
-                      <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer">
-                        <i className="ri-more-2-fill text-gray-600 dark:text-gray-400"></i>
-                      </button>
-                    </div>
-                  </td>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-gray-50/50 dark:bg-gray-900/50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
+                  <th className="px-6 py-4">Name & Email</th>
+                  <th className="px-6 py-4">Access Role</th>
+                  <th className="px-6 py-4">Last Active</th>
+                  <th className="px-6 py-4 text-right">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+                {admins.map((admin) => (
+                  <tr key={admin.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500 text-xs font-bold">
+                          {admin.full_name?.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-gray-900 dark:text-white">{admin.full_name}</p>
+                          <p className="text-[10px] text-gray-500">{admin.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded text-[9px] font-bold uppercase tracking-widest ${
+                        admin.role === 'super_admin' ? 'bg-rose-100 text-rose-700' : 
+                        admin.role === 'manager' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                      }`}>
+                        {admin.role.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-[10px] text-gray-500">
+                      {admin.last_login ? new Date(admin.last_login).toLocaleString() : 'Never'}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button 
+                        disabled={!isSuperAdmin}
+                        onClick={() => toggleStatus(admin.id, admin.status)}
+                        className={`px-3 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all ${
+                          admin.status === 'active' 
+                          ? 'bg-emerald-500 text-white shadow-md' 
+                          : 'bg-gray-100 text-gray-400 dark:bg-gray-700'
+                        } ${!isSuperAdmin ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+                      >
+                        {admin.status}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Add New Administrator</h3>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-              >
-                <i className="ri-close-line text-gray-600 dark:text-gray-400"></i>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowAddModal(false)}></div>
+          <div className="relative w-full max-w-lg bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden animate-scale-up border border-gray-100 dark:border-gray-700">
+            <div className="p-6 border-b border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50 flex justify-between items-center">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Add New Admin</h2>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-rose-500">
+                <i className="ri-close-line text-2xl"></i>
               </button>
             </div>
-            <form onSubmit={handleSaveAdmin} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Full Name</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  placeholder="Enter full name"
-                  required
-                />
+            
+            <form onSubmit={handleAddAdmin} className="p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Full Name</label>
+                  <input 
+                    type="text" required
+                    value={newAdmin.full_name}
+                    onChange={e => setNewAdmin({...newAdmin, full_name: e.target.value})}
+                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    placeholder="John Doe"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Email Address</label>
+                  <input 
+                    type="email" required
+                    value={newAdmin.email}
+                    onChange={e => setNewAdmin({...newAdmin, email: e.target.value})}
+                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    placeholder="admin@borlawura.gh"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Access Role</label>
+                  <select 
+                    value={newAdmin.role}
+                    onChange={e => setNewAdmin({...newAdmin, role: e.target.value as any})}
+                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+                  >
+                    <option value="dispatcher">Dispatcher</option>
+                    <option value="manager">Manager</option>
+                    <option value="support">Support</option>
+                    <option value="super_admin">Super Admin</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Password</label>
+                  <input 
+                    type="password" required
+                    value={newAdmin.password}
+                    onChange={e => setNewAdmin({...newAdmin, password: e.target.value})}
+                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    placeholder="••••••••"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email Address</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  placeholder="admin@borlawura.com"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Password</label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  placeholder="••••••••"
-                  required
-                  minLength={6}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Role</label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
-                >
-                  <option>Select role</option>
-                  <option>Super Admin</option>
-                  <option>Operations Admin</option>
-                  <option>Finance Admin</option>
-                  <option>Support Admin</option>
-                </select>
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  disabled={submitting}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors whitespace-nowrap cursor-pointer disabled:opacity-50"
-                >
+              
+              <div className="pt-6 flex gap-3">
+                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-xs font-bold uppercase rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex-1 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors whitespace-nowrap cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {submitting && <i className="ri-loader-4-line animate-spin"></i>}
-                  {submitting ? 'Creating...' : 'Add Admin'}
+                <button type="submit" className="flex-1 py-3 bg-teal-500 text-white rounded-lg text-xs font-bold shadow-lg hover:bg-teal-600">
+                  Save Access
                 </button>
               </div>
             </form>
