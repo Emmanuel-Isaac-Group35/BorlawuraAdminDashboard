@@ -140,13 +140,13 @@ export default function UserManagement() {
       <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden">
         <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex flex-col md:flex-row gap-4 justify-between items-center bg-slate-50/10">
           <div className="relative flex-1 max-w-md w-full group">
-            <i className="ri-search-line absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500"></i>
+            <i className="ri-search-line absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500"></i>
             <input 
               type="text"
               placeholder="Search by name, phone or email..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm"
+              className="w-full pl-12 pr-4 py-3 bg-white dark:bg-black border border-slate-200/60 dark:border-white/5 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm"
             />
           </div>
           <div className="flex flex-wrap gap-2 p-1 bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl">
@@ -167,7 +167,7 @@ export default function UserManagement() {
                 onClick={() => setStatusFilter(status)}
                 className={`px-5 py-2 text-[10px] font-bold uppercase rounded-xl transition-all ${
                   statusFilter === status 
-                  ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' 
+                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
                   : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
                 }`}
               >
@@ -204,7 +204,7 @@ export default function UserManagement() {
                   <tr key={user.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all group">
                     <td className="px-8 py-6">
                       <div className="flex items-center gap-4">
-                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-500 to-indigo-600 flex items-center justify-center text-white text-[11px] font-bold shadow-lg shadow-indigo-500/10">
+                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-[11px] font-bold shadow-lg shadow-emerald-500/10">
                           {user.full_name?.charAt(0)}
                         </div>
                         <div className="min-w-0">
@@ -215,7 +215,7 @@ export default function UserManagement() {
                     </td>
                     <td className="px-8 py-6">
                       <div className="flex items-center gap-2">
-                         <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
+                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
                          <p className="text-[11px] font-bold text-slate-900 dark:text-white uppercase tracking-tight">{(user as any).location || 'Unassigned'}</p>
                       </div>
                     </td>
@@ -235,7 +235,7 @@ export default function UserManagement() {
                       <div className="flex justify-end gap-2">
                         <button 
                           onClick={() => setSelectedUser(user)}
-                          className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all"
+                          className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-all"
                         >
                           <i className="ri-profile-line text-lg"></i>
                         </button>
@@ -270,7 +270,7 @@ export default function UserManagement() {
             
             <div className="p-10">
               <div className="flex items-center gap-6 mb-10">
-                <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-indigo-500 to-indigo-600 flex items-center justify-center text-white text-4xl font-bold shadow-2xl shadow-indigo-500/20">
+                <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-4xl font-bold shadow-2xl shadow-emerald-500/20">
                   {selectedUser.full_name?.charAt(0)}
                 </div>
                 <div>

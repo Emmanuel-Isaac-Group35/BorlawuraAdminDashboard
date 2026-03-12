@@ -49,35 +49,36 @@ export default function LogoutDialog({ isOpen, onClose }: LogoutDialogProps) {
              <h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight uppercase">
                Terminate Session
              </h3>
-             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-3">
+             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-3 text-center">
                Institutional Auth Protocol
              </p>
-          </div>
 
-          <div className="bg-slate-50 dark:bg-white/[0.02] border border-slate-100 dark:border-white/5 rounded-[2.5rem] p-8 text-left">
-             <div className="flex items-start gap-4">
-                <div className="w-2 h-2 rounded-full bg-rose-500 mt-1.5 animate-pulse"></div>
-                <div className="flex-1">
-                   <p className="text-[13px] font-semibold text-slate-800 dark:text-slate-200 leading-relaxed italic">
-                     "Logging out will terminate all active operational handles and clear cache residues. Proceed with synchronization?"
-                   </p>
+             <div className="bg-white/5 rounded-[2rem] p-6 mt-8 mb-8">
+                <div className="flex items-start gap-4">
+                   <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 animate-pulse"></div>
+                   <div className="flex-1">
+                      <p className="text-[13px] font-semibold text-slate-200 leading-relaxed italic">
+                        "Logging out will terminate all active operational handles and clear cache residues. Proceed with synchronization?"
+                      </p>
+                   </div>
                 </div>
              </div>
-          </div>
 
-          <div className="flex flex-col gap-3">
-            <button
-              onClick={handleLogout}
-              className="w-full py-5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-[2rem] transition-all shadow-xl shadow-rose-600/20 uppercase tracking-[0.25em]"
-            >
-              Confirm Termination
-            </button>
-            <button
-              onClick={onClose}
-              className="w-full py-4 text-[10px] font-bold text-slate-400 hover:text-slate-900 dark:hover:text-white uppercase tracking-widest transition-colors"
-            >
-              Return to Hub
-            </button>
+             <div className="space-y-3 w-full">
+               <button 
+                 onClick={handleLogout}
+                 className="w-full py-4 bg-emerald-600 text-white rounded-2xl text-[11px] font-bold uppercase tracking-[0.2em] shadow-xl shadow-emerald-500/20 hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
+               >
+                 <i className="ri-checkbox-circle-line"></i>
+                 Confirm Termination
+               </button>
+               <button 
+                 onClick={onClose}
+                 className="w-full py-4 bg-slate-50 dark:bg-white/5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-2xl text-[11px] font-bold uppercase tracking-[0.2em] transition-all border border-slate-100 dark:border-white/5"
+               >
+                 Abort Sequence
+               </button>
+             </div>
           </div>
         </div>
       </div>

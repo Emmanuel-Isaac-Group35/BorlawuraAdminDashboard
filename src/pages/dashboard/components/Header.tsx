@@ -75,7 +75,7 @@ export default function Header({ onLogout, onMenuClick }: HeaderProps) {
         </button>
         <div className="flex flex-col">
           <div className="flex items-center gap-2.5">
-             <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
+             <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
              <h2 className="text-[15px] font-bold text-slate-900 dark:text-white tracking-tight uppercase">Control Hub</h2>
           </div>
           <p className="hidden md:block text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Borlawura Institutional Governance</p>
@@ -142,7 +142,7 @@ export default function Header({ onLogout, onMenuClick }: HeaderProps) {
               showProfile ? 'bg-slate-50 dark:bg-white/[0.05]' : 'hover:bg-slate-50 dark:hover:bg-white/[0.03]'
             }`}
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-indigo-500/20 transition-transform group-hover:scale-105 relative overflow-hidden">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-emerald-500/20 transition-transform group-hover:scale-105 relative overflow-hidden">
                <span className="relative z-10">{userInfo.fullName.charAt(0)}</span>
                <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
             </div>
@@ -163,13 +163,13 @@ export default function Header({ onLogout, onMenuClick }: HeaderProps) {
                 </div>
                 <div className="p-2.5">
                   <button className="w-full flex items-center gap-4 px-4 py-3 text-[11px] font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/[0.03] rounded-2xl transition-all uppercase tracking-widest group">
-                     <i className="ri-user-settings-line text-lg text-slate-400 group-hover:text-indigo-500 transition-colors"></i>
+                     <i className="ri-user-settings-line text-lg text-slate-400 group-hover:text-emerald-500 transition-colors"></i>
                      <span>Personal Registry</span>
                   </button>
                   <button className="w-full flex items-center gap-4 px-4 py-3 text-[11px] font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/[0.03] rounded-2xl transition-all uppercase tracking-widest group">
-                     <i className="ri-shield-keyhole-line text-lg text-slate-400 group-hover:text-indigo-500 transition-colors"></i>
+                     <i className="ri-shield-keyhole-line text-lg text-slate-400 group-hover:text-emerald-500 transition-colors"></i>
                      <span>Security Vault</span>
-                  </button>
+                   </button>
                   <div className="h-px bg-slate-100 dark:bg-white/5 my-2 mx-4"></div>
                   <button 
                     onClick={() => {

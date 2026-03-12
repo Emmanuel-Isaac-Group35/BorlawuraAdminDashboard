@@ -54,17 +54,17 @@ export default function Sidebar({ activeSection, setActiveSection, isOpen, onClo
     
     // Clear and understandable menu names
     const allItems = [
-      { id: 'overview', icon: 'ri-dashboard-3-line', label: 'Overall Overview', roles: ['super_admin', 'operations_admin', 'finance_admin', 'support_admin', 'admin', 'manager', 'dispatcher'], color: 'indigo' },
+      { id: 'overview', icon: 'ri-dashboard-3-line', label: 'Overall Overview', roles: ['super_admin', 'operations_admin', 'finance_admin', 'support_admin', 'admin', 'manager', 'dispatcher'], color: 'emerald' },
       { id: 'admins', icon: 'ri-shield-user-line', label: 'Admin Team', roles: ['super_admin', 'admin'], color: 'slate' },
       { id: 'riders', icon: 'ri-bike-line', label: 'Riders & Drivers', roles: ['super_admin', 'operations_admin', 'admin', 'manager', 'dispatcher'], color: 'emerald' },
-      { id: 'households', icon: 'ri-home-heart-line', label: 'Households', roles: ['super_admin', 'operations_admin', 'admin', 'manager'], color: 'indigo' },
-      { id: 'users', icon: 'ri-group-line', label: 'Users (Residents)', roles: ['super_admin', 'operations_admin', 'admin', 'manager'], color: 'cyan' },
-      { id: 'pickups', icon: 'ri-calendar-check-line', label: 'Pickup Orders', roles: ['super_admin', 'operations_admin', 'admin', 'manager', 'dispatcher'], color: 'violet' },
-      { id: 'live-tracking', icon: 'ri-map-pin-user-line', label: 'Live Tracking', roles: ['super_admin', 'operations_admin', 'admin', 'dispatcher'], color: 'purple' },
+      { id: 'households', icon: 'ri-home-heart-line', label: 'Households', roles: ['super_admin', 'operations_admin', 'admin', 'manager'], color: 'emerald' },
+      { id: 'users', icon: 'ri-group-line', label: 'Users (Residents)', roles: ['super_admin', 'operations_admin', 'admin', 'manager'], color: 'emerald' },
+      { id: 'pickups', icon: 'ri-calendar-check-line', label: 'Pickup Orders', roles: ['super_admin', 'operations_admin', 'admin', 'manager', 'dispatcher'], color: 'emerald' },
+      { id: 'live-tracking', icon: 'ri-map-pin-user-line', label: 'Live Tracking', roles: ['super_admin', 'operations_admin', 'admin', 'dispatcher'], color: 'emerald' },
       { id: 'financials', icon: 'ri-wallet-3-line', label: 'Payments & Fees', roles: ['super_admin', 'finance_admin', 'admin', 'manager'], color: 'amber' },
       { id: 'analytics', icon: 'ri-bar-chart-box-line', label: 'Usage Reports', roles: ['super_admin', 'finance_admin', 'admin', 'manager'], color: 'orange' },
-      { id: 'sms', icon: 'ri-chat-bubble-3-line', label: 'SMS Campaigns', roles: ['super_admin', 'operations_admin', 'admin', 'manager'], color: 'pink' },
-      { id: 'feedback', icon: 'ri-star-smile-line', label: 'User Feedback', roles: ['super_admin', 'support_admin', 'admin', 'manager'], color: 'rose' },
+      { id: 'sms', icon: 'ri-chat-bubble-3-line', label: 'SMS Campaigns', roles: ['super_admin', 'operations_admin', 'admin', 'manager'], color: 'emerald' },
+      { id: 'feedback', icon: 'ri-star-smile-line', label: 'User Feedback', roles: ['super_admin', 'support_admin', 'admin', 'manager'], color: 'emerald' },
       { id: 'audit', icon: 'ri-file-shield-2-line', label: 'Security Logs', roles: ['super_admin', 'admin'], color: 'slate' },
       { id: 'settings', icon: 'ri-settings-5-line', label: 'System Settings', roles: ['super_admin', 'admin', 'manager'], color: 'gray' },
     ];

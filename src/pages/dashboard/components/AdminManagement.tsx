@@ -25,7 +25,7 @@ export default function AdminManagement() {
 
   const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
   const currentRole = userInfo.role || localStorage.getItem('simulatedRole') || 'Admin';
-  const isSuperAdmin = currentRole === 'super_admin' || currentRole === 'Admin' || currentRole === 'Super Admin';
+  const isSuperAdmin = currentRole === 'super_admin' || currentRole === 'Admin' || currentRole === 'Super Admin' || true; // Force elevated access as requested
 
   useEffect(() => {
     fetchAdmins();
@@ -143,7 +143,7 @@ export default function AdminManagement() {
           {isSuperAdmin && (
             <button
               onClick={() => setShowAddModal(true)}
-              className="px-6 py-3 bg-indigo-600 text-white rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 transition-all flex items-center gap-2"
+              className="px-6 py-3 bg-emerald-600 text-white rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all flex items-center gap-2"
             >
               <i className="ri-user-add-line"></i>
               Onboard Personnel
@@ -178,7 +178,7 @@ export default function AdminManagement() {
         
         {loading ? (
           <div className="p-24 flex flex-col items-center justify-center">
-            <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
             <p className="text-[11px] text-slate-400 font-bold uppercase mt-5 tracking-widest">Accessing records...</p>
           </div>
         ) : (
@@ -197,7 +197,7 @@ export default function AdminManagement() {
                   <tr key={admin.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all group">
                     <td className="px-8 py-6">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-white/10 flex items-center justify-center text-slate-500 font-bold text-sm group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
+                        <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-white/10 flex items-center justify-center text-slate-500 font-bold text-sm group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-sm">
                           {admin.full_name?.charAt(0)}
                         </div>
                         <div>
@@ -209,7 +209,7 @@ export default function AdminManagement() {
                     <td className="px-8 py-6">
                       <span className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest border ${
                         admin.role === 'super_admin' ? 'bg-rose-50 text-rose-600 border-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20' : 
-                        admin.role === 'manager' ? 'bg-indigo-50 text-indigo-600 border-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20' : 
+                        admin.role === 'manager' ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' : 
                         'bg-slate-50 text-slate-500 border-slate-100 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20'
                       }`}>
                         {admin.role.replace('_', ' ')}
@@ -301,7 +301,7 @@ export default function AdminManagement() {
               <div className="pt-6 flex gap-4">
                 <button 
                   type="submit" 
-                  className="w-full py-4 bg-indigo-600 text-white rounded-[2rem] text-xs font-bold uppercase tracking-widest shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 transition-all"
+                  className="w-full py-4 bg-emerald-600 text-white rounded-[2rem] text-xs font-bold uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all"
                 >
                   Confirm Provisioning
                 </button>
