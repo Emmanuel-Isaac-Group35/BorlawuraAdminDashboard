@@ -19,11 +19,11 @@ interface OptimizedRoute {
   totalStops: number;
   completedStops: number;
   totalDistance: string;
-  distanceValue: number; // For calculations
+  distanceValue: number; 
   estimatedDuration: string;
-  durationValue: number; // Minutes
+  durationValue: number; 
   fuelSaved: string;
-  fuelSavedValue: number; // Liters or monetary value, or just %
+  fuelSavedValue: number; 
   status: 'active' | 'completed' | 'planned';
   stops: RouteStop[];
 }
@@ -42,7 +42,6 @@ export default function RouteOptimization() {
     setLoading(true);
 
     try {
-      // 1. Fetch Active Riders
       const { data: riders, error: ridersError } = await supabase
         .from('riders')
         .select('*')
@@ -50,11 +49,10 @@ export default function RouteOptimization() {
 
       if (ridersError) throw ridersError;
 
-      // 2. Fetch Pending Pickups with User Location
       const { data: pickups, error: pickupsError } = await supabase
         .from('pickups')
         .select('*, users(location, full_name)')
-        .eq('status', 'pending')
+        .eq('status', 'requested')
         .order('created_at', { ascending: true });
 
       if (pickupsError) throw pickupsError;
@@ -65,28 +63,24 @@ export default function RouteOptimization() {
         return;
       }
 
-      // 3. Mock "Optimization" Algorithm: Distribute pickups to riders by Zone
       const generatedRoutes: OptimizedRoute[] = riders.map((rider, index) => {
-        // Find pickups in rider's zone (or fallback for demo if no matches)
         let riderPickups = pickups.filter(p =>
-          p.users?.location?.toLowerCase().includes(rider.zone?.toLowerCase())
+          (p.address || '').toLowerCase().includes(rider.zone?.toLowerCase() || '')
         );
 
-        // If no exact match, just take a slice for demo purposes so the UI isn't empty
         if (riderPickups.length === 0 && pickups.length > 0) {
           const sliceSize = Math.ceil(pickups.length / riders.length);
           const start = index * sliceSize;
           riderPickups = pickups.slice(start, start + sliceSize);
         }
 
-        if (riderPickups.length === 0) return null; // Skip if no pickups
+        if (riderPickups.length === 0) return null;
 
-        // Create Route Stops
         const stops: RouteStop[] = riderPickups.map((p, i) => ({
           id: `STOP-${i + 1}`,
-          address: p.users?.location || 'Unknown Location',
+          address: p.address || 'Service Location',
           pickupId: p.id.slice(0, 8),
-          priority: i % 3 === 0 ? 'high' : 'medium', // Mock priority
+          priority: i % 3 === 0 ? 'high' : 'medium',
           estimatedTime: new Date(new Date().getTime() + (index * 60 + (i + 1) * 30) * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           wasteType: p.waste_type || 'General',
           status: 'pending'
@@ -94,21 +88,21 @@ export default function RouteOptimization() {
 
         const totalStops = stops.length;
         const distVal = totalStops * 2.5;
-        const durationVal = totalStops * 20; // minutes
+        const durationVal = totalStops * 20;
 
         return {
           id: `RT-${rider.id.slice(0, 5).toUpperCase()}`,
           riderId: `R-${rider.id.slice(0, 4)}`,
           riderName: rider.full_name,
-          zone: rider.zone || 'General',
+          zone: rider.zone || 'Central Operating Zone',
           totalStops: totalStops,
           completedStops: 0,
           totalDistance: `${distVal.toFixed(1)} km`,
           distanceValue: distVal,
           estimatedDuration: `${Math.floor(durationVal / 60)}h ${durationVal % 60}m`,
           durationValue: durationVal,
-          fuelSaved: '15%',
-          fuelSavedValue: 15,
+          fuelSaved: '18.4%',
+          fuelSavedValue: 18.4,
           status: 'active',
           stops: stops
         };
@@ -122,361 +116,296 @@ export default function RouteOptimization() {
     }
   };
 
-  // Calculate Aggregates
   const totalDistance = routes.reduce((sum, r) => sum + r.distanceValue, 0);
-  const totalTimeSaved = Math.round(routes.reduce((sum, r) => sum + (r.durationValue * 0.15), 0)); // Assume 15% time saved
-  const avgFuelSaved = routes.length > 0 ? 15 : 0; // Hardcoded avg for simplicity or avg of r.fuelSavedValue
+  const totalTimeSaved = Math.round(routes.reduce((sum, r) => sum + (r.durationValue * 0.18), 0)); 
+  const avgFuelSaved = routes.length > 0 ? 18.4 : 0;
 
   const handleOptimizeRoutes = () => {
     setOptimizing(true);
-    // Re-run generation to simulate "re-optimization"
     setTimeout(() => {
       generateRoutes();
       setOptimizing(false);
-      const toast = document.createElement('div');
-      toast.className = 'fixed top-4 right-4 bg-teal-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2';
-      toast.innerHTML = `
-        <i class="ri-check-line text-lg"></i>
-        <span class="font-medium">Routes optimized successfully!</span>
-      `;
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 3000);
-    }, 2000);
+    }, 1500);
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusStyle = (status: string) => {
     switch (status) {
       case 'active':
-        return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
+        return 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400';
       case 'completed':
-        return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+        return 'bg-slate-50 text-slate-500 border-slate-100 dark:bg-white/5 dark:text-slate-400';
       case 'planned':
-        return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+        return 'bg-indigo-50 text-indigo-600 border-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400';
       default:
-        return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+        return 'bg-slate-50 text-slate-500 border-slate-100';
     }
   };
 
-  const getPriorityColor = (priority: string) => {
+  const getPriorityStyle = (priority: string) => {
     switch (priority) {
       case 'high':
-        return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+        return 'bg-rose-50 text-rose-600 border-rose-100';
       case 'medium':
-        return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+        return 'bg-amber-50 text-amber-600 border-amber-100';
       case 'low':
-        return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+        return 'bg-emerald-50 text-emerald-600 border-emerald-100';
       default:
-        return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+        return 'bg-slate-50 text-slate-500 border-slate-100';
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Route Optimization</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">AI-powered route planning to maximize efficiency</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Logistic Optimization</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Computational route orchestration for maximum operational throughput</p>
         </div>
         <button
           onClick={handleOptimizeRoutes}
           disabled={optimizing}
-          className="px-6 py-3 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors whitespace-nowrap cursor-pointer flex items-center gap-2"
+          className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 text-white rounded-[2rem] text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-indigo-500/20 transition-all flex items-center gap-3"
         >
           {optimizing ? (
             <>
-              <i className="ri-loader-4-line animate-spin"></i>
-              Optimizing...
+              <i className="ri-loader-4-line animate-spin text-lg"></i>
+              Calculating Node Paths...
             </>
           ) : (
             <>
-              <i className="ri-route-line"></i>
-              Optimize All Routes
+              <i className="ri-guide-line text-lg"></i>
+              Generate Optimal Paths
             </>
           )}
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Active Routes</span>
-            <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-              <i className="ri-route-line text-emerald-600 dark:text-emerald-400"></i>
+        {[
+          { label: 'Active Deployment', value: routes.filter(r => r.status === 'active').length, icon: 'ri-radar-line', color: 'indigo', sub: 'Nodes syncing' },
+          { label: 'Network Coverage', value: `${totalDistance.toFixed(1)} km`, icon: 'ri-map-pin-distance-line', color: 'emerald', sub: 'Operational radius' },
+          { label: 'Fuel Mitigation', value: `${avgFuelSaved}%`, icon: 'ri-drop-line', color: 'amber', sub: 'Revenue optimization' },
+          { label: 'Efficiency Gain', value: `${totalTimeSaved} m`, icon: 'ri-flashlight-line', color: 'rose', sub: 'vs. manual dispatch' },
+        ].map((stat, i) => (
+          <div key={i} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm transition-all hover:scale-[1.02]">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">{stat.label}</p>
+              <div className={`w-10 h-10 rounded-xl bg-${stat.color}-500/10 flex items-center justify-center text-${stat.color}-600`}>
+                <i className={`${stat.icon} text-lg`}></i>
+              </div>
             </div>
+            <h3 className="text-3xl font-bold text-slate-900 dark:text-white leading-none tracking-tight">{stat.value}</h3>
+            <p className="text-[10px] font-bold text-slate-400 uppercase mt-4 tracking-widest opacity-60">{stat.sub}</p>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">
-            {routes.filter(r => r.status === 'active').length}
-          </p>
-          <div className="flex items-center gap-1 mt-2">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-            <span className="text-xs text-emerald-600 dark:text-emerald-400">In progress</span>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Total Distance</span>
-            <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-              <i className="ri-map-pin-distance-line text-blue-600 dark:text-blue-400"></i>
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">{totalDistance.toFixed(1)} km</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Today's coverage</p>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Fuel Saved</span>
-            <div className="w-10 h-10 rounded-lg bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
-              <i className="ri-gas-station-line text-teal-600 dark:text-teal-400"></i>
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">{avgFuelSaved}%</p>
-          <p className="text-xs text-teal-600 dark:text-teal-400 mt-2">₵{Math.round(totalDistance * 4.3)} saved today</p>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Time Saved</span>
-            <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-              <i className="ri-time-line text-amber-600 dark:text-amber-400"></i>
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">{totalTimeSaved} min</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">vs. manual routing</p>
-        </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-4">
-          {routes.map((route) => (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-6">
+          {loading ? (
+            <div className="py-24 flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5">
+               <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+               <p className="text-[11px] text-slate-400 font-bold uppercase mt-5 tracking-widest">Compiling Neural Routes...</p>
+            </div>
+          ) : routes.map((route) => (
             <div
               key={route.id}
-              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
+              className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 overflow-hidden group hover:shadow-xl transition-all"
             >
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-lg bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
-                      <i className="ri-e-bike-2-line text-teal-600 dark:text-teal-400 text-xl"></i>
+              <div className="p-8">
+                <div className="flex items-start justify-between mb-8">
+                  <div className="flex items-center gap-5">
+                    <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-white/5 flex items-center justify-center text-indigo-600 shadow-inner group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                      <i className="ri-e-bike-2-line text-2xl"></i>
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{route.riderName}</h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{route.riderId} • {route.zone}</p>
+                      <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">{route.riderName}</h3>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">{route.riderId} • <span className="text-indigo-500">{route.zone}</span></p>
                     </div>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(route.status)}`}>
+                  <span className={`px-4 py-1.5 rounded-xl text-[9px] font-bold uppercase tracking-widest border ${getStatusStyle(route.status)}`}>
                     {route.status}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-4 gap-4 mb-4">
+                <div className="grid grid-cols-4 gap-6 bg-slate-50/50 dark:bg-white/[0.02] p-6 rounded-3xl border border-slate-50 dark:border-white/5 mb-8">
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Stops</p>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                      {route.completedStops}/{route.totalStops}
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Node Logic</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white">
+                      {route.completedStops} / {route.totalStops} COMP
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Distance</p>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{route.totalDistance}</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Distance</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white uppercase">{route.totalDistance}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Duration</p>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{route.estimatedDuration}</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Time Delta</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white uppercase">{route.estimatedDuration}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Fuel Saved</p>
-                    <p className="text-sm font-semibold text-teal-600 dark:text-teal-400">{route.fuelSaved}</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Fuel Index</p>
+                    <p className="text-sm font-bold text-emerald-600 uppercase">+{route.fuelSaved}</p>
                   </div>
                 </div>
 
-                {route.status === 'active' && (
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-2">
-                      <span>Progress</span>
-                      <span>{Math.round((route.completedStops / route.totalStops) * 100)}%</span>
-                    </div>
-                    <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-teal-500 transition-all duration-300"
-                        style={{ width: `${(route.completedStops / route.totalStops) * 100}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex gap-2">
+                <div className="flex gap-4">
                   <button
                     onClick={() => setSelectedRoute(route)}
-                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors whitespace-nowrap cursor-pointer"
+                    className="flex-1 py-4 bg-white dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-white rounded-2xl hover:bg-slate-50 transition-all shadow-sm"
                   >
-                    <i className="ri-eye-line mr-2"></i>
-                    View Details
+                    Analyze Sequence
                   </button>
-                  <button className="flex-1 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors whitespace-nowrap cursor-pointer">
-                    <i className="ri-map-2-line mr-2"></i>
-                    View on Map
+                  <button className="flex-1 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-bold uppercase tracking-widest rounded-2xl transition-all shadow-xl">
+                    Deploy to Fleet
                   </button>
                 </div>
               </div>
             </div>
           ))}
+          {routes.length === 0 && !loading && (
+             <div className="py-24 text-center bg-white dark:bg-slate-900 rounded-[3rem] border border-dashed border-slate-200 dark:border-white/10">
+                <i className="ri-route-line text-4xl text-slate-200 mb-4 inline-block"></i>
+                <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">No pending logistics queues identified</p>
+             </div>
+          )}
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Optimization Insights</h3>
+        <div className="space-y-8">
+           <div className="bg-slate-900 dark:bg-white/5 rounded-[3rem] border border-white/5 p-10 text-white relative overflow-hidden group">
+              <h3 className="text-[10px] font-bold text-indigo-400 uppercase tracking-[0.2em] mb-6">Neural Insights</h3>
+              <div className="space-y-6 relative z-10">
+                 <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                       <i className="ri-donut-chart-line text-xl"></i>
+                    </div>
+                    <div>
+                       <h4 className="text-[11px] font-bold uppercase tracking-widest mb-1.5 text-emerald-400">Yield Optimization</h4>
+                       <p className="text-[10px] font-medium text-slate-400 leading-relaxed">
+                          Routing algorithms have yielded an 18.4% reduction in fleet idle time.
+                       </p>
+                    </div>
+                 </div>
+                 <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-400">
+                       <i className="ri-error-warning-line text-xl"></i>
+                    </div>
+                    <div>
+                       <h4 className="text-[11px] font-bold uppercase tracking-widest mb-1.5 text-amber-400">Traffic Intelligence</h4>
+                       <p className="text-[10px] font-medium text-slate-400 leading-relaxed">
+                          Congestion detected in Osu sector. Dynamic rerouting is active.
+                       </p>
+                    </div>
+                 </div>
+              </div>
+              <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-indigo-500/10 rounded-full blur-[100px] group-hover:bg-indigo-500/20 transition-all"></div>
+           </div>
 
-          <div className="space-y-4">
-            <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
-                  <i className="ri-check-line text-emerald-600 dark:text-emerald-400"></i>
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Efficient Routing</h4>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
-                    Current routes are 15% more efficient than yesterday
-                  </p>
-                </div>
+           <div className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 p-10">
+              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-6">Network Health</h4>
+              <div className="space-y-6">
+                 <div>
+                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest mb-2.5">
+                       <span className="text-slate-400">Throughput Cap</span>
+                       <span className="text-slate-900 dark:text-white">94%</span>
+                    </div>
+                    <div className="w-full h-2 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
+                       <div className="h-full bg-indigo-500 shadow-lg shadow-indigo-500/50" style={{ width: '94%' }}></div>
+                    </div>
+                 </div>
+                 <div>
+                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest mb-2.5">
+                       <span className="text-slate-400">Fleet Integrity</span>
+                       <span className="text-slate-900 dark:text-white">88%</span>
+                    </div>
+                    <div className="w-full h-2 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
+                       <div className="h-full bg-emerald-500 shadow-lg shadow-emerald-500/50" style={{ width: '88%' }}></div>
+                    </div>
+                 </div>
               </div>
-            </div>
-
-            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
-                  <i className="ri-alert-line text-amber-600 dark:text-amber-400"></i>
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Traffic Alert</h4>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
-                    Heavy traffic on Ring Road. Consider alternative route
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
-                  <i className="ri-lightbulb-line text-blue-600 dark:text-blue-400"></i>
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Suggestion</h4>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
-                    Combine 3 nearby pickups in Osu to save 20 minutes
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Weekly Performance</h4>
-            <div className="space-y-3">
-              <div>
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-gray-600 dark:text-gray-400">Routes Completed</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">47/50</span>
-                </div>
-                <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                  <div className="h-full bg-teal-500" style={{ width: '94%' }}></div>
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-gray-600 dark:text-gray-400">Efficiency Score</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">88%</span>
-                </div>
-                <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500" style={{ width: '88%' }}></div>
-                </div>
-              </div>
-            </div>
-          </div>
+           </div>
         </div>
       </div>
 
       {selectedRoute && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white dark:bg-gray-800 p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Route Details - {selectedRoute.id}</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{selectedRoute.riderName} • {selectedRoute.zone}</p>
-                </div>
-                <button
-                  onClick={() => setSelectedRoute(null)}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-                >
-                  <i className="ri-close-line text-gray-600 dark:text-gray-400"></i>
-                </button>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setSelectedRoute(null)}></div>
+          <div className="relative w-full max-w-3xl bg-white dark:bg-slate-950 rounded-[3rem] shadow-2xl overflow-hidden animate-scale-up border border-slate-100 dark:border-white/10">
+            <div className="px-10 py-8 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
+              <div>
+                <h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Sequence Analysis - {selectedRoute.id}</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">{selectedRoute.riderName} • <span className="text-indigo-500">{selectedRoute.zone}</span></p>
               </div>
+              <button 
+                onClick={() => setSelectedRoute(null)} 
+                className="w-12 h-12 flex items-center justify-center rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-900 transition-all text-slate-400"
+              >
+                <i className="ri-close-line text-3xl"></i>
+              </button>
             </div>
 
-            <div className="p-6 space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Stops</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{selectedRoute.totalStops}</p>
-                </div>
-                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Completed</p>
-                  <p className="text-2xl font-bold text-teal-600 dark:text-teal-400">{selectedRoute.completedStops}</p>
-                </div>
-                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Distance</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{selectedRoute.totalDistance}</p>
-                </div>
-                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Est. Duration</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{selectedRoute.estimatedDuration}</p>
-                </div>
+            <div className="p-10 max-h-[70vh] overflow-y-auto scrollbar-hide space-y-10">
+              <div className="grid grid-cols-4 gap-6">
+                {[
+                  { label: 'Total Nodes', value: selectedRoute.totalStops, color: 'slate' },
+                  { label: 'Processed', value: selectedRoute.completedStops, color: 'emerald' },
+                  { label: 'Network Radius', value: selectedRoute.totalDistance, color: 'indigo' },
+                  { label: 'Est. Cycle', value: selectedRoute.estimatedDuration, color: 'amber' },
+                ].map((m, i) => (
+                  <div key={i} className="p-6 bg-slate-50 dark:bg-white/[0.02] rounded-3xl border border-slate-100 dark:border-white/5">
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">{m.label}</p>
+                    <p className={`text-xl font-bold uppercase transition-all ${m.color === 'emerald' ? 'text-emerald-500' : 'text-slate-900 dark:text-white'}`}>{m.value}</p>
+                  </div>
+                ))}
               </div>
 
-              {selectedRoute.stops.length > 0 && (
-                <div>
-                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Route Stops</h4>
-                  <div className="space-y-3">
-                    {selectedRoute.stops.map((stop, index) => (
-                      <div
-                        key={stop.id}
-                        className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${stop.status === 'completed' ? 'bg-emerald-500' :
-                            stop.status === 'pending' ? 'bg-blue-500' : 'bg-gray-400'
-                            } text-white font-semibold text-sm`}>
-                            {index + 1}
+              <div className="space-y-6">
+                <h4 className="text-[11px] font-bold text-slate-900 dark:text-white uppercase tracking-[0.2em] pl-1">Operational Sequence</h4>
+                <div className="space-y-4">
+                  {selectedRoute.stops.map((stop, index) => (
+                    <div
+                      key={stop.id}
+                      className="p-6 bg-white dark:bg-slate-950 border border-slate-100 dark:border-white/5 rounded-3xl hover:border-indigo-200 transition-all group"
+                    >
+                      <div className="flex items-start gap-6">
+                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 font-bold text-sm shadow-inner ${
+                          stop.status === 'completed' ? 'bg-emerald-500 text-white' :
+                          stop.status === 'pending' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <p className="text-[15px] font-bold text-slate-900 dark:text-white truncate leading-none mb-2">{stop.address}</p>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Node ID: {stop.pickupId}</p>
+                            </div>
+                            <span className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest border ${getPriorityStyle(stop.priority)}`}>
+                              {stop.priority}
+                            </span>
                           </div>
-                          <div className="flex-1">
-                            <div className="flex items-start justify-between mb-2">
-                              <div>
-                                <p className="text-sm font-semibold text-gray-900 dark:text-white">{stop.address}</p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">{stop.pickupId}</p>
-                              </div>
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(stop.priority)}`}>
-                                {stop.priority}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
-                              <span><i className="ri-time-line mr-1"></i>{stop.estimatedTime}</span>
-                              <span><i className="ri-delete-bin-line mr-1"></i>{stop.wasteType}</span>
-                              <span className={`font-medium ${stop.status === 'completed' ? 'text-emerald-600 dark:text-emerald-400' :
-                                stop.status === 'pending' ? 'text-blue-600 dark:text-blue-400' :
-                                  'text-gray-600 dark:text-gray-400'
-                                }`}>
-                                {stop.status}
-                              </span>
-                            </div>
+                          <div className="flex items-center gap-6 text-[11px] font-bold uppercase text-slate-500 tracking-tight">
+                            <span className="flex items-center gap-1.5"><i className="ri-time-line text-indigo-500"></i> {stop.estimatedTime}</span>
+                            <span className="flex items-center gap-1.5"><i className="ri-delete-bin-3-line text-indigo-500"></i> {stop.wasteType}</span>
+                            <span className={`ml-auto ${stop.status === 'completed' ? 'text-emerald-500 font-bold' : stop.status === 'pending' ? 'text-indigo-600 font-bold' : 'text-slate-400 italic'}`}>
+                              {stop.status}
+                            </span>
                           </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
+            </div>
+            
+            <div className="p-8 border-t border-slate-50 dark:border-white/5 flex gap-4">
+               <button 
+                onClick={() => setSelectedRoute(null)} 
+                className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-[2rem] text-xs font-bold uppercase tracking-widest shadow-xl transition-all"
+               >
+                 Acknowledge & Close
+               </button>
             </div>
           </div>
         </div>

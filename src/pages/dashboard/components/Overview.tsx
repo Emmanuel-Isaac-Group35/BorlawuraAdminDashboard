@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
+import { getSMSBalance } from '../../../lib/sms';
 
 interface OverviewProps {
   onNavigate?: (section: string) => void;
@@ -8,10 +9,10 @@ interface OverviewProps {
 export default function Overview({ onNavigate }: OverviewProps) {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState([
-    { id: 1, title: 'Total Pickups', value: '0', icon: 'ri-truck-line', color: 'teal', trend: '+0%' },
-    { id: 2, title: 'Active Riders', value: '0', icon: 'ri-steering-2-line', color: 'blue', trend: 'LIVE' },
-    { id: 3, title: 'SMS Balance', value: '0', icon: 'ri-message-3-line', color: 'indigo', trend: 'Units' },
-    { id: 4, title: 'Total Revenue', value: '₵0.00', icon: 'ri-money-dollar-circle-line', color: 'emerald', trend: '+0%' },
+    { id: 1, title: 'Service Pickups', value: '0', icon: 'ri-truck-line', color: 'emerald', trend: '+12%', label: 'Total Volume' },
+    { id: 2, title: 'Active Riders', value: '0', icon: 'ri-e-bike-2-line', color: 'slate', trend: 'Live', label: 'Field Personnel' },
+    { id: 3, title: 'SMS Credits', value: '0', icon: 'ri-message-3-line', color: 'emerald', trend: 'Units', label: 'Communication' },
+    { id: 4, title: 'Total Revenue', value: '₵0.00', icon: 'ri-wallet-3-line', color: 'amber', trend: '+8.4%', label: 'Financial Gain' },
   ]);
 
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
@@ -20,7 +21,6 @@ export default function Overview({ onNavigate }: OverviewProps) {
   useEffect(() => {
     fetchDashboardData();
     
-    // Real-time subscriptions
     const pickupsChannel = supabase.channel('public:pickups').on('postgres_changes', { event: '*', schema: 'public', table: 'pickups' }, () => fetchDashboardData()).subscribe();
     const usersChannel = supabase.channel('public:users').on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => fetchDashboardData()).subscribe();
     const ridersChannel = supabase.channel('public:riders').on('postgres_changes', { event: '*', schema: 'public', table: 'riders' }, () => fetchDashboardData()).subscribe();
@@ -34,14 +34,13 @@ export default function Overview({ onNavigate }: OverviewProps) {
 
   const fetchSmsBalance = async () => {
     try {
-      const apiKey = import.meta.env.VITE_ARKESEL_API_KEY || 'UEJrVktDRnBqeWZpdmxXSG1WbHk';
-      const response = await fetch('https://sms.arkesel.com/api/v2/clients/balance', {
-        headers: { 'api-key': apiKey }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const balance = data.data?.sms_balance || data.balance || 0;
-        setStats(prev => prev.map(stat => stat.title === 'SMS Balance' ? { ...stat, value: Number(balance).toLocaleString() } : stat));
+      const result = await getSMSBalance();
+      if (result.success) {
+        setStats(prev => prev.map(stat => 
+          stat.title === 'SMS Credits' 
+            ? { ...stat, value: Number(result.balance).toLocaleString() } 
+            : stat
+        ));
       }
     } catch (error) {
       console.error('SMS Balance fetch error:', error);
@@ -50,31 +49,28 @@ export default function Overview({ onNavigate }: OverviewProps) {
 
   const fetchDashboardData = async () => {
     try {
-      // 1. Fetch Basic Counts
-      const { data: pickups } = await supabase.from('pickups').select('*', { count: 'exact' });
+      const { count: pickupCount } = await supabase.from('pickups').select('*', { count: 'exact', head: true });
       const { data: riders } = await supabase.from('riders').select('*').eq('status', 'active');
       const { data: users } = await supabase.from('users').select('balance');
 
       const totalRevenue = users?.reduce((acc, curr) => acc + (curr.balance || 0), 0) || 0;
 
       setStats(prev => prev.map(stat => {
-        if (stat.title === 'Total Pickups') return { ...stat, value: (pickups?.length || 0).toLocaleString() };
+        if (stat.title === 'Service Pickups') return { ...stat, value: (pickupCount || 0).toLocaleString() };
         if (stat.title === 'Active Riders') return { ...stat, value: (riders?.length || 0).toLocaleString() };
         if (stat.title === 'Total Revenue') return { ...stat, value: `₵${(totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2 })}` };
         return stat;
       }));
 
-      // 2. Fetch Recent Activities
       const { data: activities } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(6);
       if (activities) setRecentActivities(activities);
 
-      // 3. Fetch Top Riders
       const { data: topRiderData } = await supabase.from('riders').select('*').order('total_pickups', { ascending: false }).limit(4);
       if (topRiderData) setTopRiders(topRiderData);
       
       fetchSmsBalance();
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      console.error('Dashboard data error:', error);
     } finally {
       setLoading(false);
     }
@@ -84,89 +80,94 @@ export default function Overview({ onNavigate }: OverviewProps) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Compiling Intelligence...</p>
+          <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Synchronizing Data...</p>
         </div>
       </div>
     );
   }
 
+  const statColors: Record<string, string> = {
+    emerald: 'from-emerald-600/10 to-emerald-600/5 text-emerald-600 border-emerald-100 dark:border-emerald-500/20',
+    slate: 'from-slate-600/10 to-slate-600/5 text-slate-600 border-slate-100 dark:border-slate-500/20',
+    amber: 'from-amber-500/10 to-amber-500/5 text-amber-600 border-amber-100 dark:border-amber-500/20',
+  };
+
   return (
-    <div className="space-y-6 font-['Montserrat'] animate-fade-in">
+    <div className="space-y-8 font-['Montserrat'] animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Operations Center</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Integrated visibility across all service channels</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Executive Dashboard</h1>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mt-1">Holistic view of platform performance and field operations</p>
         </div>
-        <div className="flex items-center gap-2 bg-white dark:bg-gray-800 p-1.5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-           <span className="flex h-2 w-2 relative mx-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
-           </span>
-           <span className="text-[10px] font-bold text-teal-600 uppercase tracking-widest pr-2">System Live</span>
+        <div className="flex items-center gap-2.5 px-4 py-2 bg-emerald-50 dark:bg-emerald-500/5 border border-emerald-100 dark:border-emerald-500/10 rounded-2xl shadow-sm">
+           <div className="flex h-2 w-2 relative">
+              <div className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></div>
+              <div className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></div>
+           </div>
+           <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-widest">Real-time Active</span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat) => (
-          <div key={stat.id} className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all group">
-            <div className="flex items-center justify-between mb-4">
-               <div className={`w-12 h-12 rounded-xl bg-${stat.color}-500/10 flex items-center justify-center text-${stat.color}-500 group-hover:scale-110 transition-transform`}>
-                  <i className={`${stat.icon} text-2xl`}></i>
+          <div key={stat.id} className={`bg-gradient-to-br ${statColors[stat.color]} p-6 rounded-[2rem] border transition-all hover:scale-[1.02] cursor-default group`}>
+            <div className="flex items-center justify-between mb-5">
+               <div className={`w-12 h-12 rounded-2xl bg-white dark:bg-gray-900 shadow-sm flex items-center justify-center group-hover:rotate-6 transition-transform`}>
+                  <i className={`${stat.icon} text-xl`}></i>
                </div>
-               <span className={`text-[9px] font-bold px-2 py-1 rounded bg-gray-50 dark:bg-gray-900 text-gray-500`}>{stat.trend}</span>
+               <div className="text-right">
+                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-white/50 dark:bg-black/20 text-current">{stat.trend}</span>
+                 <p className="text-[9px] font-bold opacity-60 uppercase tracking-tighter mt-1">{stat.label}</p>
+               </div>
             </div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{stat.title}</p>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</h3>
+            <p className="text-[11px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-widest mb-1.5">{stat.title}</p>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tighter">{stat.value}</h3>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-           {/* Section 1: Recent Activity */}
-           <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-              <div className="p-5 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center">
-                 <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Live Audit Stream</h2>
-                 <button onClick={() => onNavigate?.('audit')} className="text-[10px] font-bold text-teal-600 hover:underline">VIEW ALL</button>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+           <div className="bg-white dark:bg-gray-950 rounded-[2.5rem] border border-gray-100 dark:border-gray-800/60 shadow-sm overflow-hidden">
+              <div className="px-8 py-6 border-b border-gray-50 dark:border-gray-800/40 flex justify-between items-center">
+                 <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest">Platform Activity</h2>
+                 <button onClick={() => onNavigate?.('audit')} className="text-[11px] font-bold text-emerald-500 hover:text-emerald-600 transition-colors">View Logs</button>
               </div>
-              <div className="divide-y divide-gray-50 dark:divide-gray-700">
+              <div className="divide-y divide-gray-50 dark:divide-gray-800/40">
                  {recentActivities.map((activity) => (
-                    <div key={activity.id} className="p-4 flex items-center gap-4 hover:bg-gray-50/50 dark:hover:bg-gray-900/50 transition-colors">
-                       <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-900 flex items-center justify-center text-gray-400">
-                          <i className="ri-history-line text-sm"></i>
+                    <div key={activity.id} className="px-8 py-5 flex items-center gap-4 hover:bg-gray-50/50 dark:hover:bg-white/[0.01] transition-colors group">
+                       <div className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 group-hover:bg-emerald-500/10 group-hover:text-emerald-500 transition-colors">
+                          <i className="ri-time-line text-lg"></i>
                        </div>
                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{activity.action}</p>
-                          <p className="text-[9px] text-gray-500 uppercase">{new Date(activity.created_at).toLocaleString()}</p>
+                          <p className="text-[13px] font-semibold text-gray-800 dark:text-gray-200 truncate">{activity.action}</p>
+                          <p className="text-[10px] text-gray-500 font-medium mt-1">{new Date(activity.created_at).toLocaleString()}</p>
                        </div>
-                       <div className="text-right">
-                          <span className="text-[8px] font-bold px-1.5 py-0.5 bg-gray-100 dark:bg-gray-900 text-gray-400 rounded-full border border-gray-200 dark:border-gray-700">{activity.ip_address || 'System'}</span>
-                       </div>
+                       <span className="text-[10px] font-bold px-3 py-1 bg-gray-100 dark:bg-gray-900 text-gray-500 rounded-full border border-gray-200/50 dark:border-gray-800/50">{activity.ip_address || 'System'}</span>
                     </div>
                  ))}
               </div>
            </div>
 
-           {/* Section 2: Top Riders */}
-           <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-              <div className="p-5 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center">
-                 <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Fleet Performance</h2>
-                 <button onClick={() => onNavigate?.('riders')} className="text-[10px] font-bold text-teal-600 hover:underline">MANAGE FLEET</button>
+           <div className="bg-white dark:bg-gray-950 rounded-[2.5rem] border border-gray-100 dark:border-gray-800/60 shadow-sm overflow-hidden">
+              <div className="px-8 py-6 border-b border-gray-50 dark:border-gray-800/40 flex justify-between items-center">
+                 <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest">Elite Riders</h2>
+                 <button onClick={() => onNavigate?.('riders')} className="text-[11px] font-bold text-emerald-500 hover:text-emerald-600 transition-colors">Full Fleet</button>
               </div>
-              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                  {topRiders.map((rider) => (
-                    <div key={rider.id} className="p-4 rounded-xl border border-gray-50 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-900/30 flex items-center gap-3">
-                       <div className="w-10 h-10 rounded-lg bg-teal-500 flex items-center justify-center text-white font-bold">
+                    <div key={rider.id} className="p-5 rounded-3xl border border-gray-50 dark:border-gray-800/40 bg-gray-50/30 dark:bg-white/[0.01] flex items-center gap-4 group hover:border-emerald-500/30 transition-colors">
+                       <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white text-lg font-bold shadow-lg shadow-emerald-500/20">
                           {rider.full_name.charAt(0)}
                        </div>
-                       <div>
-                          <p className="text-xs font-bold text-gray-900 dark:text-white uppercase truncate">{rider.full_name}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                             <span className="text-[9px] font-bold text-teal-600">{rider.total_pickups} Trips</span>
-                             <span className="text-[9px] font-bold px-1 rounded bg-amber-500/10 text-amber-600 flex items-center gap-0.5">
-                                <i className="ri-star-fill"></i> {rider.rating}
-                             </span>
+                       <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{rider.full_name}</p>
+                          <div className="flex items-center gap-3 mt-1.5">
+                             <span className="text-[10px] font-bold text-emerald-600">{rider.total_pickups} Orders</span>
+                             <div className="flex items-center gap-1 text-[10px] font-bold text-amber-500">
+                                <i className="ri-star-fill text-[8px]"></i> {rider.rating}
+                             </div>
                           </div>
                        </div>
                     </div>
@@ -175,52 +176,57 @@ export default function Overview({ onNavigate }: OverviewProps) {
            </div>
         </div>
 
-        <div className="space-y-6">
-           {/* Quick Launch */}
-           <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
-              <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-6">Quick Launch</h2>
+        <div className="space-y-8">
+           <div className="bg-white dark:bg-gray-950 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800/60 shadow-sm">
+              <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest mb-8">Management Shortcuts</h2>
               <div className="grid grid-cols-2 gap-4">
                  {[
-                    { id: 'sms', icon: 'ri-chat-broadcast-line', label: 'SMS Blast', color: 'teal' },
-                    { id: 'riders', icon: 'ri-user-add-line', label: 'Add Rider', color: 'blue' },
-                    { id: 'users', icon: 'ri-group-line', label: 'Registry', color: 'indigo' },
-                    { id: 'analytics', icon: 'ri-file-chart-line', label: 'Report', color: 'rose' },
+                    { id: 'sms', icon: 'ri-chat-voice-line', label: 'Broadcast', color: 'emerald' },
+                    { id: 'pickups', icon: 'ri-map-pin-2-line', label: 'Dispatch', color: 'emerald' },
+                    { id: 'users', icon: 'ri-user-follow-line', label: 'User Registry', color: 'emerald' },
+                    { id: 'financials', icon: 'ri-line-chart-line', label: 'Balance', color: 'amber' },
                  ].map((action) => (
                     <button 
                       key={action.id}
                       onClick={() => onNavigate?.(action.id)}
-                      className="p-4 rounded-xl border border-gray-50 dark:border-gray-700 hover:bg-teal-500 hover:text-white transition-all group text-center"
+                      className="p-5 rounded-3xl border border-gray-50 dark:border-gray-800/40 hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-all group text-center"
                     >
-                       <i className={`${action.icon} text-2xl mb-2 block text-${action.color}-500 group-hover:text-white transition-colors`}></i>
-                       <span className="text-[10px] font-bold uppercase tracking-widest">{action.label}</span>
+                       <div className={`w-12 h-12 mx-auto mb-3 rounded-2xl flex items-center justify-center bg-gray-50 dark:bg-gray-900 group-hover:scale-110 transition-transform`}>
+                          <i className={`${action.icon} text-xl text-gray-400 group-hover:text-emerald-500`}></i>
+                       </div>
+                       <span className="text-[11px] font-bold text-gray-500 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">{action.label}</span>
                     </button>
                  ))}
               </div>
            </div>
 
-           {/* System Health */}
-           <div className="bg-gradient-to-br from-teal-500 to-teal-700 p-6 rounded-2xl shadow-lg shadow-teal-500/20 text-white">
-              <h2 className="text-xs font-bold uppercase tracking-[0.2em] mb-4 opacity-80">Security Protocol</h2>
+           <div className="bg-slate-900 dark:bg-white/5 p-8 rounded-[2.5rem] text-white relative overflow-hidden group">
+              <h2 className="text-[10px] font-bold uppercase tracking-[0.25em] mb-6 opacity-60">Status Integrity</h2>
               <div className="space-y-4">
-                 <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase">DB Integrity</span>
-                    <i className="ri-checkbox-circle-fill text-emerald-300"></i>
+                 {[
+                   { label: 'Database Node', active: true },
+                   { label: 'Cloud Systems', active: true },
+                   { label: 'Asset Tracking', active: true },
+                 ].map((sys, i) => (
+                   <div key={i} className="flex items-center justify-between">
+                      <span className="text-[11px] font-semibold opacity-80">{sys.label}</span>
+                      <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                        <i className="ri-check-line text-xs text-emerald-400"></i>
+                      </div>
+                   </div>
+                 ))}
+              </div>
+              <div className="mt-10 p-4 bg-white/5 rounded-2xl border border-white/5">
+                 <div className="flex justify-between items-center mb-2">
+                   <p className="text-[10px] font-bold opacity-60 uppercase">Node Reliability</p>
+                   <p className="text-[10px] font-bold text-emerald-400">99.8%</p>
                  </div>
-                 <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase">Auth Encryption</span>
-                    <i className="ri-checkbox-circle-fill text-emerald-300"></i>
-                 </div>
-                 <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase">Real-time Node</span>
-                    <i className="ri-checkbox-circle-fill text-emerald-300"></i>
+                 <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div className="w-[99.8%] h-full bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
                  </div>
               </div>
-              <div className="mt-8 p-3 bg-white/10 rounded-xl">
-                 <p className="text-[10px] font-bold opacity-80 mb-1">NETWORK LATENCY</p>
-                 <div className="h-1 bg-white/20 rounded-full overflow-hidden">
-                    <div className="w-[85%] h-full bg-white rounded-full"></div>
-                 </div>
-              </div>
+              {/* Background Glow */}
+              <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-[60px] group-hover:bg-emerald-500/20 transition-all"></div>
            </div>
         </div>
       </div>

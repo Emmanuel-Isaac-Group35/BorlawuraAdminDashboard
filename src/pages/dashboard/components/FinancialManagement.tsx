@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
+import ExportButton from './ExportButton';
 
 interface Payment {
   id: string;
@@ -31,7 +32,6 @@ export default function FinancialManagement() {
   const fetchFinancials = async () => {
     setLoading(true);
     try {
-      // Fetch Payments with User details
       const { data: paymentsData, error: paymentsError } = await supabase
         .from('payments')
         .select('*, users(full_name)')
@@ -40,7 +40,6 @@ export default function FinancialManagement() {
       if (paymentsError) console.error('Error fetching payments:', paymentsError);
       else setPayments(paymentsData || []);
 
-      // Fetch Riders for Payouts view
       const { data: ridersData, error: ridersError } = await supabase
         .from('riders')
         .select('*')
@@ -67,113 +66,118 @@ export default function FinancialManagement() {
       .filter(p => p.status === 'paid' && new Date(p.created_at).getMonth() === currentMonth)
       .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-    // Mock pending payouts logic based on earnings
     const pendingPayouts = riders.reduce((sum, r) => sum + (Number(r.total_earnings) || 0), 0);
-    const commission = monthlyRevenue * 0.1; // 10% commission
+    const commission = monthlyRevenue * 0.1;
 
     return { todayRevenue, monthlyRevenue, pendingPayouts, commission };
   };
 
   const stats = calculateStats();
 
-  const getStatusColor = (status: string) => {
+  const getStatusStyle = (status: string) => {
     switch (status) {
       case 'paid':
       case 'completed':
       case 'approved':
       case 'active':
-        return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
+        return 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20';
       case 'pending':
-        return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+        return 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20';
       default:
-        return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+        return 'bg-slate-50 text-slate-500 border-slate-100 dark:bg-white/5 dark:text-slate-400 dark:border-white/10';
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-10 font-['Montserrat'] animate-fade-in pb-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Financial Management</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage payments, payouts, and financial reports</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Financial Treasury</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Institutional audit of liquidity, revenue disbursements, and platform yield</p>
         </div>
-        <button className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors whitespace-nowrap cursor-pointer">
-          <i className="ri-download-line"></i>
-          Export Report
-        </button>
+        <div className="flex items-center gap-4">
+          <ExportButton 
+            data={payments.map(p => ({
+              ID: p.id,
+              User: p.users?.full_name || 'Guest Participant',
+              Amount: p.amount,
+              Status: p.status,
+              Date: new Date(p.created_at).toLocaleString()
+            }))}
+            fileName="Treasury_Audit_Report"
+            title="Institutional Financial Audit"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Today Revenue</span>
-            <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-              <i className="ri-money-dollar-circle-line text-emerald-600 dark:text-emerald-400"></i>
+        {[
+          { label: 'Daily Liquidity', value: `₵${stats.todayRevenue.toLocaleString()}`, color: 'emerald', icon: 'ri-funds-box-line', sub: 'Inflow current' },
+          { label: 'Monthly Asset Volume', value: `₵${stats.monthlyRevenue.toLocaleString()}`, color: 'amber', icon: 'ri-line-chart-line', sub: 'Cycle total' },
+          { label: 'Owed Disbursements', value: `₵${stats.pendingPayouts.toLocaleString()}`, color: 'indigo', icon: 'ri-wallet-3-line', sub: 'Pending settlement' },
+          { label: 'Commission Yield', value: `₵${stats.commission.toLocaleString()}`, color: 'rose', icon: 'ri-pie-chart-line', sub: 'Platform net (10%)' },
+        ].map((stat, i) => (
+          <div key={i} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm transition-all hover:scale-[1.02]">
+            <div className="flex items-center justify-between mb-5">
+              <div className={`w-12 h-12 rounded-2xl bg-${stat.color}-500/10 flex items-center justify-center text-${stat.color}-600`}>
+                <i className={`${stat.icon} text-xl`}></i>
+              </div>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Audit Alpha</span>
             </div>
+            <h3 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tighter leading-none mb-4">{stat.value}</h3>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
+            <p className="text-[10px] text-slate-400 font-medium opacity-60 mt-2">{stat.sub}</p>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">₵{stats.todayRevenue.toLocaleString()}</p>
-          <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-2">+8% from yesterday</p>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Monthly Revenue</span>
-            <div className="w-10 h-10 rounded-lg bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
-              <i className="ri-line-chart-line text-teal-600 dark:text-teal-400"></i>
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">₵{stats.monthlyRevenue.toLocaleString()}</p>
-          <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-2">+12% from last month</p>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Pending Payouts</span>
-            <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-              <i className="ri-wallet-line text-amber-600 dark:text-amber-400"></i>
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">₵{stats.pendingPayouts.toLocaleString()}</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{riders.length} riders</p>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Commission</span>
-            <div className="w-10 h-10 rounded-lg bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
-              <i className="ri-percent-line text-rose-600 dark:text-rose-400"></i>
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">₵{stats.commission.toLocaleString()}</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">10% platform fee</p>
-        </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Transactions</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden flex flex-col">
+          <div className="px-10 py-8 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-[0.2em]">Transaction Ledger</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-widest">Real-time ledger updates</p>
+            </div>
+            <div className="flex h-2 w-2 relative">
+               <div className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></div>
+               <div className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></div>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-700/50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Party</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Status</th>
+              <thead>
+                <tr className="bg-slate-50/50 dark:bg-white/[0.01] text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] border-b border-slate-50 dark:border-white/5">
+                  <th className="px-10 py-5 text-left font-bold">Involved Entity</th>
+                  <th className="px-10 py-5 text-left font-bold">Inflow Amount</th>
+                  <th className="px-10 py-5 text-left font-bold">Protocol Status</th>
+                  <th className="px-10 py-5 text-right font-bold">Audit Date</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="divide-y divide-slate-50 dark:divide-white/5">
                 {payments.map((txn) => (
-                  <tr key={txn.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{txn.id.slice(0, 8)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{txn.users?.full_name || 'Unknown User'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">₵{txn.amount}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">Payment</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(txn.status)}`}>
+                  <tr key={txn.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all group">
+                    <td className="px-10 py-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-9 h-9 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 font-bold border border-slate-100 dark:border-white/5">
+                          {txn.users?.full_name?.charAt(0) || 'G'}
+                        </div>
+                        <div>
+                          <p className="text-[13px] font-bold text-slate-900 dark:text-white transition-colors group-hover:text-indigo-600">{txn.users?.full_name || 'Guest Participant'}</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter mt-0.5">ID: {txn.id.slice(0, 8)}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-10 py-6">
+                      <p className="text-[14px] font-bold text-emerald-600">₵{txn.amount}</p>
+                    </td>
+                    <td className="px-10 py-6">
+                      <span className={`px-4 py-1.5 rounded-xl text-[9px] font-bold uppercase tracking-widest border ${getStatusStyle(txn.status)}`}>
                         {txn.status}
                       </span>
                     </td>
+                    <td className="px-10 py-6 text-right">
+                       <p className="text-[11px] font-bold text-slate-500 uppercase tracking-tighter">{new Date(txn.created_at).toLocaleDateString()}</p>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -181,44 +185,36 @@ export default function FinancialManagement() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Rider Payouts</h3>
-              <button className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap cursor-pointer">
-                Approve All
-              </button>
-            </div>
+        <div className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden flex flex-col h-fit">
+          <div className="px-10 py-8 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex flex-col gap-4">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-[0.2em]">Personnel Settlements</h3>
+            <button className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:scale-[0.98] transition-all shadow-xl shadow-slate-900/20 dark:shadow-white/5">
+              Execute Mass Settlement
+            </button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-700/50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Rider</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Pickups</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Net Payout</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {riders.map((rider) => (
-                  <tr key={rider.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{rider.full_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{rider.total_pickups}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">₵{rider.total_earnings}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(rider.status === 'active' ? 'pending' : rider.status)}`}>
-                        {rider.status === 'active' ? 'pending' : rider.status}
+          <div className="p-6 space-y-4">
+             {riders.map((rider) => (
+                <div key={rider.id} className="p-5 rounded-3xl border border-slate-50 dark:border-white/5 bg-slate-50/30 dark:bg-white/[0.01] hover:border-indigo-500/30 transition-all group">
+                   <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                         <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600 font-bold">
+                            {rider.full_name.charAt(0)}
+                         </div>
+                         <div>
+                            <h4 className="text-[12px] font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors uppercase">{rider.full_name}</h4>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{rider.total_pickups} Deployments</p>
+                         </div>
+                      </div>
+                      <span className={`px-3 py-1 rounded-lg text-[8px] font-bold uppercase tracking-widest border ${getStatusStyle('pending')}`}>
+                        Pending
                       </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                   </div>
+                   <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Net Payable</p>
+                      <p className="text-lg font-bold text-emerald-600 tracking-tight">₵{rider.total_earnings}</p>
+                   </div>
+                </div>
+             ))}
           </div>
         </div>
       </div>

@@ -23,8 +23,9 @@ export default function AdminManagement() {
     password: ''
   });
 
-  const currentRole = localStorage.getItem('simulatedRole') || 'Admin';
-  const isSuperAdmin = currentRole === 'super_admin' || currentRole === 'Admin';
+  const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
+  const currentRole = userInfo.role || localStorage.getItem('simulatedRole') || 'Admin';
+  const isSuperAdmin = currentRole === 'super_admin' || currentRole === 'Admin' || currentRole === 'Super Admin';
 
   useEffect(() => {
     fetchAdmins();
@@ -61,13 +62,12 @@ export default function AdminManagement() {
   const handleAddAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isSuperAdmin) {
-      alert('Only Super Admins can add new personnel.');
+      alert('Operational clearance required to provision new personnel.');
       return;
     }
 
     try {
-      // 1. Create Auth User
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      const { error: authError } = await supabase.auth.signUp({
         email: newAdmin.email,
         password: newAdmin.password,
         options: {
@@ -80,7 +80,6 @@ export default function AdminManagement() {
 
       if (authError) throw authError;
 
-      // 2. Insert into admins table
       const { error: profileError } = await supabase
         .from('admins')
         .insert([{
@@ -92,19 +91,19 @@ export default function AdminManagement() {
 
       if (profileError) throw profileError;
 
-      alert('New admin successfully added.');
+      alert('Personnel successfully onboarded.');
       setShowAddModal(false);
       setNewAdmin({ full_name: '', email: '', role: 'dispatcher', password: '' });
       fetchAdmins();
     } catch (err: any) {
       console.error('Error adding admin:', err);
-      alert(`Failed to add admin: ${err.message}`);
+      alert(`Provisioning Failed: ${err.message}`);
     }
   };
 
   const toggleStatus = async (id: string, currentStatus: string) => {
     if (!isSuperAdmin) {
-      alert('Permission denied.');
+      alert('Access Denied: Clearance required.');
       return;
     }
 
@@ -115,19 +114,19 @@ export default function AdminManagement() {
         .eq('id', id);
       
       if (error) throw error;
-      alert(`Admin status updated to ${currentStatus === 'active' ? 'inactive' : 'active'}`);
+      alert(`Status synchronized to ${currentStatus === 'active' ? 'inactive' : 'active'}`);
     } catch (error) {
       console.error('Error toggling status:', error);
-      alert('Status update failed.');
+      alert('Update protocol failed.');
     }
   };
 
   return (
-    <div className="space-y-6 font-['Montserrat'] animate-fade-in">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Admin Management</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Manage system personnel and access levels</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Administrative Faculty</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage system personnel permissions and access levels</p>
         </div>
         <div className="flex items-center gap-3">
           <ExportButton 
@@ -136,18 +135,18 @@ export default function AdminManagement() {
               Email: a.email,
               Role: a.role,
               Status: a.status,
-              Last_Login: a.last_login || 'Never'
+              Last_Active: a.last_login || 'Never'
             }))}
-            fileName="Admins_Registry"
-            title="Administrative Access Report"
+            fileName="Administrative_Faculty_Report"
+            title="Institutional Access Audit"
           />
           {isSuperAdmin && (
             <button
               onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 bg-teal-500 text-white rounded-lg text-xs font-bold shadow-md hover:bg-teal-600 transition-all flex items-center gap-2"
+              className="px-6 py-3 bg-indigo-600 text-white rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 transition-all flex items-center gap-2"
             >
               <i className="ri-user-add-line"></i>
-              Add Admin
+              Onboard Personnel
             </button>
           )}
         </div>
@@ -155,77 +154,80 @@ export default function AdminManagement() {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
-          { label: 'Total Staff', value: admins.length, icon: 'ri-team-line', color: 'teal' },
-          { label: 'Super Admins', value: admins.filter(a => a.role === 'super_admin').length, icon: 'ri-shield-star-line', color: 'rose' },
-          { label: 'Active', value: admins.filter(a => a.status === 'active').length, icon: 'ri-flashlight-line', color: 'emerald' },
-          { label: 'Inactive', value: admins.filter(a => a.status === 'inactive').length, icon: 'ri-error-warning-line', color: 'gray' },
+          { label: 'Total Operations Staff', value: admins.length, icon: 'ri-group-line', color: 'slate' },
+          { label: 'Executive Clearance', value: admins.filter(a => a.role === 'super_admin').length, icon: 'ri-shield-check-line', color: 'rose' },
+          { label: 'Verified Active', value: admins.filter(a => a.status === 'active').length, icon: 'ri-checkbox-circle-line', color: 'emerald' },
+          { label: 'Revoked Access', value: admins.filter(a => a.status === 'inactive').length, icon: 'ri-error-warning-line', color: 'slate' },
         ].map((stat, i) => (
-          <div key={i} className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-lg bg-${stat.color}-500/10 flex items-center justify-center text-${stat.color}-500`}>
-              <i className={`${stat.icon} text-xl`}></i>
+          <div key={i} className="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-100 dark:border-white/5 shadow-sm transition-all hover:scale-[1.02]">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">{stat.label}</p>
+              <div className={`w-10 h-10 rounded-xl bg-${stat.color}-500/10 flex items-center justify-center text-${stat.color}-600`}>
+                <i className={`${stat.icon} text-lg`}></i>
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white leading-none">{stat.value}</h3>
-            </div>
+            <h3 className="text-3xl font-bold text-slate-900 dark:text-white leading-none tracking-tight">{stat.value}</h3>
           </div>
         ))}
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-50 dark:border-gray-700">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Personnel Directory</h2>
+      <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden">
+        <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10">
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Faculty Directory</h2>
         </div>
         
         {loading ? (
-          <div className="p-20 flex justify-center">
-            <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="p-24 flex flex-col items-center justify-center">
+            <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-[11px] text-slate-400 font-bold uppercase mt-5 tracking-widest">Accessing records...</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="bg-gray-50/50 dark:bg-gray-900/50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
-                  <th className="px-6 py-4">Name & Email</th>
-                  <th className="px-6 py-4">Access Role</th>
-                  <th className="px-6 py-4">Last Active</th>
-                  <th className="px-6 py-4 text-right">Status</th>
+                <tr className="bg-slate-50/50 dark:bg-white/5 text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-50 dark:border-white/5">
+                  <th className="px-8 py-5">Personnel</th>
+                  <th className="px-8 py-5">Access Tier</th>
+                  <th className="px-8 py-5">Verification Link</th>
+                  <th className="px-8 py-5 text-right">Clearance</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+              <tbody className="divide-y divide-slate-50 dark:divide-white/5">
                 {admins.map((admin) => (
-                  <tr key={admin.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500 text-xs font-bold">
+                  <tr key={admin.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all group">
+                    <td className="px-8 py-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-white/10 flex items-center justify-center text-slate-500 font-bold text-sm group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
                           {admin.full_name?.charAt(0)}
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-gray-900 dark:text-white">{admin.full_name}</p>
-                          <p className="text-[10px] text-gray-500">{admin.email}</p>
+                          <p className="text-[13px] font-bold text-slate-900 dark:text-white leading-none mb-1.5">{admin.full_name}</p>
+                          <p className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">{admin.email}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded text-[9px] font-bold uppercase tracking-widest ${
-                        admin.role === 'super_admin' ? 'bg-rose-100 text-rose-700' : 
-                        admin.role === 'manager' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                    <td className="px-8 py-6">
+                      <span className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest border ${
+                        admin.role === 'super_admin' ? 'bg-rose-50 text-rose-600 border-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20' : 
+                        admin.role === 'manager' ? 'bg-indigo-50 text-indigo-600 border-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20' : 
+                        'bg-slate-50 text-slate-500 border-slate-100 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20'
                       }`}>
                         {admin.role.replace('_', ' ')}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-[10px] text-gray-500">
-                      {admin.last_login ? new Date(admin.last_login).toLocaleString() : 'Never'}
+                    <td className="px-8 py-6">
+                       <p className="text-[11px] font-bold text-slate-900 dark:text-white uppercase">Last Signed</p>
+                       <p className="text-[10px] text-slate-500 mt-1 uppercase">{admin.last_login ? new Date(admin.last_login).toLocaleString() : 'Never'}</p>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-8 py-6 text-right">
                       <button 
                         disabled={!isSuperAdmin}
                         onClick={() => toggleStatus(admin.id, admin.status)}
-                        className={`px-3 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all ${
+                        className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
                           admin.status === 'active' 
-                          ? 'bg-emerald-500 text-white shadow-md' 
-                          : 'bg-gray-100 text-gray-400 dark:bg-gray-700'
-                        } ${!isSuperAdmin ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+                          ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' 
+                          : 'bg-slate-100 text-slate-400 dark:bg-slate-800'
+                        } ${!isSuperAdmin ? 'opacity-30 cursor-not-allowed' : 'hover:scale-[1.02]'}`}
                       >
                         {admin.status}
                       </button>
@@ -239,69 +241,69 @@ export default function AdminManagement() {
       </div>
 
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowAddModal(false)}></div>
-          <div className="relative w-full max-w-lg bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden animate-scale-up border border-gray-100 dark:border-gray-700">
-            <div className="p-6 border-b border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50 flex justify-between items-center">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Add New Admin</h2>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-rose-500">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setShowAddModal(false)}></div>
+          <div className="relative w-full max-w-lg bg-white dark:bg-slate-950 rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-up border border-slate-100 dark:border-white/10">
+            <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Onboard Faculty Member</h2>
+              <button onClick={() => setShowAddModal(false)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-400 hover:text-rose-500">
                 <i className="ri-close-line text-2xl"></i>
               </button>
             </div>
             
-            <form onSubmit={handleAddAdmin} className="p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Full Name</label>
+            <form onSubmit={handleAddAdmin} className="p-10 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Full Name</label>
                   <input 
                     type="text" required
                     value={newAdmin.full_name}
                     onChange={e => setNewAdmin({...newAdmin, full_name: e.target.value})}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
-                    placeholder="John Doe"
+                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Legal Name"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Email Address</label>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Electronic Mail</label>
                   <input 
                     type="email" required
                     value={newAdmin.email}
                     onChange={e => setNewAdmin({...newAdmin, email: e.target.value})}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
-                    placeholder="admin@borlawura.gh"
+                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="official@borlawura.gh"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Access Role</label>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Access Tier</label>
                   <select 
                     value={newAdmin.role}
                     onChange={e => setNewAdmin({...newAdmin, role: e.target.value as any})}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
-                    <option value="dispatcher">Dispatcher</option>
-                    <option value="manager">Manager</option>
-                    <option value="support">Support</option>
-                    <option value="super_admin">Super Admin</option>
+                    <option value="dispatcher">Field Dispatcher</option>
+                    <option value="manager">Operations Manager</option>
+                    <option value="support">Citizen Support</option>
+                    <option value="super_admin">Executive Admin</option>
                   </select>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Password</label>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Pass-Phrase</label>
                   <input 
                     type="password" required
                     value={newAdmin.password}
                     onChange={e => setNewAdmin({...newAdmin, password: e.target.value})}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="••••••••"
                   />
                 </div>
               </div>
               
-              <div className="pt-6 flex gap-3">
-                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-xs font-bold uppercase rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-                  Cancel
-                </button>
-                <button type="submit" className="flex-1 py-3 bg-teal-500 text-white rounded-lg text-xs font-bold shadow-lg hover:bg-teal-600">
-                  Save Access
+              <div className="pt-6 flex gap-4">
+                <button 
+                  type="submit" 
+                  className="w-full py-4 bg-indigo-600 text-white rounded-[2rem] text-xs font-bold uppercase tracking-widest shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 transition-all"
+                >
+                  Confirm Provisioning
                 </button>
               </div>
             </form>

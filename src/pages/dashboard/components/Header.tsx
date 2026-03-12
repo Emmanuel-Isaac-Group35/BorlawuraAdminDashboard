@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
+import NotificationPanel from './NotificationPanel';
 
 interface HeaderProps {
   onLogout: () => void;
@@ -30,7 +31,8 @@ export default function Header({ onLogout, onMenuClick }: HeaderProps) {
   const fetchUserProfile = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const savedRole = localStorage.getItem('simulatedRole');
+      const savedProfileStr = localStorage.getItem('user_profile');
+      const savedProfile = savedProfileStr ? JSON.parse(savedProfileStr) : null;
 
       if (user) {
         const { data: adminData } = await supabase
@@ -40,8 +42,8 @@ export default function Header({ onLogout, onMenuClick }: HeaderProps) {
           .maybeSingle();
 
         setUserInfo({
-          fullName: adminData?.full_name || 'Admin User',
-          role: savedRole || adminData?.role || 'Admin',
+          fullName: savedProfile?.fullName || adminData?.full_name || 'Admin User',
+          role: savedProfile?.role || adminData?.role || 'Admin',
           email: user.email || ''
         });
       }
@@ -62,125 +64,122 @@ export default function Header({ onLogout, onMenuClick }: HeaderProps) {
 
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
 
-  const simulateRole = (role: string) => {
-    localStorage.setItem('simulatedRole', role);
-    window.location.reload();
-  };
-
-  const notifications = [
-    { id: 1, title: 'New pickup request', message: 'Kwame Mensah requested pickup', time: '5 mins ago', unread: true, icon: 'ri-map-pin-add-line', color: 'teal' },
-    { id: 2, title: 'Rider completed pickup', message: 'Kofi Adu completed PU-2847', time: '15 mins ago', unread: true, icon: 'ri-checkbox-circle-line', color: 'emerald' },
-    { id: 3, title: 'Payment received', message: '₵45 payment from Ama Serwaa', time: '1 hour ago', unread: false, icon: 'ri-money-dollar-circle-line', color: 'blue' },
-  ];
-
-  const unreadCount = notifications.filter(n => n.unread).length;
-
   return (
-    <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-4 md:px-6 shadow-sm sticky top-0 z-10 font-['Montserrat']">
-      <div className="flex items-center gap-3 md:gap-4">
+    <header className="h-[76px] bg-white/70 dark:bg-[#0a0a0c]/80 backdrop-blur-2xl border-b border-slate-100 dark:border-white/10 flex items-center justify-between px-6 md:px-10 sticky top-0 z-[60] font-['Montserrat']">
+      <div className="flex items-center gap-6">
         <button
           onClick={onMenuClick}
-          className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 md:hidden transition-colors"
+          className="w-11 h-11 flex items-center justify-center rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-white/10 hover:bg-slate-100 md:hidden transition-all shadow-sm"
         >
-          <i className="ri-menu-2-line text-xl text-gray-600 dark:text-gray-300"></i>
+          <i className="ri-menu-4-fill text-xl text-slate-700 dark:text-slate-300"></i>
         </button>
         <div className="flex flex-col">
-          <h2 className="text-xl font-bold bg-gradient-to-r from-teal-600 to-teal-500 bg-clip-text text-transparent truncate">Admin Dashboard</h2>
-          {/* Subtle Role Indicator/Toggler for Admin request */}
-          <div className="hidden md:flex gap-2 mt-0.5">
-            {['super_admin', 'manager', 'dispatcher'].map((r) => (
-              <button
-                key={r}
-                onClick={() => simulateRole(r)}
-                className={`text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded ${
-                  userInfo.role === r ? 'bg-teal-500 text-white' : 'text-gray-400 hover:text-teal-500'
-                }`}
-              >
-                {r.replace('_', ' ')}
-              </button>
-            ))}
+          <div className="flex items-center gap-2.5">
+             <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
+             <h2 className="text-[15px] font-bold text-slate-900 dark:text-white tracking-tight uppercase">Control Hub</h2>
           </div>
+          <p className="hidden md:block text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Borlawura Institutional Governance</p>
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        <button
-          onClick={toggleDarkMode}
-          className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all cursor-pointer group"
-        >
-          {isDarkMode ? (
-            <i className="ri-sun-line text-amber-500 text-xl group-hover:rotate-90 transition-transform duration-300"></i>
-          ) : (
-            <i className="ri-moon-line text-gray-600 text-xl group-hover:-rotate-12 transition-transform duration-300"></i>
-          )}
-        </button>
-
-        <div className="relative">
-          <button
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all relative cursor-pointer group"
-          >
-            <i className="ri-notification-3-line text-gray-600 dark:text-gray-400 text-xl group-hover:scale-110 transition-transform"></i>
-            {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse">
-                {unreadCount}
+      <div className="flex items-center gap-4">
+        {/* Secondary Actions Layer */}
+        <div className="hidden lg:flex items-center gap-1.5 px-4 py-1.5 bg-slate-50 dark:bg-white/[0.03] rounded-2xl border border-slate-100 dark:border-white/5 mr-2">
+           <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mr-2">Status:</span>
+           <div className="flex items-center gap-4">
+              <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600">
+                 <i className="ri-radar-line text-[11px]"></i>
+                 LIVE
               </span>
+              <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
+                 <i className="ri-shield-check-line text-[11px]"></i>
+                 SECURE
+              </span>
+           </div>
+        </div>
+
+        {/* Global Action Grid */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleDarkMode}
+            className="w-11 h-11 flex items-center justify-center rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm group"
+            title="Symmetry Toggle"
+          >
+            {isDarkMode ? (
+              <i className="ri-sun-cloudy-line text-amber-500 text-xl group-hover:rotate-12 transition-transform duration-500"></i>
+            ) : (
+              <i className="ri-moon-clear-line text-indigo-600 text-xl group-hover:-rotate-12 transition-transform duration-500"></i>
             )}
           </button>
 
-          {showNotifications && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setShowNotifications(false)}></div>
-              <div className="absolute right-0 mt-2 w-80 md:w-96 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-20 overflow-hidden">
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">Notifications</h3>
-                </div>
-                <div className="max-h-96 overflow-y-auto">
-                  {notifications.map((notif) => (
-                    <div key={notif.id} className="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer">
-                      <div className="flex items-start gap-3">
-                        <div className={`w-8 h-8 rounded-lg bg-${notif.color}-100 dark:bg-${notif.color}-900/30 flex items-center justify-center flex-shrink-0`}>
-                          <i className={`${notif.icon} text-${notif.color}-600 dark:text-${notif.color}-400`}></i>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-gray-900 dark:text-white">{notif.title}</p>
-                          <p className="text-[10px] text-gray-600 dark:text-gray-400 mt-1">{notif.message}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
+          <div className="relative">
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className={`w-11 h-11 flex items-center justify-center rounded-2xl border transition-all relative group shadow-sm ${
+                showNotifications 
+                ? 'bg-indigo-600 text-white border-indigo-600' 
+                : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-white/10 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+              }`}
+            >
+              <i className="ri-notification-4-line text-xl transition-transform group-active:scale-90"></i>
+              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white dark:ring-slate-950 shadow-sm animate-pulse"></span>
+            </button>
+
+            <NotificationPanel 
+              isOpen={showNotifications} 
+              onClose={() => setShowNotifications(false)} 
+            />
+          </div>
         </div>
 
+        <div className="h-8 w-px bg-slate-100 dark:bg-white/10 mx-2"></div>
+
+        {/* Executive Profile Cluster */}
         <div className="relative">
           <button
             onClick={() => setShowProfile(!showProfile)}
-            className="flex items-center gap-3 px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all cursor-pointer group"
+            className={`flex items-center gap-3.5 pl-1.5 pr-2 py-1.5 rounded-2xl transition-all group ${
+              showProfile ? 'bg-slate-50 dark:bg-white/[0.05]' : 'hover:bg-slate-50 dark:hover:bg-white/[0.03]'
+            }`}
           >
-            <div className="w-8 h-8 rounded-full bg-teal-500 flex items-center justify-center text-white text-xs font-bold shadow-lg shadow-teal-500/20">
-              {userInfo.fullName.charAt(0)}
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-indigo-500/20 transition-transform group-hover:scale-105 relative overflow-hidden">
+               <span className="relative z-10">{userInfo.fullName.charAt(0)}</span>
+               <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
             </div>
             <div className="hidden md:block text-left">
-              <p className="text-xs font-bold text-gray-900 dark:text-white">{userInfo.fullName}</p>
-              <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-widest">{userInfo.role.replace('_', ' ')}</p>
+              <p className="text-[11px] font-bold text-slate-900 dark:text-white leading-tight uppercase tracking-tight">{userInfo.fullName}</p>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">{userInfo.role.replace('_', ' ')}</p>
             </div>
+            <i className={`ri-arrow-down-s-line text-slate-400 transition-transform duration-300 ${showProfile ? 'rotate-180' : ''}`}></i>
           </button>
 
           {showProfile && (
             <>
-              <div className="fixed inset-0 z-10" onClick={() => setShowProfile(false)}></div>
-              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-20 overflow-hidden">
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                  <p className="text-xs font-bold text-gray-900 dark:text-white">{userInfo.fullName}</p>
-                  <p className="text-[10px] text-gray-500 truncate">{userInfo.email}</p>
+              <div className="fixed inset-0 z-[70]" onClick={() => setShowProfile(false)}></div>
+              <div className="absolute right-0 mt-4 w-64 bg-white dark:bg-slate-950 rounded-3xl shadow-2xl border border-slate-100 dark:border-white/10 z-[80] overflow-hidden animate-scale-up origin-top-right">
+                <div className="p-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/20 dark:bg-white/[0.02]">
+                  <p className="text-[11px] font-bold text-slate-900 dark:text-white uppercase tracking-tight">{userInfo.fullName}</p>
+                  <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate mt-1">{userInfo.email}</p>
                 </div>
-                <div className="p-2">
-                  <button onClick={onLogout} className="w-full flex items-center gap-3 px-3 py-2 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors cursor-pointer font-bold">
-                    <i className="ri-logout-box-line"></i>
-                    <span>Logout</span>
+                <div className="p-2.5">
+                  <button className="w-full flex items-center gap-4 px-4 py-3 text-[11px] font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/[0.03] rounded-2xl transition-all uppercase tracking-widest group">
+                     <i className="ri-user-settings-line text-lg text-slate-400 group-hover:text-indigo-500 transition-colors"></i>
+                     <span>Personal Registry</span>
+                  </button>
+                  <button className="w-full flex items-center gap-4 px-4 py-3 text-[11px] font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/[0.03] rounded-2xl transition-all uppercase tracking-widest group">
+                     <i className="ri-shield-keyhole-line text-lg text-slate-400 group-hover:text-indigo-500 transition-colors"></i>
+                     <span>Security Vault</span>
+                  </button>
+                  <div className="h-px bg-slate-100 dark:bg-white/5 my-2 mx-4"></div>
+                  <button 
+                    onClick={() => {
+                      setShowProfile(false);
+                      onLogout();
+                    }} 
+                    className="w-full flex items-center gap-4 px-4 py-3 text-[11px] font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-2xl transition-all uppercase tracking-widest group"
+                  >
+                    <i className="ri-shut-down-line text-lg group-hover:scale-110 transition-transform"></i>
+                    <span>Terminate Session</span>
                   </button>
                 </div>
               </div>

@@ -8,14 +8,17 @@ export default function LogoutDialog({ isOpen, onClose }: LogoutDialogProps) {
     // Clear any stored authentication data
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminUser');
+    localStorage.removeItem('user_profile');
     sessionStorage.clear();
 
-    // Show success message
+    // Show success message with institutional style
     const toast = document.createElement('div');
-    toast.className = 'fixed top-4 right-4 bg-teal-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2';
+    toast.className = 'fixed top-6 right-6 bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-8 py-4 rounded-[2rem] shadow-2xl z-[200] flex items-center gap-4 animate-slide-in border border-white/10';
     toast.innerHTML = `
-      <i class="ri-check-line text-lg"></i>
-      <span class="font-medium">Logged out successfully</span>
+      <div class="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center">
+         <i class="ri-check-line text-lg"></i>
+      </div>
+      <span class="font-bold text-[11px] uppercase tracking-widest">Session Terminated Successfully</span>
     `;
     document.body.appendChild(toast);
 
@@ -29,61 +32,55 @@ export default function LogoutDialog({ isOpen, onClose }: LogoutDialogProps) {
   if (!isOpen) return null;
 
   return (
-    <>
-      <div
-        className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+      <div 
+        className="absolute inset-0 bg-slate-950/70 backdrop-blur-md animate-fade-in"
         onClick={onClose}
+      ></div>
+      <div 
+        className="relative bg-white dark:bg-slate-950 rounded-[3rem] shadow-2xl max-w-md w-full overflow-hidden animate-scale-up border border-slate-100 dark:border-white/10"
+        onClick={(e) => e.stopPropagation()}
       >
-        <div
-          className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="p-6">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 flex items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
-                <i className="ri-logout-box-r-line text-red-600 dark:text-red-400 text-2xl"></i>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Confirm Logout
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Are you sure you want to log out?
-                </p>
-              </div>
-            </div>
+        <div className="p-10 space-y-8 text-center">
+          <div className="flex flex-col items-center">
+             <div className="w-20 h-20 flex items-center justify-center rounded-[2rem] bg-rose-500/10 text-rose-500 mb-8 border border-rose-500/20 shadow-inner">
+               <i className="ri-logout-circle-line text-4xl"></i>
+             </div>
+             <h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight uppercase">
+               Terminate Session
+             </h3>
+             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-3">
+               Institutional Auth Protocol
+             </p>
+          </div>
 
-            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 mb-6">
-              <div className="flex items-start gap-3">
-                <i className="ri-information-line text-teal-600 dark:text-teal-400 text-lg mt-0.5"></i>
-                <div className="text-sm text-gray-600 dark:text-gray-300">
-                  <p className="font-medium mb-1">Before you go:</p>
-                  <ul className="space-y-1 text-xs">
-                    <li>• All unsaved changes will be lost</li>
-                    <li>• Your session will be terminated</li>
-                    <li>• You'll need to log in again to access the dashboard</li>
-                  </ul>
+          <div className="bg-slate-50 dark:bg-white/[0.02] border border-slate-100 dark:border-white/5 rounded-[2.5rem] p-8 text-left">
+             <div className="flex items-start gap-4">
+                <div className="w-2 h-2 rounded-full bg-rose-500 mt-1.5 animate-pulse"></div>
+                <div className="flex-1">
+                   <p className="text-[13px] font-semibold text-slate-800 dark:text-slate-200 leading-relaxed italic">
+                     "Logging out will terminate all active operational handles and clear cache residues. Proceed with synchronization?"
+                   </p>
                 </div>
-              </div>
-            </div>
+             </div>
+          </div>
 
-            <div className="flex items-center gap-3">
-              <button
-                onClick={onClose}
-                className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleLogout}
-                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
-              >
-                Yes, Logout
-              </button>
-            </div>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={handleLogout}
+              className="w-full py-5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-[2rem] transition-all shadow-xl shadow-rose-600/20 uppercase tracking-[0.25em]"
+            >
+              Confirm Termination
+            </button>
+            <button
+              onClick={onClose}
+              className="w-full py-4 text-[10px] font-bold text-slate-400 hover:text-slate-900 dark:hover:text-white uppercase tracking-widest transition-colors"
+            >
+              Return to Hub
+            </button>
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

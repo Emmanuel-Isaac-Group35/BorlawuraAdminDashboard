@@ -25,7 +25,7 @@ export const sendSMS = async ({ recipients, message, sender = 'BorlaWura', sched
     }
 
     // Using the proxy defined in vite.config.ts to avoid CORS
-    // Target: https://sms.arkesel.com/api/v2/sms/send
+    // Proxy maps /api/arkesel to https://sms.arkesel.com/api/v2
     const response = await fetch('/api/arkesel/sms/send', {
       method: 'POST',
       headers: {
@@ -38,7 +38,6 @@ export const sendSMS = async ({ recipients, message, sender = 'BorlaWura', sched
     const data = await response.json();
     console.log('Arkesel Response:', data);
 
-    // Arkesel usually returns { status: 'success', ... }
     if (data.status === 'success' || response.ok) {
       return { success: true, data };
     }
@@ -50,5 +49,31 @@ export const sendSMS = async ({ recipients, message, sender = 'BorlaWura', sched
       success: false,
       message: error.message || 'Failed to connect to SMS gateway'
     };
+  }
+};
+
+export const getSMSBalance = async () => {
+  if (!ARKESEL_API_KEY) {
+    return { success: false, balance: 0, message: 'API Key missing' };
+  }
+
+  try {
+    const response = await fetch('/api/arkesel/clients/balance', {
+      headers: {
+        'api-key': ARKESEL_API_KEY,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const balance = data.data?.sms_balance || data.balance || 0;
+    
+    return { success: true, balance: Number(balance) };
+  } catch (error: any) {
+    console.error('Error fetching SMS balance:', error);
+    return { success: false, balance: 0, message: error.message };
   }
 };

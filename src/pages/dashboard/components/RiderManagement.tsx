@@ -31,8 +31,9 @@ export default function RiderManagement() {
     vehicle_number: ''
   });
 
-  const currentRole = localStorage.getItem('simulatedRole') || 'Admin';
-  const canManage = currentRole === 'super_admin' || currentRole === 'manager' || currentRole === 'Admin';
+  const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
+  const role = (userInfo.role || 'Admin').toLowerCase().replace(/\s+/g, '_');
+  const canManage = role === 'super_admin' || role === 'operations_admin' || role === 'admin' || userInfo.role === 'Admin';
 
   useEffect(() => {
     fetchRiders();
@@ -69,7 +70,7 @@ export default function RiderManagement() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canManage) {
-      alert('Access Denied.');
+      alert('Access Denied: Operational clearance required.');
       return;
     }
 
@@ -86,7 +87,7 @@ export default function RiderManagement() {
 
       if (error) throw error;
 
-      alert('Rider registered successfully.');
+      alert('Personnel registered successfully.');
       setShowAddModal(false);
       setNewRider({
         full_name: '',
@@ -111,11 +112,11 @@ export default function RiderManagement() {
   });
 
   return (
-    <div className="space-y-6 font-['Montserrat'] animate-fade-in">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-8 font-['Montserrat'] animate-fade-in">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Rider Fleet</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Manage and monitor delivery personnel</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Fleet Operations</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage and monitor field personnel and vehicle assets</p>
         </div>
         <div className="flex items-center gap-3">
           <ExportButton 
@@ -128,16 +129,16 @@ export default function RiderManagement() {
               Rating: r.rating,
               Pickups: r.total_pickups
             }))}
-            fileName="Rider_Fleet_Report"
-            title="Rider Performance Report"
+            fileName="Fleet_Asset_Report"
+            title="Operational Fleet Report"
           />
           {canManage && (
             <button
               onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 bg-teal-500 text-white rounded-lg text-xs font-bold shadow-md hover:bg-teal-600 transition-all flex items-center gap-2"
+              className="px-6 py-2.5 bg-emerald-600 dark:bg-emerald-500 text-white rounded-2xl text-xs font-bold shadow-xl shadow-emerald-500/20 hover:bg-emerald-700 dark:hover:bg-emerald-400 transition-all flex items-center gap-2"
             >
               <i className="ri-user-add-line"></i>
-              Register Rider
+              Register Personnel
             </button>
           )}
         </div>
@@ -145,44 +146,44 @@ export default function RiderManagement() {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
-          { label: 'Total Riders', value: riders.length, icon: 'ri-steering-2-line', color: 'teal' },
-          { label: 'Active', value: riders.filter(r => r.status === 'active').length, icon: 'ri-radar-line', color: 'emerald' },
+          { label: 'Total Fleet', value: riders.length, icon: 'ri-e-bike-2-line', color: 'indigo' },
+          { label: 'Active Service', value: riders.filter(r => r.status === 'active').length, icon: 'ri-radar-line', color: 'emerald' },
           { label: 'Suspended', value: riders.filter(r => r.status === 'suspended').length, icon: 'ri-error-warning-line', color: 'rose' },
-          { label: 'Avg Rating', value: riders.length ? (riders.reduce((acc, r) => acc + r.rating, 0) / riders.length).toFixed(1) : '5.0', icon: 'ri-star-line', color: 'amber' },
+          { label: 'Fleet Rating', value: riders.length ? (riders.reduce((acc, r) => acc + r.rating, 0) / riders.length).toFixed(1) : '5.0', icon: 'ri-star-smile-line', color: 'amber' },
         ].map((stat, i) => (
-          <div key={i} className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-lg bg-${stat.color}-500/10 flex items-center justify-center text-${stat.color}-500`}>
-              <i className={`${stat.icon} text-xl`}></i>
+          <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800/50 shadow-sm flex items-center gap-5 transition-all hover:scale-[1.02]">
+            <div className={`w-14 h-14 rounded-2xl bg-${stat.color}-500/10 flex items-center justify-center text-${stat.color}-600`}>
+              <i className={`${stat.icon} text-2xl`}></i>
             </div>
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white leading-none">{stat.value}</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-2">{stat.label}</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white leading-none tracking-tight">{stat.value}</h3>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex flex-col md:flex-row gap-4 justify-between items-center">
-          <div className="relative flex-1 max-w-md w-full">
-            <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+      <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden">
+        <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex flex-col md:flex-row gap-4 justify-between items-center bg-slate-50/10">
+          <div className="relative flex-1 max-w-md w-full group">
+            <i className="ri-search-line absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-emerald-500"></i>
             <input 
               type="text"
-              placeholder="Search riders..."
+              placeholder="Filter by name or contact..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+              className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800 rounded-2xl text-[13px] focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-medium"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 p-1 bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl">
             {['all', 'active', 'suspended'].map((status) => (
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
-                className={`px-4 py-2 text-xs font-bold uppercase rounded-lg transition-all ${
+                className={`px-5 py-2 text-[10px] font-bold uppercase rounded-xl transition-all ${
                   statusFilter === status 
-                  ? 'bg-teal-500 text-white' 
-                  : 'bg-gray-50 dark:bg-gray-900 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
+                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
                 }`}
               >
                 {status}
@@ -192,65 +193,70 @@ export default function RiderManagement() {
         </div>
 
         {loading ? (
-          <div className="p-20 flex justify-center">
-            <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="p-24 flex justify-center">
+            <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
+            <table className="w-full">
               <thead>
-                <tr className="bg-gray-50/50 dark:bg-gray-900/50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
-                  <th className="px-6 py-4">Rider Identity</th>
-                  <th className="px-6 py-4">Vehicle Details</th>
-                  <th className="px-6 py-4">Performance</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
+                <tr className="bg-slate-50/50 dark:bg-slate-800/20 text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-50 dark:border-slate-800/50">
+                  <th className="px-8 py-5 text-left">Rider Identity</th>
+                  <th className="px-8 py-5 text-left">Asset Details</th>
+                  <th className="px-8 py-5 text-left">Operational Data</th>
+                  <th className="px-8 py-5 text-left">Service Status</th>
+                  <th className="px-8 py-5 text-right">Registry</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+              <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
                 {filteredRiders.map((rider) => (
-                  <tr key={rider.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-teal-500 flex items-center justify-center text-white text-[10px] font-bold">
+                  <tr key={rider.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all group">
+                    <td className="px-8 py-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white text-[11px] font-bold shadow-lg shadow-emerald-500/10">
                           {rider.full_name?.charAt(0)}
                         </div>
-                        <div>
-                          <p className="text-xs font-bold text-gray-900 dark:text-white uppercase">{rider.full_name}</p>
-                          <p className="text-[10px] text-gray-500">{rider.phone_number}</p>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{rider.full_name}</p>
+                          <p className="text-[11px] font-medium text-slate-500 mt-1">{rider.phone_number}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <p className="text-xs font-bold text-gray-900 dark:text-white">{rider.vehicle_type}</p>
-                      <p className="text-[10px] text-teal-600 font-bold tracking-widest">{rider.vehicle_number}</p>
+                    <td className="px-8 py-6">
+                      <p className="text-[13px] font-semibold text-slate-900 dark:text-white">{rider.vehicle_type}</p>
+                      <p className="text-[10px] text-emerald-600 font-bold tracking-[0.15em] mt-1">{rider.vehicle_number}</p>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-4">
-                         <div className="text-center">
-                            <p className="text-xs font-bold text-gray-900 dark:text-white">{rider.total_pickups}</p>
-                            <p className="text-[9px] text-gray-400 uppercase font-black">Trips</p>
+                    <td className="px-8 py-6">
+                      <div className="flex items-center gap-6">
+                         <div className="flex flex-col">
+                            <span className="text-[13px] font-bold text-slate-900 dark:text-white">{rider.total_pickups}</span>
+                            <span className="text-[9px] text-slate-400 uppercase font-bold mt-0.5">Pickups</span>
                          </div>
-                         <div className="flex items-center gap-1 text-amber-500">
-                            <i className="ri-star-fill text-[10px]"></i>
-                            <span className="text-xs font-bold">{rider.rating}</span>
+                         <div className="flex flex-col">
+                            <div className="flex items-center gap-1 text-amber-500">
+                               <i className="ri-star-fill text-[9px]"></i>
+                               <span className="text-[13px] font-bold">{rider.rating}</span>
+                            </div>
+                            <span className="text-[9px] text-slate-400 uppercase font-bold mt-0.5">Rating</span>
                          </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded text-[9px] font-bold uppercase ${
-                        rider.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/20'
+                    <td className="px-8 py-6">
+                      <span className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider ${
+                        rider.status === 'active' 
+                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-100/50 dark:border-emerald-500/20' 
+                        : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-100/50 dark:border-rose-500/20'
                       }`}>
                         {rider.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <button 
-                        onClick={() => setSelectedRider(rider)}
-                        className="p-2 text-gray-400 hover:text-teal-500 transition-colors"
-                      >
-                        <i className="ri-eye-line text-lg"></i>
-                      </button>
+                    <td className="px-8 py-6 text-right">
+                       <button 
+                         onClick={() => setSelectedRider(rider)}
+                         className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all border border-transparent hover:border-indigo-100 dark:hover:border-indigo-500/20"
+                       >
+                         <i className="ri-folder-user-line text-lg"></i>
+                       </button>
                     </td>
                   </tr>
                 ))}
@@ -260,55 +266,123 @@ export default function RiderManagement() {
         )}
       </div>
 
-      {showAddModal && (
+      {/* Profile Detail Modal */}
+      {selectedRider && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowAddModal(false)}></div>
-          <div className="relative w-full max-w-lg bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden animate-scale-up border border-gray-100 dark:border-gray-700">
-            <div className="p-6 border-b border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50 flex justify-between items-center">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Register New Rider</h2>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-rose-500">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setSelectedRider(null)}></div>
+          <div className="relative w-full max-w-xl bg-white dark:bg-slate-950 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 shadow-2xl overflow-hidden animate-scale-up">
+            <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-slate-50/10">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Rider Dossier</h2>
+              <button onClick={() => setSelectedRider(null)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-rose-500 transition-all">
                 <i className="ri-close-line text-2xl"></i>
               </button>
             </div>
             
-            <form onSubmit={handleRegister} className="p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Full Name</label>
+            <div className="p-10">
+              <div className="flex items-center gap-6 mb-10">
+                <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white text-4xl font-bold shadow-2xl shadow-emerald-500/20">
+                  {selectedRider.full_name?.charAt(0)}
+                </div>
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{selectedRider.full_name}</h3>
+                    <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase ${selectedRider.status === 'active' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+                      {selectedRider.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1.5 text-amber-500">
+                       <i className="ri-star-fill text-sm"></i>
+                       <span className="text-sm font-bold">{selectedRider.rating} / 5.0 Rating</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-8 mb-10">
+                <div className="p-4 bg-slate-50 dark:bg-white/[0.01] rounded-3xl border border-slate-100 dark:border-slate-800/60">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Asset Assigned</p>
+                  <p className="text-[13px] font-bold text-slate-900 dark:text-white">{selectedRider.vehicle_type}</p>
+                  <p className="text-[11px] text-emerald-600 font-bold mt-0.5">{selectedRider.vehicle_number}</p>
+                </div>
+                <div className="p-4 bg-slate-50 dark:bg-white/[0.01] rounded-3xl border border-slate-100 dark:border-slate-800/60">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Contact Link</p>
+                  <p className="text-[13px] font-bold text-slate-900 dark:text-white">{selectedRider.phone_number}</p>
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">{selectedRider.email || 'No email registered'}</p>
+                </div>
+                <div className="p-4 bg-slate-50 dark:bg-white/[0.01] rounded-3xl border border-slate-100 dark:border-slate-800/60">
+                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Operational Life</p>
+                   <p className="text-[13px] font-bold text-slate-900 dark:text-white">{selectedRider.total_pickups} Completed Orders</p>
+                   <p className="text-[11px] text-slate-500 font-medium mt-0.5">Since {new Date(selectedRider.created_at).toLocaleDateString()}</p>
+                </div>
+                <div className="p-4 bg-emerald-50/50 dark:bg-emerald-500/5 rounded-3xl border border-emerald-100 dark:border-emerald-500/20">
+                   <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-2">Revenue Potential</p>
+                   <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">₵{(selectedRider.total_earnings || 0).toLocaleString()}</p>
+                   <p className="text-[9px] font-bold text-emerald-600/60 uppercase mt-0.5">Gross Generated</p>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setSelectedRider(null)} 
+                className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-3xl text-xs font-bold uppercase tracking-widest transition-all hover:shadow-2xl active:scale-[0.98]"
+              >
+                Close Dossier
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Rider Modal Refined */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setShowAddModal(false)}></div>
+          <div className="relative w-full max-w-lg bg-white dark:bg-slate-950 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 shadow-2xl overflow-hidden animate-scale-up">
+            <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-slate-50/10">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Personnel Onboarding</h2>
+              <button onClick={() => setShowAddModal(false)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-400 hover:text-rose-500 transition-all">
+                <i className="ri-close-line text-2xl"></i>
+              </button>
+            </div>
+            
+            <form onSubmit={handleRegister} className="p-8 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Full Identity</label>
                   <input 
                     type="text" required
                     value={newRider.full_name}
                     onChange={e => setNewRider({...newRider, full_name: e.target.value})}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                     placeholder="Samuel Adu"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Phone Number</label>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Contact String</label>
                   <input 
                     type="tel" required
                     value={newRider.phone_number}
                     onChange={e => setNewRider({...newRider, phone_number: e.target.value})}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                     placeholder="+233..."
                   />
                 </div>
-                <div className="col-span-2 space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Email (Optional)</label>
+                <div className="col-span-2 space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email Connection</label>
                   <input 
                     type="email"
                     value={newRider.email}
                     onChange={e => setNewRider({...newRider, email: e.target.value})}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
-                    placeholder="rider@borlawura.gh"
+                    className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                    placeholder="rider@borlawura.com"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Vehicle Type</label>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Vehicle Class</label>
                   <select 
                     value={newRider.vehicle_type}
                     onChange={e => setNewRider({...newRider, vehicle_type: e.target.value})}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                   >
                     <option>Motorbike</option>
                     <option>Tricycle (Aboboyaa)</option>
@@ -316,82 +390,27 @@ export default function RiderManagement() {
                     <option>Heavy Truck</option>
                   </select>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Vehicle Number</label>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Asset Serial (ID)</label>
                   <input 
                     type="text" required
                     value={newRider.vehicle_number}
                     onChange={e => setNewRider({...newRider, vehicle_number: e.target.value})}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
-                    placeholder="GW-829"
+                    className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                    placeholder="GW-829-23"
                   />
                 </div>
               </div>
               
-              <div className="pt-6 flex gap-3">
-                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-xs font-bold uppercase rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-                  Cancel
+              <div className="pt-6 flex gap-4">
+                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-4 text-xs font-bold uppercase text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-all">
+                  Abort
                 </button>
-                <button type="submit" className="flex-1 py-3 bg-teal-500 text-white rounded-lg text-xs font-bold shadow-lg hover:bg-teal-600">
-                  Register Rider
+                <button type="submit" className="flex-1 py-4 bg-emerald-600 dark:bg-white text-white dark:text-slate-900 rounded-2xl text-xs font-bold shadow-xl hover:shadow-emerald-500/20 transition-all active:scale-95">
+                  Confirm Registration
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {selectedRider && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSelectedRider(null)}></div>
-          <div className="relative w-full max-w-lg bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden animate-scale-up border border-gray-100 dark:border-gray-700">
-            <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-900/50">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Rider Dossier</h2>
-              <button onClick={() => setSelectedRider(null)} className="text-gray-400 hover:text-rose-500">
-                <i className="ri-close-line text-2xl"></i>
-              </button>
-            </div>
-            
-            <div className="p-8">
-              <div className="flex items-center gap-4 mb-8">
-                <div className="w-20 h-20 rounded-xl bg-teal-500 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
-                  {selectedRider.full_name?.charAt(0)}
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white uppercase">{selectedRider.full_name}</h3>
-                  <div className="flex items-center gap-1 mt-1 text-amber-500">
-                     <i className="ri-star-fill"></i>
-                     <span className="text-sm font-bold text-gray-600 dark:text-gray-400">{selectedRider.rating} / 5.0</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-6 mb-8">
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Vehicle</p>
-                  <p className="text-sm font-bold text-gray-900 dark:text-white">{selectedRider.vehicle_type}</p>
-                  <p className="text-[10px] text-teal-600 font-bold">{selectedRider.vehicle_number}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Contact</p>
-                  <p className="text-sm font-bold text-gray-900 dark:text-white">{selectedRider.phone_number}</p>
-                </div>
-                <div>
-                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">History</p>
-                   <p className="text-sm font-bold text-gray-900 dark:text-white">{selectedRider.total_pickups} Total Trips</p>
-                </div>
-                <div>
-                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Record</p>
-                   <p className="text-sm font-bold text-emerald-600">₵{(selectedRider.total_earnings || 0).toLocaleString()} Generated</p>
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button onClick={() => setSelectedRider(null)} className="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-white text-xs font-bold uppercase rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">
-                  Close
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}

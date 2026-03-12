@@ -5,7 +5,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import ExportButton from './ExportButton';
 
-// Fix Leaflet marker icons
+// Safe Marker Icon Logic
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
@@ -36,12 +36,14 @@ export default function PickupOperations() {
   const [riders, setRiders] = useState<any[]>([]);
   const [showAssignModal, setShowAssignModal] = useState(false);
 
-  const currentRole = localStorage.getItem('simulatedRole') || 'Admin';
-  const canDispatch = currentRole === 'super_admin' || currentRole === 'dispatcher' || currentRole === 'Admin';
+  const [mapError, setMapError] = useState(false);
+
+  const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
+  const role = (userInfo.role || 'Admin').toLowerCase().replace(/\s+/g, '_');
+  const canDispatch = role === 'super_admin' || role === 'dispatcher' || role === 'operations_admin' || userInfo.role === 'Admin';
 
   useEffect(() => {
-    fetchPickups();
-    fetchActiveRiders();
+    loadData();
 
     const channel = supabase
       .channel('public:pickups')
@@ -55,39 +57,71 @@ export default function PickupOperations() {
     };
   }, []);
 
-  const fetchPickups = async () => {
+  const loadData = async () => {
+    setLoading(true);
+    await Promise.all([fetchPickups(false), fetchActiveRiders()]);
+    setLoading(false);
+  };
+
+  const fetchPickups = async (updateLoading = true) => {
+    if (updateLoading) setLoading(true);
     try {
-      setLoading(true);
+      // Robust select with fallback for joins
       const { data, error } = await supabase
         .from('pickups')
-        .select(`*, users (full_name), riders (full_name)`)
+        .select(`*, users!inner(full_name), riders(full_name)`)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-
-      if (data) {
+      if (error) {
+        console.error('Initial Pickups Query Error:', error);
+        // Fallback to basic query if joins fail
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('pickups')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (fallbackError) throw fallbackError;
+        
+        setPickups((fallbackData || []).map((p: any) => ({
+          ...p,
+          user_name: 'Anonymous User',
+          rider_name: null,
+          location: validateLocation(p.location)
+        })));
+      } else if (data) {
         setPickups(data.map((p: any) => ({
           ...p,
-          user_name: p.users?.full_name || 'Anonymous',
+          user_name: p.users?.full_name || 'Anonymous User',
           rider_name: p.riders?.full_name || null,
-          location: p.location || { lat: 5.6037, lng: -0.1870 }
+          location: validateLocation(p.location)
         })));
       }
-    } catch (error) {
-      console.error('Error fetching pickups:', error);
+    } catch (e) {
+      console.error('Critical Fetch Error:', e);
     } finally {
-      setLoading(false);
+      if (updateLoading) setLoading(false);
     }
   };
 
+  const validateLocation = (loc: any) => {
+    const defaultCenter = { lat: 5.6037, lng: -0.1870 };
+    if (!loc || typeof loc !== 'object') return defaultCenter;
+    if (typeof loc.lat !== 'number' || typeof loc.lng !== 'number') return defaultCenter;
+    return loc;
+  };
+
   const fetchActiveRiders = async () => {
-    const { data } = await supabase.from('riders').select('id, full_name').eq('status', 'active');
-    setRiders(data || []);
+    try {
+      const { data } = await supabase.from('riders').select('id, full_name').eq('status', 'active');
+      setRiders(data || []);
+    } catch (e) {
+      console.error('Riders fetch failed', e);
+    }
   };
 
   const handleAssignRider = async (pickupId: string, riderId: string) => {
     if (!canDispatch) {
-      alert('Access Denied');
+      alert('Access Denied: Operational authorization required.');
       return;
     }
 
@@ -99,89 +133,81 @@ export default function PickupOperations() {
 
       if (error) throw error;
       
-      alert('Rider dispatched successfully');
+      alert('Rider successfully assigned.');
       setShowAssignModal(false);
       setSelectedPickup(null);
       fetchPickups();
     } catch (error) {
-       console.error('Error assigning rider:', error);
-       alert('Dispatch failed');
+       alert('Dispatch error. Please check system logs.');
     }
   };
 
   const filteredPickups = pickups.filter(p => {
-    const matchesSearch = p.user_name.toLowerCase().includes(searchQuery.toLowerCase()) || p.id.includes(searchQuery);
+    const matchesSearch = (p.user_name || '').toLowerCase().includes(searchQuery.toLowerCase()) || p.id.includes(searchQuery);
     const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
   const getStatusStyle = (status: string) => {
     switch (status) {
-      case 'requested': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/20';
-      case 'scheduled': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/20';
-      case 'in_progress': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/20';
-      case 'completed': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20';
-      default: return 'bg-gray-100 text-gray-700 dark:bg-gray-900/20';
+      case 'requested': return 'bg-amber-50 text-amber-600 border-amber-100';
+      case 'scheduled': return 'bg-blue-50 text-blue-600 border-blue-100';
+      case 'in_progress': return 'bg-violet-50 text-violet-600 border-violet-100';
+      case 'completed': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
+      default: return 'bg-slate-50 text-slate-500 border-slate-100';
     }
   };
 
   const createPickupIcon = (status: string) => {
-    let color = '#f59e0b'; // amber
+    let color = '#f59e0b';
     if (status === 'scheduled') color = '#3b82f6';
-    if (status === 'in_progress') color = '#a855f7';
+    if (status === 'in_progress') color = '#7c3aed';
     if (status === 'completed') color = '#10b981';
     
     return L.divIcon({
-      html: `<div style="background-color: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 8px ${color}80;"></div>`,
-      className: 'custom-icon',
-      iconSize: [12, 12],
+      html: `<div style="background-color: ${color}; width: 14px; height: 14px; border-radius: 4px; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.2);"></div>`,
+      className: 'custom-marker',
+      iconSize: [14, 14],
     });
   };
 
   return (
-    <div className="space-y-6 font-['Montserrat'] animate-fade-in">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Pickup Operations</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Manage real-time logistics and dispatch fleet</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Logistics Operations</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage and assign service schedules for participants</p>
         </div>
         <div className="flex items-center gap-3">
           <ExportButton 
-            data={filteredPickups.map(p => ({
-              ID: p.id,
-              Customer: p.user_name,
-              Rider: p.rider_name || 'Unassigned',
-              Waste: p.waste_type,
-              Size: p.waste_size,
-              Status: p.status,
-              Date: new Date(p.created_at).toLocaleString()
-            }))}
-            fileName="Pickup_Orders"
-            title="Logistics Operations Report"
+            data={filteredPickups}
+            fileName="Pickup_Database"
+            title="Service Logistics Audit"
           />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col min-h-[600px]">
-           <div className="p-4 border-b border-gray-50 dark:border-gray-700 flex flex-col md:flex-row gap-4 items-center">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Column: Request List */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/50 shadow-sm flex flex-col min-h-[700px]">
+           <div className="p-6 border-b border-slate-50 dark:border-slate-800/50 flex flex-col md:flex-row gap-4 items-center">
               <div className="relative flex-1 w-full">
-                <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <i className="ri-search-line absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
                 <input 
                   type="text"
-                  placeholder="Search by customer or ID..."
+                  placeholder="Seach by name or request ID..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+                  className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all font-medium"
                 />
               </div>
-              <div className="flex gap-1 overflow-x-auto pb-1 md:pb-0 w-full md:w-auto">
+              <div className="flex gap-1.5 p-1 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl overflow-x-auto scrollbar-hide">
                 {['all', 'requested', 'scheduled', 'in_progress', 'completed'].map((s) => (
                   <button
                     key={s}
                     onClick={() => setStatusFilter(s)}
-                    className={`px-3 py-1.5 text-[9px] font-bold uppercase rounded-lg transition-all whitespace-nowrap ${
-                      statusFilter === s ? 'bg-teal-500 text-white' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    className={`px-4 py-2 text-[10px] font-bold uppercase rounded-xl transition-all whitespace-nowrap ${
+                      statusFilter === s ? 'bg-violet-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'
                     }`}
                   >
                     {s}
@@ -191,166 +217,172 @@ export default function PickupOperations() {
            </div>
            
            {loading ? (
-             <div className="flex-1 flex justify-center items-center">
-                <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
+             <div className="flex-1 flex flex-col justify-center items-center py-20">
+                <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-[11px] text-slate-400 font-bold uppercase mt-5 tracking-widest">Loading Requests...</p>
              </div>
            ) : (
-             <div className="flex-1 overflow-y-auto divide-y divide-gray-50 dark:divide-gray-700">
+             <div className="flex-1 overflow-y-auto divide-y divide-slate-50 dark:divide-slate-800/50">
                 {filteredPickups.map((p) => (
                   <div 
                     key={p.id} 
-                    className={`p-6 hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer group ${selectedPickup?.id === p.id ? 'bg-teal-50/50 dark:bg-teal-900/10' : ''}`}
+                    className={`p-6 hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all cursor-pointer group ${selectedPickup?.id === p.id ? 'bg-violet-50/30' : ''}`}
                     onClick={() => setSelectedPickup(p)}
                   >
-                    <div className="flex justify-between items-start mb-3">
-                       <div>
-                          <div className="flex items-center gap-2 mb-1">
-                             <span className="text-[9px] font-bold text-gray-400 uppercase">#{p.id.slice(0,8)}</span>
-                             <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${getStatusStyle(p.status)}`}>
+                    <div className="flex justify-between items-start mb-4">
+                       <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">#{p.id.slice(0,8)}</span>
+                             <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase border ${getStatusStyle(p.status)}`}>
                                 {p.status}
                              </span>
                           </div>
-                          <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase">{p.user_name}</h3>
+                          <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">{p.user_name}</h3>
                        </div>
                        <div className="text-right">
-                          <p className="text-xs font-bold text-gray-900 dark:text-white">{p.waste_type}</p>
-                          <p className="text-[9px] text-gray-400 font-bold uppercase">{p.waste_size}</p>
+                          <p className="text-[11px] font-bold text-violet-600 uppercase mb-1">{p.waste_type}</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase">{p.waste_size}</p>
                        </div>
                     </div>
                     
                     <div className="flex items-center justify-between gap-4">
-                       <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 text-gray-500 min-w-0">
-                             <i className="ri-map-pin-line text-[10px]"></i>
-                             <span className="text-[10px] truncate max-w-[200px]">{p.address}</span>
+                       <div className="flex flex-col md:flex-row md:items-center gap-4 flex-1 min-w-0">
+                          <div className="flex items-center gap-2 text-slate-500 text-[11px]">
+                             <i className="ri-map-pin-line text-violet-500"></i>
+                             <span className="truncate max-w-[200px]">{p.address}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 text-gray-500">
-                             <i className="ri-steering-2-line text-[10px]"></i>
-                             <span className="text-[10px] font-bold">{p.rider_name || 'PENDING DISPATCH'}</span>
+                          <div className="flex items-center gap-2 text-slate-400 text-[10px] font-bold uppercase">
+                             <i className="ri-steering-line"></i>
+                             <span>{p.rider_name || 'Awaiting Rider'}</span>
                           </div>
                        </div>
-                       {!p.rider_id && p.status === 'requested' && canDispatch && (
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); setSelectedPickup(p); setShowAssignModal(true); }}
-                            className="px-3 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[9px] font-bold uppercase rounded-lg hover:scale-105 transition-all shadow-md"
-                          >
-                             Dispatch
-                          </button>
-                       )}
                     </div>
                   </div>
                 ))}
                 {filteredPickups.length === 0 && (
-                  <div className="flex-1 flex flex-col items-center justify-center p-10 text-gray-400 text-xs font-bold uppercase tracking-widest">
-                     No requests found
+                  <div className="py-24 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest">
+                     No requests found in this category
                   </div>
                 )}
              </div>
            )}
         </div>
 
-        <div className="space-y-6 flex flex-col">
-           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden h-[300px] z-0">
-             <MapContainer center={[5.6037, -0.1870]} zoom={11} style={{ height: '100%', width: '100%' }}>
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                {pickups.map(p => (
-                  <Marker key={p.id} position={[p.location.lat, p.location.lng]} icon={createPickupIcon(p.status)}>
-                    <Popup>
-                      <div className="p-1">
-                        <p className="font-bold text-[10px] uppercase mb-0.5">{p.user_name}</p>
-                        <p className="text-[9px] text-gray-500 font-bold uppercase">{p.status}</p>
-                      </div>
-                    </Popup>
-                  </Marker>
-                ))}
-             </MapContainer>
+        {/* Right Column: Detail & Map */}
+        <div className="space-y-8 h-full">
+           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden h-[350px] z-0">
+             {!mapError ? (
+               <MapContainer center={[5.6037, -0.1870]} zoom={12} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  {pickups.map(p => (
+                    <Marker key={p.id} position={[p.location.lat, p.location.lng]} icon={createPickupIcon(p.status)}>
+                      <Popup>
+                        <div className="p-1">
+                          <p className="font-bold text-xs">{p.user_name}</p>
+                          <p className="text-[10px] text-violet-500 font-bold uppercase">{p.status}</p>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  ))}
+               </MapContainer>
+             ) : (
+               <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-50">
+                  <i className="ri-map-pin-user-line text-3xl text-slate-300 mb-2"></i>
+                  <p className="text-xs font-bold text-slate-400 uppercase">Map services temporarily unavailable</p>
+               </div>
+             )}
            </div>
 
-           {selectedPickup && (
-              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm animate-fade-in space-y-6">
-                 <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Mission Intel</h2>
-                 <div className="space-y-4">
-                    <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-900/50">
-                       <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Objective</p>
-                       <p className="text-xs font-bold text-gray-900 dark:text-white">{selectedPickup.waste_type} Collection</p>
-                       <p className="text-[10px] text-gray-500 mt-1">{selectedPickup.address}</p>
+           {selectedPickup ? (
+              <div className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-slate-800/50 p-8 shadow-sm flex flex-col gap-6 animate-scale-up">
+                 <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-800 pb-4">
+                    <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Operational Sequence Details</h2>
+                    <span className="text-[10px] font-bold text-violet-500 uppercase">#{selectedPickup.id.slice(0,8)}</span>
+                 </div>
+                 
+                 <div className="space-y-6">
+                    <div>
+                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Service Address</p>
+                       <p className="text-sm font-bold text-slate-800 dark:text-white leading-relaxed">{selectedPickup.address}</p>
                     </div>
-                    
-                    <div className="grid grid-cols-2 gap-3">
-                       <div className="p-3 rounded-lg bg-teal-50 dark:bg-teal-900/10">
-                          <p className="text-[9px] font-bold text-teal-600 uppercase mb-1">Volume</p>
-                          <p className="text-xs font-bold text-gray-900 dark:text-white">{selectedPickup.waste_size}</p>
+
+                    <div className="grid grid-cols-2 gap-4">
+                       <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800/50">
+                          <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Waste Type</p>
+                          <p className="text-xs font-bold text-violet-600">{selectedPickup.waste_type}</p>
                        </div>
-                       <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/10">
-                          <p className="text-[9px] font-bold text-blue-600 uppercase mb-1">Status</p>
-                          <p className="text-xs font-bold text-gray-900 dark:text-white uppercase">{selectedPickup.status.replace('_', ' ')}</p>
+                       <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800/50">
+                          <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Package Size</p>
+                          <p className="text-xs font-bold text-slate-800 dark:text-white">{selectedPickup.waste_size}</p>
                        </div>
                     </div>
 
-                    <div className="space-y-3 pt-2">
-                       <p className="text-[9px] font-bold text-gray-400 uppercase px-1">Field Personnel</p>
-                       {selectedPickup.rider_id ? (
-                          <div className="flex items-center gap-3 p-3 border border-gray-100 dark:border-gray-700 rounded-lg">
-                             <div className="w-8 h-8 rounded bg-teal-500 flex items-center justify-center text-white text-xs font-bold">
-                                {selectedPickup.rider_name?.charAt(0)}
-                             </div>
-                             <div>
-                                <p className="text-xs font-bold text-gray-900 dark:text-white">{selectedPickup.rider_name}</p>
-                                <p className="text-[9px] text-gray-500 uppercase">Active Dispatch</p>
-                             </div>
-                          </div>
-                       ) : (
-                          canDispatch && (
-                            <button 
-                              onClick={() => setShowAssignModal(true)}
-                              className="w-full py-3 bg-teal-500 text-white rounded-lg text-xs font-bold shadow-md hover:bg-teal-600 transition-all"
-                            >
-                                Dispatch Rider
-                            </button>
-                          )
-                       )}
-                    </div>
+                    {selectedPickup.rider_id ? (
+                        <div className="p-5 bg-emerald-50 dark:bg-emerald-500/5 rounded-[2rem] border border-emerald-100 dark:border-emerald-500/20 flex items-center gap-4">
+                           <div className="w-12 h-12 rounded-2xl bg-emerald-500 flex items-center justify-center text-white text-lg font-bold">
+                              {selectedPickup.rider_name?.charAt(0)}
+                           </div>
+                           <div>
+                              <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase">Assigned Rider</p>
+                              <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">{selectedPickup.rider_name}</p>
+                           </div>
+                        </div>
+                    ) : (
+                        canDispatch && (
+                           <button 
+                             onClick={() => setShowAssignModal(true)}
+                             className="w-full py-4 bg-violet-600 text-white rounded-[2rem] text-xs font-bold uppercase tracking-widest shadow-xl shadow-violet-500/20 hover:scale-[1.02] transition-all"
+                           >
+                              Assign Available Rider
+                           </button>
+                        )
+                    )}
                  </div>
+              </div>
+           ) : (
+              <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-slate-50/50 dark:bg-white/[0.01] rounded-[3rem] border border-dashed border-slate-200 dark:border-slate-800">
+                 <i className="ri-cursor-line text-3xl text-slate-300 mb-3"></i>
+                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Select a request to view profile</p>
               </div>
            )}
         </div>
       </div>
 
       {showAssignModal && selectedPickup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowAssignModal(false)}></div>
-           <div className="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden animate-scale-up border border-gray-100 dark:border-gray-700">
-              <div className="p-6 border-b border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50">
-                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">Select Rider</h2>
-                 <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">Available active fleet</p>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setShowAssignModal(false)}></div>
+           <div className="relative w-full max-w-md bg-white dark:bg-slate-950 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-2xl overflow-hidden animate-scale-up">
+              <div className="p-8 border-b border-slate-50 dark:border-slate-800 bg-slate-50/50">
+                 <h2 className="text-xl font-bold text-slate-900">Rider Assignment</h2>
+                 <p className="text-xs font-medium text-slate-500 mt-1">Deploy an active rider to this location</p>
               </div>
-              <div className="p-4 max-h-[300px] overflow-y-auto divide-y divide-gray-50 dark:divide-gray-700">
+              <div className="p-4 max-h-[350px] overflow-y-auto space-y-2">
                  {riders.map(r => (
                     <button 
                       key={r.id}
                       onClick={() => handleAssignRider(selectedPickup.id, r.id)}
-                      className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors text-left"
+                      className="w-full flex items-center gap-4 p-4 rounded-3xl hover:bg-violet-50 dark:hover:bg-violet-500/5 transition-all text-left group"
                     >
-                       <div className="w-8 h-8 rounded-lg bg-teal-500/10 flex items-center justify-center text-teal-600 text-xs font-bold">
+                       <div className="w-11 h-11 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold group-hover:bg-violet-500 group-hover:text-white transition-all">
                           {r.full_name.charAt(0)}
                        </div>
                        <div className="flex-1">
-                          <p className="text-xs font-bold text-gray-900 dark:text-white uppercase">{r.full_name}</p>
-                          <p className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Verified Rider</p>
+                          <p className="text-sm font-bold text-slate-900 dark:text-white">{r.full_name}</p>
+                          <p className="text-[10px] text-slate-400 uppercase font-bold mt-0.5">Ready for Service</p>
                        </div>
-                       <i className="ri-arrow-right-s-line text-gray-300"></i>
+                       <i className="ri-arrow-right-line text-slate-300 group-hover:text-violet-500"></i>
                     </button>
                  ))}
                  {riders.length === 0 && (
-                    <div className="py-10 text-center text-[10px] text-gray-400 font-bold uppercase">
-                       No riders available
+                    <div className="py-16 text-center text-[11px] text-slate-400 font-bold uppercase tracking-widest">
+                       No active riders available
                     </div>
                  )}
               </div>
-              <div className="p-4 bg-gray-50 dark:bg-gray-900/50">
+              <div className="p-6">
                  <button 
                    onClick={() => setShowAssignModal(false)}
-                   className="w-full py-3 text-[10px] font-bold text-gray-500 uppercase rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all font-bold"
+                   className="w-full py-4 text-xs font-bold text-slate-400 uppercase rounded-2xl hover:bg-slate-50 transition-all"
                  >
                     Cancel
                  </button>

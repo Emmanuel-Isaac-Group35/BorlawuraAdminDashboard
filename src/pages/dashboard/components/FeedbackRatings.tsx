@@ -50,7 +50,7 @@ export default function FeedbackRatings() {
         .eq('id', id);
 
       if (error) throw error;
-      alert(`Feedback marked as ${newStatus}`);
+      alert(`Status updated to ${newStatus}`);
       fetchFeedback();
       setSelectedFeedback(null);
     } catch (error) {
@@ -64,25 +64,25 @@ export default function FeedbackRatings() {
 
   const getRatingStars = (rating: number) => {
     return Array.from({ length: 5 }).map((_, i) => (
-      <i key={i} className={`ri-star-${i < rating ? 'fill text-amber-500' : 'line text-gray-300'} text-xs`}></i>
+      <i key={i} className={`ri-star-${i < rating ? 'fill text-amber-500' : 'line text-slate-200 dark:text-slate-800'} text-xs`}></i>
     ));
   };
 
   return (
-    <div className="space-y-6 font-['Montserrat'] animate-fade-in">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Feedback & Ratings</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Monitor citizen feedback and service satisfaction</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">User Sentiment</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Review user feedback and service quality ratings</p>
         </div>
-        <div className="flex gap-1 bg-white dark:bg-gray-800 p-1 rounded-lg border border-gray-100 dark:border-gray-700">
+        <div className="flex gap-1.5 p-1 bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 rounded-2xl">
           {['all', 'pending', 'reviewed', 'resolved'].map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 text-[9px] font-bold uppercase rounded transition-all ${statusFilter === s
-                ? 'bg-amber-500 text-white'
-                : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900'
+              className={`px-5 py-2 text-[10px] font-bold uppercase rounded-xl transition-all ${statusFilter === s
+                ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
+                : 'text-slate-400 hover:text-slate-600'
               }`}
             >
               {s}
@@ -92,94 +92,103 @@ export default function FeedbackRatings() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center p-20">
-           <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="flex flex-col items-center justify-center py-24">
+           <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+           <p className="text-[11px] text-slate-400 font-bold uppercase mt-5 tracking-widest">Collecting Sentiment...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
            {filteredFeedback.map((f) => (
               <div 
                 key={f.id} 
-                className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-white/5 shadow-sm hover:shadow-xl transition-all cursor-pointer group hover:-translate-y-1"
                 onClick={() => setSelectedFeedback(f)}
               >
-                 <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-3">
-                       <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 font-bold text-xs">
+                 <div className="flex justify-between items-start mb-6">
+                    <div className="flex items-center gap-4">
+                       <div className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-950 border border-slate-100 dark:border-white/10 flex items-center justify-center text-slate-400 font-bold text-sm">
                           {f.user_name.charAt(0)}
                        </div>
                        <div>
-                          <h3 className="text-xs font-bold text-gray-900 dark:text-white uppercase">{f.user_name}</h3>
-                          <p className="text-[9px] text-gray-400 font-bold uppercase">{new Date(f.created_at).toLocaleDateString()}</p>
+                          <h3 className="text-[13px] font-bold text-slate-900 dark:text-white truncate max-w-[120px]">{f.user_name}</h3>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{new Date(f.created_at).toLocaleDateString()}</p>
                        </div>
                     </div>
-                    <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
-                      f.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                      f.status === 'reviewed' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
+                    <span className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase border ${
+                      f.status === 'pending' ? 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-500/10 dark:text-amber-400' :
+                      f.status === 'reviewed' ? 'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-500/10 dark:text-blue-400' : 
+                      'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400'
                     }`}>
                        {f.status}
                     </span>
                  </div>
                  
-                 <div className="flex gap-0.5 mb-3">
+                 <div className="flex gap-1 mb-4">
                     {getRatingStars(f.rating)}
                  </div>
                  
-                 <p className="text-xs text-gray-600 dark:text-gray-400 italic line-clamp-3">
+                 <p className="text-sm font-medium text-slate-600 dark:text-slate-400 italic line-clamp-3 leading-relaxed">
                     "{f.comment}"
                  </p>
                  
-                 <div className="mt-6 pt-4 border-t border-gray-50 dark:border-gray-700 flex justify-between items-center">
-                    <p className="text-[9px] font-bold text-gray-400 uppercase">Rating: {f.rating}/5</p>
-                    <i className="ri-arrow-right-line text-gray-300 group-hover:text-amber-500 transition-colors"></i>
+                 <div className="mt-8 pt-6 border-t border-slate-50 dark:border-white/5 flex justify-between items-center">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Score: {f.rating}.0 / 5.0</p>
+                    <div className="w-8 h-8 flex items-center justify-center rounded-xl group-hover:bg-amber-500 group-hover:text-white dark:bg-slate-800 text-slate-300 transition-all">
+                       <i className="ri-arrow-right-line"></i>
+                    </div>
                  </div>
               </div>
            ))}
+           {filteredFeedback.length === 0 && (
+             <div className="col-span-full py-24 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest bg-slate-50/50 dark:bg-white/5 rounded-[3rem] border border-dashed border-slate-200 dark:border-white/10">
+                No sentiment data available in this segment
+             </div>
+           )}
         </div>
       )}
 
       {selectedFeedback && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSelectedFeedback(null)}></div>
-           <div className="relative w-full max-w-lg bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden animate-scale-up border border-gray-100 dark:border-gray-700">
-              <div className="p-6 border-b border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50 flex justify-between items-center">
-                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">Feedback Detail</h2>
-                 <button onClick={() => setSelectedFeedback(null)} className="text-gray-400 hover:text-rose-500">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setSelectedFeedback(null)}></div>
+           <div className="relative w-full max-w-lg bg-white dark:bg-slate-950 rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-up border border-slate-100 dark:border-white/10">
+              <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
+                 <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Review Sentiment</h2>
+                 <button onClick={() => setSelectedFeedback(null)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-400 hover:text-rose-500">
                     <i className="ri-close-line text-2xl"></i>
                  </button>
               </div>
               
-              <div className="p-6 space-y-6">
-                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-900 flex items-center justify-center text-gray-400 text-xl font-bold">
+              <div className="p-10 space-y-8">
+                 <div className="flex items-center gap-5">
+                    <div className="w-20 h-20 rounded-3xl bg-white dark:bg-white/5 border border-slate-100 dark:border-white/10 flex items-center justify-center text-slate-300 text-4xl font-bold">
                        {selectedFeedback.user_name.charAt(0)}
                     </div>
                     <div>
-                       <h3 className="text-lg font-bold text-gray-900 dark:text-white uppercase">{selectedFeedback.user_name}</h3>
-                       <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">Submitted {new Date(selectedFeedback.created_at).toLocaleString()}</p>
+                       <h3 className="text-2xl font-bold text-slate-900 dark:text-white uppercase leading-none mb-3">{selectedFeedback.user_name}</h3>
+                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Sent {new Date(selectedFeedback.created_at).toLocaleString()}</p>
                     </div>
                  </div>
 
-                 <div className="p-6 rounded-lg bg-amber-50/30 dark:bg-amber-900/10 border border-amber-100/50 dark:border-amber-900/20">
-                    <div className="flex gap-1 mb-4">
+                 <div className="p-8 rounded-[2rem] bg-amber-50/30 dark:bg-amber-500/5 border border-amber-100/50 dark:border-amber-500/20 shadow-inner">
+                    <div className="flex gap-1.5 mb-5">
                        {getRatingStars(selectedFeedback.rating)}
                     </div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white italic leading-relaxed">
+                    <p className="text-[15px] font-medium text-slate-800 dark:text-white italic leading-relaxed">
                        "{selectedFeedback.comment}"
                     </p>
                  </div>
                  
-                 <div className="space-y-3">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase px-1">Update Status</p>
-                    <div className="grid grid-cols-3 gap-2">
+                 <div className="space-y-4">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Modify Sentiment Status</p>
+                    <div className="grid grid-cols-3 gap-3 p-1 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-white/5 rounded-2xl">
                        {['pending', 'reviewed', 'resolved'].map((s) => (
                           <button
                              key={s}
                              onClick={() => updateStatus(selectedFeedback.id, s)}
-                             className={`py-3 rounded-lg text-[9px] font-bold uppercase transition-all ${
+                             className={`py-3.5 rounded-xl text-[10px] font-bold uppercase transition-all ${
                                 selectedFeedback.status === s
-                                ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
-                                : 'bg-gray-100 dark:bg-gray-700 text-gray-400 hover:text-gray-600'
+                                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-lg'
+                                : 'text-slate-400 hover:text-slate-600'
                              }`}
                           >
                              {s}
@@ -187,6 +196,13 @@ export default function FeedbackRatings() {
                        ))}
                     </div>
                  </div>
+
+                 <button 
+                  onClick={() => setSelectedFeedback(null)} 
+                  className="w-full py-4 text-xs font-bold text-slate-400 hover:text-slate-900 uppercase tracking-widest transition-all"
+                 >
+                   Dismiss View
+                 </button>
               </div>
            </div>
         </div>

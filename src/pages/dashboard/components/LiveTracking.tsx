@@ -13,16 +13,16 @@ L.Icon.Default.mergeOptions({
 });
 
 const createRiderIcon = (status: string) => {
-  let color = '#9ca3af'; // gray-400
-  if (status === 'online') color = '#10b981';
-  if (status === 'busy') color = '#f59e0b';
+  let color = '#94a3b8'; // slate-400
+  if (status === 'online') color = '#10b981'; // emerald
+  if (status === 'busy') color = '#f59e0b'; // amber
 
   return L.divIcon({
-    className: 'custom-rider-icon',
-    html: `<div style="background-color: ${color}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px ${color}80;"></div>`,
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
-    popupAnchor: [0, -7]
+    className: 'custom-rider-marker',
+    html: `<div style="background-color: ${color}; width: 16px; height: 16px; border-radius: 6px; border: 2px solid white; box-shadow: 0 4px 10px ${color}60;"></div>`,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+    popupAnchor: [0, -8]
   });
 };
 
@@ -82,7 +82,7 @@ export default function LiveTracking() {
           location: {
             lat: r.latitude || BASE_LAT + (Math.random() - 0.5) * 0.05,
             lng: r.longitude || BASE_LNG + (Math.random() - 0.5) * 0.05,
-            address: r.address || 'Accra, Ghana'
+            address: r.address || 'Service Area'
           },
           lastUpdate: new Date().toLocaleTimeString(),
           speed: r.status === 'busy' ? Math.floor(Math.random() * 20) + 10 : 0
@@ -103,31 +103,31 @@ export default function LiveTracking() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'online': return 'text-emerald-500 bg-emerald-100 dark:bg-emerald-900/20';
-      case 'busy': return 'text-amber-500 bg-amber-100 dark:bg-amber-900/20';
-      default: return 'text-gray-500 bg-gray-100 dark:bg-gray-900/20';
+      case 'online': return 'text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20';
+      case 'busy': return 'text-amber-500 bg-amber-50 dark:bg-amber-500/10 border-amber-100 dark:border-amber-500/20';
+      default: return 'text-slate-500 bg-slate-50 dark:bg-slate-500/10 border-slate-100 dark:border-slate-500/20';
     }
   };
 
   return (
-    <div className="space-y-6 font-['Montserrat'] animate-fade-in">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Live Tracking</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Real-time GPS monitoring across the service network</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Active Tracking</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Real-time GPS visualization of the field operations fleet</p>
         </div>
-        <div className="flex items-center gap-2 bg-white dark:bg-gray-800 p-1.5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-           <span className="flex h-2 w-2 relative mx-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
-           </span>
-           <span className="text-[10px] font-bold text-teal-600 uppercase tracking-widest pr-2">GNSS Active</span>
+        <div className="flex items-center gap-3 px-5 py-2.5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 rounded-2xl shadow-sm">
+           <div className="flex h-2.5 w-2.5 relative">
+              <div className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></div>
+              <div className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></div>
+           </div>
+           <span className="text-[11px] font-bold text-slate-800 dark:text-white uppercase tracking-widest">Active GNSS Link</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden h-[650px] z-0 relative">
-          <MapContainer center={[BASE_LAT, BASE_LNG]} zoom={12} style={{ height: '100%', width: '100%' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden h-[680px] z-0 relative">
+          <MapContainer center={[BASE_LAT, BASE_LNG]} zoom={13} style={{ height: '100%', width: '100%' }}>
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             {riders.filter(r => r.status !== 'offline').map((rider) => (
               <Marker
@@ -137,49 +137,49 @@ export default function LiveTracking() {
                 eventHandlers={{ click: () => setSelectedRider(rider) }}
               >
                 <Popup>
-                  <div className="p-1">
-                    <p className="font-bold text-xs uppercase">{rider.name}</p>
-                    <p className="text-[9px] text-gray-500 font-bold uppercase">{rider.status}</p>
+                  <div className="p-1 min-w-[100px]">
+                    <p className="font-bold text-xs">{rider.name}</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{rider.status}</p>
                   </div>
                 </Popup>
               </Marker>
             ))}
           </MapContainer>
           
-          <div className="absolute top-4 right-4 z-[500] bg-white/90 dark:bg-gray-800/90 backdrop-blur p-3 rounded-lg shadow-xl border border-gray-100 dark:border-gray-700">
-             <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                   <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
-                   <span className="text-[9px] font-bold text-gray-600 dark:text-gray-300 uppercase">Available</span>
+          <div className="absolute top-6 right-6 z-[500] bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-5 rounded-3xl shadow-2xl border border-slate-100 dark:border-white/10">
+             <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                   <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                   <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">Available</span>
                 </div>
-                <div className="flex items-center gap-2">
-                   <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
-                   <span className="text-[9px] font-bold text-gray-600 dark:text-gray-300 uppercase">In-Transit</span>
+                <div className="flex items-center gap-3">
+                   <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+                   <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">In-Transit</span>
                 </div>
              </div>
           </div>
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col h-[650px]">
-             <div className="p-4 border-b border-gray-50 dark:border-gray-700 space-y-4">
-                <div className="relative">
-                   <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+          <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden flex flex-col h-[680px]">
+             <div className="p-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 space-y-5">
+                <div className="relative group">
+                   <i className="ri-search-line absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors"></i>
                    <input 
                      type="text"
-                     placeholder="Intercept rider ID..."
+                     placeholder="Search personnel directory..."
                      value={searchQuery}
                      onChange={(e) => setSearchQuery(e.target.value)}
-                     className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-teal-500"
+                     className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
                    />
                 </div>
-                <div className="flex gap-1 overflow-x-auto pb-1">
+                <div className="flex gap-1.5 p-1 bg-white dark:bg-slate-950 border border-slate-100 dark:border-white/5 rounded-2xl overflow-x-auto scrollbar-hide">
                    {['all', 'online', 'busy', 'offline'].map((s) => (
                       <button
                         key={s}
                         onClick={() => setFilterStatus(s)}
-                        className={`px-3 py-1.5 text-[9px] font-bold uppercase rounded-lg transition-all ${
-                          filterStatus === s ? 'bg-teal-500 text-white' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        className={`px-4 py-2 text-[10px] font-bold uppercase rounded-xl transition-all whitespace-nowrap ${
+                          filterStatus === s ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-lg' : 'text-slate-400 hover:text-slate-600'
                         }`}
                       >
                          {s}
@@ -188,36 +188,35 @@ export default function LiveTracking() {
                 </div>
              </div>
 
-             <div className="flex-1 overflow-y-auto divide-y divide-gray-50 dark:divide-gray-700 scrollbar-hide">
+             <div className="flex-1 overflow-y-auto divide-y divide-slate-50 dark:divide-white/5 scrollbar-hide">
                 {filteredRiders.map((rider) => (
                    <div 
                      key={rider.id}
                      onClick={() => setSelectedRider(rider)}
-                     className={`p-4 hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer ${selectedRider?.id === rider.id ? 'bg-teal-50/50 dark:bg-teal-900/10' : ''}`}
+                     className={`p-6 hover:bg-slate-50/30 dark:hover:bg-white/[0.01] transition-all cursor-pointer group ${selectedRider?.id === rider.id ? 'bg-emerald-50/30' : ''}`}
                    >
-                      <div className="flex justify-between items-start mb-2">
-                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-teal-500/10 flex items-center justify-center text-teal-600 font-bold text-xs">
+                      <div className="flex justify-between items-start mb-3">
+                         <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 font-bold text-sm group-hover:bg-emerald-500 group-hover:text-white transition-all">
                                {rider.name.charAt(0)}
                             </div>
-                            <div>
-                               <p className="text-[11px] font-bold text-gray-900 dark:text-white uppercase truncate max-w-[120px]">{rider.name}</p>
-                               <p className="text-[9px] text-gray-400 font-bold uppercase">{rider.zone}</p>
+                            <div className="min-w-0">
+                               <p className="text-[13px] font-bold text-slate-900 dark:text-white truncate max-w-[140px] leading-none mb-1.5">{rider.name}</p>
+                               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{rider.zone}</p>
                             </div>
                          </div>
-                         <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase ${getStatusColor(rider.status)}`}>
+                         <span className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase border ${getStatusColor(rider.status)}`}>
                             {rider.status}
                          </span>
                       </div>
-                      <div className="space-y-2 mt-3">
-                         <div className="flex items-center gap-2 text-gray-500">
-                            <i className="ri-map-pin-line text-[10px]"></i>
-                            <span className="text-[9px] font-medium truncate">{rider.location.address}</span>
+                      <div className="space-y-3 mt-4">
+                         <div className="flex items-center gap-2 text-slate-500">
+                            <i className="ri-map-pin-2-line text-emerald-500"></i>
+                            <span className="text-[11px] font-medium truncate">{rider.location.address}</span>
                          </div>
-                         <div className="flex items-center justify-between text-[8px] font-bold uppercase text-gray-400">
-                            <div className="flex gap-3">
-                               <span>{rider.speed} KM/H</span>
-                               <span>LITE-BAND</span>
+                         <div className="flex items-center justify-between text-[10px] font-bold uppercase text-slate-400">
+                            <div className="flex gap-4">
+                               <span className="flex items-center gap-1"><i className="ri-speed-mini-line"></i> {rider.speed} KM/H</span>
                             </div>
                             <span>{rider.lastUpdate}</span>
                          </div>
@@ -230,49 +229,52 @@ export default function LiveTracking() {
       </div>
 
       {selectedRider && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSelectedRider(null)}></div>
-           <div className="relative w-full max-w-lg bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden animate-scale-up border border-gray-100 dark:border-gray-700">
-              <div className="p-6 border-b border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50 flex justify-between items-center">
-                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">Telemetry Intel</h2>
-                 <button onClick={() => setSelectedRider(null)} className="text-gray-400 hover:text-rose-500">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setSelectedRider(null)}></div>
+           <div className="relative w-full max-w-lg bg-white dark:bg-slate-950 rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-up border border-slate-100 dark:border-white/10">
+              <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
+                 <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Personnel Dossier</h2>
+                 <button onClick={() => setSelectedRider(null)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-400 hover:text-rose-500">
                     <i className="ri-close-line text-2xl"></i>
                  </button>
               </div>
-              <div className="p-6 space-y-6">
-                 <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-xl bg-teal-500 flex items-center justify-center text-white text-2xl font-bold">
+              <div className="p-10 space-y-8">
+                 <div className="flex items-center gap-6">
+                    <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-3xl font-bold font-['Montserrat'] shadow-lg shadow-emerald-500/20">
                        {selectedRider.name.charAt(0)}
                     </div>
                     <div>
-                       <h3 className="text-xl font-bold text-gray-900 dark:text-white uppercase">{selectedRider.name}</h3>
-                       <p className="text-xs font-bold text-teal-600 uppercase tracking-widest">{selectedRider.phone}</p>
+                       <h3 className="text-2xl font-bold text-slate-900 dark:text-white leading-tight">{selectedRider.name}</h3>
+                       <p className="text-xs font-bold text-emerald-600 uppercase tracking-[0.2em] mt-2">{selectedRider.phone}</p>
                     </div>
                  </div>
 
-                 <div className="grid grid-cols-2 gap-4">
-                    <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                       <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Status</p>
-                       <p className="text-xs font-bold text-teal-600 uppercase">{selectedRider.status}</p>
+                 <div className="grid grid-cols-2 gap-6">
+                    <div className="p-5 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-100 dark:border-white/5">
+                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Live Status</p>
+                       <p className="text-[13px] font-bold text-emerald-600 uppercase">{selectedRider.status}</p>
                     </div>
-                    <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                       <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Velocity</p>
-                       <p className="text-xs font-bold text-gray-900 dark:text-white uppercase">{selectedRider.speed} KM/H</p>
+                    <div className="p-5 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-100 dark:border-white/5">
+                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Moving Velocity</p>
+                       <p className="text-[13px] font-bold text-slate-900 dark:text-white uppercase">{selectedRider.speed} KM/H</p>
                     </div>
                  </div>
 
-                 <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                    <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Geolocation</p>
-                    <p className="text-xs font-bold text-gray-900 dark:text-white">{selectedRider.location.address}</p>
-                    <p className="text-[9px] font-mono text-gray-500 mt-1">{selectedRider.location.lat.toFixed(6)}, {selectedRider.location.lng.toFixed(6)}</p>
+                 <div className="p-6 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-100 dark:border-white/5">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Verified Geolocation</p>
+                    <p className="text-[13px] font-bold text-slate-900 dark:text-white leading-relaxed">{selectedRider.location.address}</p>
+                    <p className="text-[10px] font-mono text-slate-500 mt-3">{selectedRider.location.lat.toFixed(6)} N, {selectedRider.location.lng.toFixed(6)} W</p>
                  </div>
 
-                 <div className="flex gap-3">
-                    <button className="flex-1 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg text-xs font-bold uppercase shadow-lg">
-                       Emergency Comms
+                 <div className="flex gap-4 pt-4">
+                    <button className="flex-1 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-[2rem] text-xs font-bold uppercase tracking-widest shadow-xl transition-all">
+                       Direct Contact
                     </button>
-                    <button className="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-white rounded-lg text-xs font-bold uppercase transition-all">
-                       Audit History
+                    <button 
+                       onClick={() => setSelectedRider(null)}
+                       className="px-10 py-4 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-white rounded-[2rem] text-xs font-bold uppercase transition-all"
+                    >
+                       Dismiss
                     </button>
                  </div>
               </div>
