@@ -18,7 +18,7 @@ CREATE TABLE public.admins (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     full_name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
-    role TEXT CHECK (role IN ('Super Admin', 'Operations Admin', 'Finance Admin', 'Support Admin')),
+    role TEXT, -- Removed strict CHECK to support 'Admin', 'super_admin', 'manager', 'dispatcher', 'support'
     status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
     last_login TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now())
@@ -28,13 +28,11 @@ CREATE TABLE public.admins (
 CREATE TABLE public.riders (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     full_name TEXT NOT NULL,
-    phone TEXT NOT NULL,
+    phone_number TEXT NOT NULL,
     email TEXT,
-    national_id TEXT,
-    tricycle_number TEXT,
-    zone TEXT,
-    address TEXT,
-    status TEXT DEFAULT 'offline' CHECK (status IN ('active', 'offline', 'suspended', 'busy')),
+    vehicle_type TEXT,
+    vehicle_number TEXT,
+    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'offline', 'busy')),
     rating NUMERIC(3, 2) DEFAULT 5.00,
     total_earnings NUMERIC(10, 2) DEFAULT 0.00,
     total_pickups INTEGER DEFAULT 0,
@@ -47,14 +45,12 @@ CREATE TABLE public.riders (
 CREATE TABLE public.users (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     full_name TEXT NOT NULL,
-    phone TEXT NOT NULL,
+    phone_number TEXT NOT NULL,
     email TEXT,
+    address TEXT,
     location TEXT,
-    status TEXT DEFAULT 'pending' CHECK (status IN ('active', 'flagged', 'suspended', 'pending')),
-    subscription_type TEXT CHECK (subscription_type IN ('subscription', 'pay-as-you-go')),
-    total_spent NUMERIC(10, 2) DEFAULT 0.00,
-    total_pickups INTEGER DEFAULT 0,
-    registration_status TEXT DEFAULT 'pending' CHECK (registration_status IN ('approved', 'pending', 'rejected')),
+    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'pending', 'flagged')),
+    balance NUMERIC(10, 2) DEFAULT 0.00,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now())
 );
 
@@ -63,9 +59,12 @@ CREATE TABLE public.pickups (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     user_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
     rider_id UUID REFERENCES public.riders(id) ON DELETE SET NULL,
-    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'scheduled', 'in-progress', 'completed', 'cancelled')),
+    status TEXT DEFAULT 'requested' CHECK (status IN ('requested', 'scheduled', 'in_progress', 'completed', 'cancelled')),
     pickup_time TIMESTAMP WITH TIME ZONE,
-    location TEXT,
+    location JSONB,
+    address TEXT,
+    waste_type TEXT,
+    waste_size TEXT,
     details TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now()),
     completed_at TIMESTAMP WITH TIME ZONE
@@ -84,13 +83,11 @@ CREATE TABLE public.pickups (
 -- 6. SMS Logs Table (New)
 CREATE TABLE public.sms_logs (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    recipient_group TEXT CHECK (recipient_group IN ('riders', 'users', 'both')),
-    subject TEXT,
+    recipient TEXT,
+    sender_name TEXT,
     message TEXT,
-    status TEXT DEFAULT 'sent' CHECK (status IN ('sent', 'scheduled', 'failed')),
-    recipient_count INTEGER DEFAULT 0,
-    schedule_date TIMESTAMP WITH TIME ZONE,
-    sent_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now())
+    status TEXT DEFAULT 'sent' CHECK (status IN ('sent', 'pending', 'failed', 'scheduled')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now())
 );
 
 -- 7. Feedback Table
@@ -100,23 +97,19 @@ CREATE TABLE public.feedback (
     type TEXT CHECK (type IN ('rider', 'service', 'app')),
     rating INTEGER CHECK (rating BETWEEN 1 AND 5),
     comment TEXT,
-    status TEXT DEFAULT 'new' CHECK (status IN ('new', 'reviewed', 'resolved')),
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'reviewed', 'resolved')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now())
 );
 
 -- 8. Audit Logs Table
 CREATE TABLE public.audit_logs (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_name TEXT,
-    user_role TEXT,
+    admin_id UUID REFERENCES public.admins(id) ON DELETE SET NULL,
     action TEXT,
-    target TEXT,
     target_type TEXT,
+    target_id TEXT,
     ip_address TEXT,
-    device TEXT,
-    status TEXT CHECK (status IN ('Success', 'Failed')),
-    details TEXT,
-    changes JSONB,
+    details JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now())
 );
 
