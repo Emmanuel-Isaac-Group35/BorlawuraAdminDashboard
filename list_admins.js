@@ -1,26 +1,16 @@
-const { createClient } = require('@supabase/supabase-js');
-const fs = require('fs');
-const path = require('path');
+import { createClient } from '@supabase/supabase-js';
 
-// Extract supabase URL and Key from a file or just try to find them
-// Usually they are in src/lib/supabase.ts
-const supabaseFile = fs.readFileSync('c:/BorlaWura_Project/BorlawuraAdminDashboard/src/lib/supabase.ts', 'utf8');
-const urlMatch = supabaseFile.match(/const supabaseUrl = ['"](.*)['"]/);
-const keyMatch = supabaseFile.match(/const supabaseKey = ['"](.*)['"]/);
+const supabaseUrl = 'https://kpdyklcickeqmybngpea.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwZHlrbGNpY2tlcW15Ym5ncGVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1MjQ4MzIsImV4cCI6MjA4NTEwMDgzMn0.MReZzDKwhBnrCng-Bzalqj7t-Mrf7_kZUsoV2JkrI_g';
 
-if (urlMatch && keyMatch) {
-  const supabase = createClient(urlMatch[1], keyMatch[2]);
-  
-  async function listAdmins() {
-    const { data, error } = await supabase.from('admins').select('*');
-    if (error) {
-      console.error('Error:', error);
-    } else {
-      console.log('Admins:', JSON.stringify(data, null, 2));
-    }
+async function listAdmins() {
+  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  const { data, error } = await supabase.from('admins').select('*');
+  if (error) {
+    console.error('Error:', error);
+  } else {
+    console.log(JSON.stringify(data, null, 2));
   }
-  
-  listAdmins();
-} else {
-  console.error('Could not find Supabase credentials');
 }
+
+listAdmins();

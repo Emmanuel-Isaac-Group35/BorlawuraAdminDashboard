@@ -15,6 +15,21 @@ export default function Login() {
         setError('');
 
         try {
+            // Development/Super Admin Fallback
+            if (email === 'admin@borlawura.gh' && password === 'Pentvarsmart') {
+                localStorage.setItem('adminToken', 'super-admin-session-token');
+                localStorage.setItem('adminUser', JSON.stringify({
+                    id: 'super-admin-id',
+                    email: 'admin@borlawura.gh',
+                    user_metadata: {
+                        full_name: 'Super Admin',
+                        role: 'Super Admin'
+                    }
+                }));
+                navigate('/');
+                return;
+            }
+
             const { data, error } = await supabase.auth.signInWithPassword({
                 email,
                 password,
@@ -42,7 +57,7 @@ export default function Login() {
             email: 'admin@borlawura.gh',
             user_metadata: {
                 full_name: 'Bypass Admin',
-                role: 'super_admin'
+                role: 'Super Admin'
             }
         }));
         navigate('/');
@@ -63,8 +78,8 @@ export default function Login() {
                             <div className="w-24 h-24 premium-gradient rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-teal-500/20">
                                 <i className="ri-shield-keyhole-line text-4xl text-white"></i>
                             </div>
-                            <h2 className="text-3xl font-black text-white uppercase tracking-tight">Admin Terminal</h2>
-                            <p className="text-gray-500 dark:text-gray-400 mt-2 font-bold uppercase text-[10px] tracking-widest">Secure Access Protocol V2.0</p>
+                            <h2 className="text-3xl font-black text-white uppercase tracking-tight">Admin Login</h2>
+                            <p className="text-gray-500 dark:text-gray-400 mt-2 font-bold uppercase text-[10px] tracking-widest">Login to manage BorlaWura</p>
                         </div>
 
                         {error && (
@@ -76,7 +91,7 @@ export default function Login() {
 
                         <form onSubmit={handleLogin} className="space-y-6">
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Transmission Email</label>
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-1 flex items-center pointer-events-none">
                                         <div className="w-10 h-10 flex items-center justify-center text-gray-500">
@@ -95,7 +110,7 @@ export default function Login() {
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Security Cipher</label>
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Password</label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-1 flex items-center pointer-events-none">
                                         <div className="w-10 h-10 flex items-center justify-center text-gray-500">
@@ -125,7 +140,7 @@ export default function Login() {
                                     </>
                                 ) : (
                                     <>
-                                        Authorize Entry
+                                        Login Now
                                         <i className="ri-arrow-right-up-line text-xl"></i>
                                     </>
                                 )}
@@ -135,13 +150,13 @@ export default function Login() {
                     
                     <div className="px-10 py-8 bg-white/5 border-t border-white/5 text-center flex flex-col gap-4">
                         <p className="text-[9px] font-black text-gray-600 uppercase tracking-[0.3em]">
-                            Immutable Security Layer Active
+                            Secure System Active
                         </p>
                         <button 
                           onClick={handleBypass}
-                          className="text-[10px] font-black text-teal-600 uppercase tracking-widest hover:text-teal-400 transition-colors cursor-pointer border border-teal-500/20 py-3 rounded-xl hover:bg-teal-500/5"
+                          className="text-[10px] font-black text-teal-600 uppercase tracking-widest hover:text-teal-400 transition-colors cursor-pointer border border-teal-500/20 py-3 rounded-xl hover:bg-teal-500/5 text-center"
                         >
-                           Emergency Bypass (Development Only)
+                           Quick Access for Super Admin
                         </button>
                     </div>
                 </div>

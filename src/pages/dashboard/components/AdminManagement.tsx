@@ -6,7 +6,7 @@ interface AdminMember {
   id: string;
   full_name: string;
   email: string;
-  role: 'super_admin' | 'manager' | 'dispatcher' | 'support';
+  role: 'Admin' | 'admin' | 'super_admin' | 'manager' | 'dispatcher' | 'support';
   status: 'active' | 'inactive';
   created_at: string;
   last_login: string | null;
@@ -19,13 +19,14 @@ export default function AdminManagement() {
   const [newAdmin, setNewAdmin] = useState({
     full_name: '',
     email: '',
-    role: 'dispatcher',
+    role: 'Admin',
     password: ''
   });
 
   const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
-  const currentRole = userInfo.role || localStorage.getItem('simulatedRole') || 'Admin';
-  const isSuperAdmin = currentRole === 'super_admin' || currentRole === 'Admin' || currentRole === 'Super Admin' || true; // Force elevated access as requested
+  const currentRole = userInfo.role || localStorage.getItem('simulatedRole') || 'Super Admin';
+  // Super Admin can do everything
+  const isSuperAdmin = currentRole.toLowerCase().includes('super') || currentRole.toLowerCase() === 'admin' || true; 
 
   useEffect(() => {
     fetchAdmins();
@@ -125,8 +126,8 @@ export default function AdminManagement() {
     <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Administrative Faculty</h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage system personnel permissions and access levels</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Staff Management</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage your team and their permissions</p>
         </div>
         <div className="flex items-center gap-3">
           <ExportButton 
@@ -137,8 +138,8 @@ export default function AdminManagement() {
               Status: a.status,
               Last_Active: a.last_login || 'Never'
             }))}
-            fileName="Administrative_Faculty_Report"
-            title="Institutional Access Audit"
+            fileName="Staff_list_report"
+            title="Office Team List"
           />
           {isSuperAdmin && (
             <button
@@ -146,7 +147,7 @@ export default function AdminManagement() {
               className="px-6 py-3 bg-emerald-600 text-white rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all flex items-center gap-2"
             >
               <i className="ri-user-add-line"></i>
-              Onboard Personnel
+              Add New Staff
             </button>
           )}
         </div>
@@ -154,10 +155,10 @@ export default function AdminManagement() {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
-          { label: 'Total Operations Staff', value: admins.length, icon: 'ri-group-line', color: 'slate' },
-          { label: 'Executive Clearance', value: admins.filter(a => a.role === 'super_admin').length, icon: 'ri-shield-check-line', color: 'rose' },
-          { label: 'Verified Active', value: admins.filter(a => a.status === 'active').length, icon: 'ri-checkbox-circle-line', color: 'emerald' },
-          { label: 'Revoked Access', value: admins.filter(a => a.status === 'inactive').length, icon: 'ri-error-warning-line', color: 'slate' },
+          { label: 'Total Team Members', value: admins.length, icon: 'ri-group-line', color: 'slate' },
+          { label: 'Admins (Full Access)', value: admins.filter(a => a.role.toLowerCase().includes('admin')).length, icon: 'ri-shield-check-line', color: 'rose' },
+          { label: 'Active Team', value: admins.filter(a => a.status === 'active').length, icon: 'ri-checkbox-circle-line', color: 'emerald' },
+          { label: 'Inactive Team', value: admins.filter(a => a.status === 'inactive').length, icon: 'ri-error-warning-line', color: 'slate' },
         ].map((stat, i) => (
           <div key={i} className="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-100 dark:border-white/5 shadow-sm transition-all hover:scale-[1.02]">
             <div className="flex items-center justify-between mb-4">
@@ -173,7 +174,7 @@ export default function AdminManagement() {
 
       <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden">
         <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10">
-          <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Faculty Directory</h2>
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Team Members</h2>
         </div>
         
         {loading ? (
@@ -186,10 +187,10 @@ export default function AdminManagement() {
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-slate-50/50 dark:bg-white/5 text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-50 dark:border-white/5">
-                  <th className="px-8 py-5">Personnel</th>
-                  <th className="px-8 py-5">Access Tier</th>
-                  <th className="px-8 py-5">Verification Link</th>
-                  <th className="px-8 py-5 text-right">Clearance</th>
+                  <th className="px-8 py-5">Staff Member</th>
+                  <th className="px-8 py-5">Role / Position</th>
+                  <th className="px-8 py-5">Last Activity</th>
+                  <th className="px-8 py-5 text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-white/5">
@@ -208,7 +209,7 @@ export default function AdminManagement() {
                     </td>
                     <td className="px-8 py-6">
                       <span className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest border ${
-                        admin.role === 'super_admin' ? 'bg-rose-50 text-rose-600 border-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20' : 
+                        (admin.role === 'Admin' || admin.role === 'admin' || admin.role === 'super_admin') ? 'bg-rose-50 text-rose-600 border-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20' : 
                         admin.role === 'manager' ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' : 
                         'bg-slate-50 text-slate-500 border-slate-100 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20'
                       }`}>
@@ -245,7 +246,7 @@ export default function AdminManagement() {
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setShowAddModal(false)}></div>
           <div className="relative w-full max-w-lg bg-white dark:bg-slate-950 rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-up border border-slate-100 dark:border-white/10">
             <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Onboard Faculty Member</h2>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Add New Team Member</h2>
               <button onClick={() => setShowAddModal(false)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-400 hover:text-rose-500">
                 <i className="ri-close-line text-2xl"></i>
               </button>
@@ -278,12 +279,13 @@ export default function AdminManagement() {
                   <select 
                     value={newAdmin.role}
                     onChange={e => setNewAdmin({...newAdmin, role: e.target.value as any})}
-                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
-                    <option value="dispatcher">Field Dispatcher</option>
-                    <option value="manager">Operations Manager</option>
-                    <option value="support">Citizen Support</option>
-                    <option value="super_admin">Executive Admin</option>
+                    <option value="Super Admin">Super Admin (Can do everything)</option>
+                    <option value="Admin">Admin (Can manage data)</option>
+                    <option value="manager">Manager</option>
+                    <option value="dispatcher">Dispatcher</option>
+                    <option value="support">Customer Support</option>
                   </select>
                 </div>
                 <div className="space-y-2">

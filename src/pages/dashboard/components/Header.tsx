@@ -76,34 +76,20 @@ export default function Header({ onLogout, onMenuClick }: HeaderProps) {
         <div className="flex flex-col">
           <div className="flex items-center gap-2.5">
              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-             <h2 className="text-[15px] font-bold text-slate-900 dark:text-white tracking-tight uppercase">Control Hub</h2>
+             <h2 className="text-[15px] font-bold text-slate-900 dark:text-white tracking-tight uppercase">Home</h2>
           </div>
-          <p className="hidden md:block text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Borlawura Institutional Governance</p>
+          <p className="hidden md:block text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">BorlaWura Admin</p>
         </div>
       </div>
 
       <div className="flex items-center gap-4">
-        {/* Secondary Actions Layer */}
-        <div className="hidden lg:flex items-center gap-1.5 px-4 py-1.5 bg-slate-50 dark:bg-white/[0.03] rounded-2xl border border-slate-100 dark:border-white/5 mr-2">
-           <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mr-2">Status:</span>
-           <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600">
-                 <i className="ri-radar-line text-[11px]"></i>
-                 LIVE
-              </span>
-              <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
-                 <i className="ri-shield-check-line text-[11px]"></i>
-                 SECURE
-              </span>
-           </div>
-        </div>
 
         {/* Global Action Grid */}
         <div className="flex items-center gap-2">
           <button
             onClick={toggleDarkMode}
             className="w-11 h-11 flex items-center justify-center rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm group"
-            title="Symmetry Toggle"
+             title="Change Theme"
           >
             {isDarkMode ? (
               <i className="ri-sun-cloudy-line text-amber-500 text-xl group-hover:rotate-12 transition-transform duration-500"></i>
@@ -164,11 +150,11 @@ export default function Header({ onLogout, onMenuClick }: HeaderProps) {
                 <div className="p-2.5">
                   <button className="w-full flex items-center gap-4 px-4 py-3 text-[11px] font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/[0.03] rounded-2xl transition-all uppercase tracking-widest group">
                      <i className="ri-user-settings-line text-lg text-slate-400 group-hover:text-emerald-500 transition-colors"></i>
-                     <span>Personal Registry</span>
+                     <span>My Profile</span>
                   </button>
                   <button className="w-full flex items-center gap-4 px-4 py-3 text-[11px] font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/[0.03] rounded-2xl transition-all uppercase tracking-widest group">
                      <i className="ri-shield-keyhole-line text-lg text-slate-400 group-hover:text-emerald-500 transition-colors"></i>
-                     <span>Security Vault</span>
+                     <span>Security</span>
                    </button>
                   <div className="h-px bg-slate-100 dark:bg-white/5 my-2 mx-4"></div>
                   <button 
@@ -179,7 +165,7 @@ export default function Header({ onLogout, onMenuClick }: HeaderProps) {
                     className="w-full flex items-center gap-4 px-4 py-3 text-[11px] font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-2xl transition-all uppercase tracking-widest group"
                   >
                     <i className="ri-shut-down-line text-lg group-hover:scale-110 transition-transform"></i>
-                    <span>Terminate Session</span>
+                     <span>Sign Out</span>
                   </button>
                 </div>
               </div>

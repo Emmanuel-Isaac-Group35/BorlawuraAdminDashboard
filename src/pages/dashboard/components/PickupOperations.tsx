@@ -121,7 +121,7 @@ export default function PickupOperations() {
 
   const handleAssignRider = async (pickupId: string, riderId: string) => {
     if (!canDispatch) {
-      alert('Access Denied: Operational authorization required.');
+      alert("Permission Denied: You don't have access to assign riders.");
       return;
     }
 
@@ -133,7 +133,7 @@ export default function PickupOperations() {
 
       if (error) throw error;
       
-      alert('Rider successfully assigned.');
+      alert('Rider has been assigned successfully.');
       setShowAssignModal(false);
       setSelectedPickup(null);
       fetchPickups();
@@ -159,10 +159,10 @@ export default function PickupOperations() {
   };
 
   const createPickupIcon = (status: string) => {
-    let color = '#f59e0b';
-    if (status === 'scheduled') color = '#3b82f6';
-    if (status === 'in_progress') color = '#7c3aed';
-    if (status === 'completed') color = '#10b981';
+    let color = '#10b981'; // Default Emerald
+    if (status === 'scheduled') color = '#22c55e';
+    if (status === 'in_progress') color = '#059669';
+    if (status === 'completed') color = '#064e3b';
     
     return L.divIcon({
       html: `<div style="background-color: ${color}; width: 14px; height: 14px; border-radius: 4px; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.2);"></div>`,
@@ -175,14 +175,14 @@ export default function PickupOperations() {
     <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Logistics Operations</h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage and assign service schedules for participants</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Manage Pickups</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Assign riders to pick up waste from customers</p>
         </div>
         <div className="flex items-center gap-3">
           <ExportButton 
             data={filteredPickups}
-            fileName="Pickup_Database"
-            title="Service Logistics Audit"
+            fileName="Pickup_List"
+            title="Pickup History"
           />
         </div>
       </div>
@@ -198,7 +198,7 @@ export default function PickupOperations() {
                   placeholder="Seach by name or request ID..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all font-medium"
+                  className="w-full pl-12 pr-4 py-3 bg-white dark:bg-black border border-slate-200/60 dark:border-white/5 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-medium"
                 />
               </div>
               <div className="flex gap-1.5 p-1 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl overflow-x-auto scrollbar-hide">
@@ -207,7 +207,7 @@ export default function PickupOperations() {
                     key={s}
                     onClick={() => setStatusFilter(s)}
                     className={`px-4 py-2 text-[10px] font-bold uppercase rounded-xl transition-all whitespace-nowrap ${
-                      statusFilter === s ? 'bg-violet-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'
+                      statusFilter === s ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'
                     }`}
                   >
                     {s}
@@ -218,7 +218,7 @@ export default function PickupOperations() {
            
            {loading ? (
              <div className="flex-1 flex flex-col justify-center items-center py-20">
-                <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
                 <p className="text-[11px] text-slate-400 font-bold uppercase mt-5 tracking-widest">Loading Requests...</p>
              </div>
            ) : (
@@ -226,7 +226,7 @@ export default function PickupOperations() {
                 {filteredPickups.map((p) => (
                   <div 
                     key={p.id} 
-                    className={`p-6 hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all cursor-pointer group ${selectedPickup?.id === p.id ? 'bg-violet-50/30' : ''}`}
+                    className={`p-6 hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all cursor-pointer group ${selectedPickup?.id === p.id ? 'bg-emerald-50/30' : ''}`}
                     onClick={() => setSelectedPickup(p)}
                   >
                     <div className="flex justify-between items-start mb-4">
@@ -240,7 +240,7 @@ export default function PickupOperations() {
                           <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">{p.user_name}</h3>
                        </div>
                        <div className="text-right">
-                          <p className="text-[11px] font-bold text-violet-600 uppercase mb-1">{p.waste_type}</p>
+                          <p className="text-[11px] font-bold text-emerald-600 uppercase mb-1">{p.waste_type}</p>
                           <p className="text-[10px] text-slate-400 font-bold uppercase">{p.waste_size}</p>
                        </div>
                     </div>
@@ -248,7 +248,7 @@ export default function PickupOperations() {
                     <div className="flex items-center justify-between gap-4">
                        <div className="flex flex-col md:flex-row md:items-center gap-4 flex-1 min-w-0">
                           <div className="flex items-center gap-2 text-slate-500 text-[11px]">
-                             <i className="ri-map-pin-line text-violet-500"></i>
+                             <i className="ri-map-pin-line text-emerald-500"></i>
                              <span className="truncate max-w-[200px]">{p.address}</span>
                           </div>
                           <div className="flex items-center gap-2 text-slate-400 text-[10px] font-bold uppercase">
@@ -279,7 +279,7 @@ export default function PickupOperations() {
                       <Popup>
                         <div className="p-1">
                           <p className="font-bold text-xs">{p.user_name}</p>
-                          <p className="text-[10px] text-violet-500 font-bold uppercase">{p.status}</p>
+                          <p className="text-[10px] text-emerald-500 font-bold uppercase">{p.status}</p>
                         </div>
                       </Popup>
                     </Marker>
@@ -297,7 +297,7 @@ export default function PickupOperations() {
               <div className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-slate-800/50 p-8 shadow-sm flex flex-col gap-6 animate-scale-up">
                  <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-800 pb-4">
                     <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Operational Sequence Details</h2>
-                    <span className="text-[10px] font-bold text-violet-500 uppercase">#{selectedPickup.id.slice(0,8)}</span>
+                    <span className="text-[10px] font-bold text-emerald-500 uppercase">#{selectedPickup.id.slice(0,8)}</span>
                  </div>
                  
                  <div className="space-y-6">
@@ -307,9 +307,9 @@ export default function PickupOperations() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                       <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800/50">
+                       <div className="p-4 bg-slate-50 dark:bg-black rounded-2xl border border-slate-100 dark:border-white/5">
                           <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Waste Type</p>
-                          <p className="text-xs font-bold text-violet-600">{selectedPickup.waste_type}</p>
+                          <p className="text-xs font-bold text-emerald-600">{selectedPickup.waste_type}</p>
                        </div>
                        <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800/50">
                           <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Package Size</p>
@@ -331,7 +331,7 @@ export default function PickupOperations() {
                         canDispatch && (
                            <button 
                              onClick={() => setShowAssignModal(true)}
-                             className="w-full py-4 bg-violet-600 text-white rounded-[2rem] text-xs font-bold uppercase tracking-widest shadow-xl shadow-violet-500/20 hover:scale-[1.02] transition-all"
+                             className="w-full py-4 bg-emerald-600 text-white rounded-[2rem] text-xs font-bold uppercase tracking-widest shadow-xl shadow-emerald-500/20 hover:scale-[1.02] transition-all"
                            >
                               Assign Available Rider
                            </button>

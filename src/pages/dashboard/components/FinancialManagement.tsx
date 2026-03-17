@@ -92,37 +92,37 @@ export default function FinancialManagement() {
     <div className="space-y-10 font-['Montserrat'] animate-fade-in pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Financial Treasury</h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Institutional audit of liquidity, revenue disbursements, and platform yield</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Money & Payments</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Track money coming in, payments to riders, and business profit</p>
         </div>
         <div className="flex items-center gap-4">
           <ExportButton 
             data={payments.map(p => ({
               ID: p.id,
-              User: p.users?.full_name || 'Guest Participant',
+              User: p.users?.full_name || 'Customer',
               Amount: p.amount,
               Status: p.status,
               Date: new Date(p.created_at).toLocaleString()
             }))}
-            fileName="Treasury_Audit_Report"
-            title="Institutional Financial Audit"
+            fileName="Financial_Report"
+            title="Recent Payments"
           />
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
-          { label: 'Daily Liquidity', value: `₵${stats.todayRevenue.toLocaleString()}`, color: 'emerald', icon: 'ri-funds-box-line', sub: 'Inflow current' },
-          { label: 'Monthly Asset Volume', value: `₵${stats.monthlyRevenue.toLocaleString()}`, color: 'amber', icon: 'ri-line-chart-line', sub: 'Cycle total' },
-          { label: 'Owed Disbursements', value: `₵${stats.pendingPayouts.toLocaleString()}`, color: 'indigo', icon: 'ri-wallet-3-line', sub: 'Pending settlement' },
-          { label: 'Commission Yield', value: `₵${stats.commission.toLocaleString()}`, color: 'rose', icon: 'ri-pie-chart-line', sub: 'Platform net (10%)' },
+          { label: "Today's Money", value: `₵${stats.todayRevenue.toLocaleString()}`, color: 'emerald', icon: 'ri-funds-box-line', sub: 'Calculated today' },
+          { label: "This Month's Money", value: `₵${stats.monthlyRevenue.toLocaleString()}`, color: 'amber', icon: 'ri-line-chart-line', sub: 'Total this month' },
+          { label: 'Money to Riders', value: `₵${stats.pendingPayouts.toLocaleString()}`, color: 'emerald', icon: 'ri-wallet-3-line', sub: 'Pending payments' },
+          { label: 'Business Profit', value: `₵${stats.commission.toLocaleString()}`, color: 'emerald', icon: 'ri-pie-chart-line', sub: 'Our 10% share' },
         ].map((stat, i) => (
           <div key={i} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm transition-all hover:scale-[1.02]">
             <div className="flex items-center justify-between mb-5">
               <div className={`w-12 h-12 rounded-2xl bg-${stat.color}-500/10 flex items-center justify-center text-${stat.color}-600`}>
                 <i className={`${stat.icon} text-xl`}></i>
               </div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Audit Alpha</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Summary</span>
             </div>
             <h3 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tighter leading-none mb-4">{stat.value}</h3>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
@@ -135,12 +135,12 @@ export default function FinancialManagement() {
         <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden flex flex-col">
           <div className="px-10 py-8 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-[0.2em]">Transaction Ledger</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-widest">Real-time ledger updates</p>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-[0.2em]">Recent Payments</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-widest">List of payments made by customers</p>
             </div>
             <div className="flex h-2 w-2 relative">
-               <div className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></div>
-               <div className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></div>
+               <div className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></div>
+               <div className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></div>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -162,7 +162,7 @@ export default function FinancialManagement() {
                           {txn.users?.full_name?.charAt(0) || 'G'}
                         </div>
                         <div>
-                          <p className="text-[13px] font-bold text-slate-900 dark:text-white transition-colors group-hover:text-indigo-600">{txn.users?.full_name || 'Guest Participant'}</p>
+                          <p className="text-[13px] font-bold text-slate-900 dark:text-white transition-colors group-hover:text-emerald-600">{txn.users?.full_name || 'Guest Participant'}</p>
                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter mt-0.5">ID: {txn.id.slice(0, 8)}</p>
                         </div>
                       </div>
@@ -194,14 +194,14 @@ export default function FinancialManagement() {
           </div>
           <div className="p-6 space-y-4">
              {riders.map((rider) => (
-                <div key={rider.id} className="p-5 rounded-3xl border border-slate-50 dark:border-white/5 bg-slate-50/30 dark:bg-white/[0.01] hover:border-indigo-500/30 transition-all group">
+                <div key={rider.id} className="p-5 rounded-3xl border border-slate-50 dark:border-white/5 bg-slate-50/30 dark:bg-white/[0.01] hover:border-emerald-500/30 transition-all group">
                    <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
-                         <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600 font-bold">
+                         <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 font-bold">
                             {rider.full_name.charAt(0)}
                          </div>
                          <div>
-                            <h4 className="text-[12px] font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors uppercase">{rider.full_name}</h4>
+                            <h4 className="text-[12px] font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 transition-colors uppercase">{rider.full_name}</h4>
                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{rider.total_pickups} Deployments</p>
                          </div>
                       </div>

@@ -115,8 +115,8 @@ export default function RiderManagement() {
     <div className="space-y-8 font-['Montserrat'] animate-fade-in">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Fleet Operations</h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage and monitor field personnel and vehicle assets</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Riders & Drivers</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Add, update, and manage your riders and their vehicles</p>
         </div>
         <div className="flex items-center gap-3">
           <ExportButton 
@@ -129,8 +129,8 @@ export default function RiderManagement() {
               Rating: r.rating,
               Pickups: r.total_pickups
             }))}
-            fileName="Fleet_Asset_Report"
-            title="Operational Fleet Report"
+            fileName="Riders_List_Report"
+            title="Rider List"
           />
           {canManage && (
             <button
@@ -138,7 +138,7 @@ export default function RiderManagement() {
               className="px-6 py-2.5 bg-emerald-600 dark:bg-emerald-500 text-white rounded-2xl text-xs font-bold shadow-xl shadow-emerald-500/20 hover:bg-emerald-700 dark:hover:bg-emerald-400 transition-all flex items-center gap-2"
             >
               <i className="ri-user-add-line"></i>
-              Register Personnel
+              Add New Rider
             </button>
           )}
         </div>
@@ -146,7 +146,7 @@ export default function RiderManagement() {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
-          { label: 'Total Fleet', value: riders.length, icon: 'ri-e-bike-2-line', color: 'indigo' },
+          { label: 'Total Fleet', value: riders.length, icon: 'ri-e-bike-2-line', color: 'emerald' },
           { label: 'Active Service', value: riders.filter(r => r.status === 'active').length, icon: 'ri-radar-line', color: 'emerald' },
           { label: 'Suspended', value: riders.filter(r => r.status === 'suspended').length, icon: 'ri-error-warning-line', color: 'rose' },
           { label: 'Fleet Rating', value: riders.length ? (riders.reduce((acc, r) => acc + r.rating, 0) / riders.length).toFixed(1) : '5.0', icon: 'ri-star-smile-line', color: 'amber' },
@@ -253,7 +253,7 @@ export default function RiderManagement() {
                     <td className="px-8 py-6 text-right">
                        <button 
                          onClick={() => setSelectedRider(rider)}
-                         className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all border border-transparent hover:border-indigo-100 dark:hover:border-indigo-500/20"
+                         className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-all border border-transparent hover:border-emerald-100 dark:hover:border-emerald-500/20"
                        >
                          <i className="ri-folder-user-line text-lg"></i>
                        </button>
@@ -324,7 +324,7 @@ export default function RiderManagement() {
 
               <button 
                 onClick={() => setSelectedRider(null)} 
-                className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-3xl text-xs font-bold uppercase tracking-widest transition-all hover:shadow-2xl active:scale-[0.98]"
+                className="w-full py-4 bg-emerald-600 text-white rounded-3xl text-xs font-bold uppercase tracking-widest transition-all hover:shadow-2xl active:scale-[0.98] shadow-emerald-600/20"
               >
                 Close Dossier
               </button>
@@ -406,9 +406,9 @@ export default function RiderManagement() {
                 <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-4 text-xs font-bold uppercase text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-all">
                   Abort
                 </button>
-                <button type="submit" className="flex-1 py-4 bg-emerald-600 dark:bg-white text-white dark:text-slate-900 rounded-2xl text-xs font-bold shadow-xl hover:shadow-emerald-500/20 transition-all active:scale-95">
-                  Confirm Registration
-                </button>
+                 <button type="submit" className="flex-1 py-4 bg-emerald-600 text-white rounded-2xl text-xs font-bold shadow-xl shadow-emerald-500/20 hover:bg-emerald-700 transition-all active:scale-95">
+                   Confirm Registration
+                 </button>
               </div>
             </form>
           </div>

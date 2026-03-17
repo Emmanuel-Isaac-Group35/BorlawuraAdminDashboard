@@ -9,10 +9,10 @@ interface OverviewProps {
 export default function Overview({ onNavigate }: OverviewProps) {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState([
-    { id: 1, title: 'Service Pickups', value: '0', icon: 'ri-truck-line', color: 'emerald', trend: '+12%', label: 'Total Volume' },
-    { id: 2, title: 'Active Riders', value: '0', icon: 'ri-e-bike-2-line', color: 'slate', trend: 'Live', label: 'Field Personnel' },
-    { id: 3, title: 'SMS Credits', value: '0', icon: 'ri-message-3-line', color: 'emerald', trend: 'Units', label: 'Communication' },
-    { id: 4, title: 'Total Revenue', value: '₵0.00', icon: 'ri-wallet-3-line', color: 'amber', trend: '+8.4%', label: 'Financial Gain' },
+    { id: 1, title: 'All Pickups', value: '0', icon: 'ri-truck-line', color: 'emerald', trend: '+12%', label: 'All pickups' },
+    { id: 2, title: 'Riders Online', value: '0', icon: 'ri-e-bike-2-line', color: 'slate', trend: 'Live', label: 'Riders online' },
+    { id: 3, title: 'SMS Left', value: '0', icon: 'ri-message-3-line', color: 'emerald', trend: 'Units', label: 'SMS Messages' },
+    { id: 4, title: 'Total Paid', value: '₵0.00', icon: 'ri-wallet-3-line', color: 'amber', trend: '+8.4%', label: 'Money collected' },
   ]);
 
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
@@ -37,7 +37,7 @@ export default function Overview({ onNavigate }: OverviewProps) {
       const result = await getSMSBalance();
       if (result.success) {
         setStats(prev => prev.map(stat => 
-          stat.title === 'SMS Credits' 
+          stat.title === 'SMS Balance' 
             ? { ...stat, value: Number(result.balance).toLocaleString() } 
             : stat
         ));
@@ -56,9 +56,9 @@ export default function Overview({ onNavigate }: OverviewProps) {
       const totalRevenue = users?.reduce((acc, curr) => acc + (curr.balance || 0), 0) || 0;
 
       setStats(prev => prev.map(stat => {
-        if (stat.title === 'Service Pickups') return { ...stat, value: (pickupCount || 0).toLocaleString() };
-        if (stat.title === 'Active Riders') return { ...stat, value: (riders?.length || 0).toLocaleString() };
-        if (stat.title === 'Total Revenue') return { ...stat, value: `₵${(totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2 })}` };
+        if (stat.title === 'All Pickups') return { ...stat, value: (pickupCount || 0).toLocaleString() };
+        if (stat.title === 'Riders Online') return { ...stat, value: (riders?.length || 0).toLocaleString() };
+        if (stat.title === 'Total Paid') return { ...stat, value: `₵${(totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2 })}` };
         return stat;
       }));
 
@@ -81,7 +81,7 @@ export default function Overview({ onNavigate }: OverviewProps) {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Synchronizing Data...</p>
+          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Loading Dashboard...</p>
         </div>
       </div>
     );
@@ -97,15 +97,15 @@ export default function Overview({ onNavigate }: OverviewProps) {
     <div className="space-y-8 font-['Montserrat'] animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Executive Dashboard</h1>
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mt-1">Holistic view of platform performance and field operations</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Home</h1>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mt-1">What is happening today</p>
         </div>
         <div className="flex items-center gap-2.5 px-4 py-2 bg-emerald-50 dark:bg-emerald-500/5 border border-emerald-100 dark:border-emerald-500/10 rounded-2xl shadow-sm">
            <div className="flex h-2 w-2 relative">
               <div className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></div>
               <div className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></div>
            </div>
-           <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-widest">Real-time Active</span>
+           <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-widest">Live</span>
         </div>
       </div>
 
@@ -131,7 +131,7 @@ export default function Overview({ onNavigate }: OverviewProps) {
         <div className="lg:col-span-2 space-y-8">
            <div className="bg-white dark:bg-gray-950 rounded-[2.5rem] border border-gray-100 dark:border-gray-800/60 shadow-sm overflow-hidden">
               <div className="px-8 py-6 border-b border-gray-50 dark:border-gray-800/40 flex justify-between items-center">
-                 <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest">Platform Activity</h2>
+                 <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest">Recently Done</h2>
                  <button onClick={() => onNavigate?.('audit')} className="text-[11px] font-bold text-emerald-500 hover:text-emerald-600 transition-colors">View Logs</button>
               </div>
               <div className="divide-y divide-gray-50 dark:divide-gray-800/40">
@@ -152,8 +152,8 @@ export default function Overview({ onNavigate }: OverviewProps) {
 
            <div className="bg-white dark:bg-gray-950 rounded-[2.5rem] border border-gray-100 dark:border-gray-800/60 shadow-sm overflow-hidden">
               <div className="px-8 py-6 border-b border-gray-50 dark:border-gray-800/40 flex justify-between items-center">
-                 <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest">Elite Riders</h2>
-                 <button onClick={() => onNavigate?.('riders')} className="text-[11px] font-bold text-emerald-500 hover:text-emerald-600 transition-colors">Full Fleet</button>
+                 <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest">Top Riders</h2>
+                 <button onClick={() => onNavigate?.('riders')} className="text-[11px] font-bold text-emerald-500 hover:text-emerald-600 transition-colors">View All</button>
               </div>
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                  {topRiders.map((rider) => (
@@ -178,12 +178,12 @@ export default function Overview({ onNavigate }: OverviewProps) {
 
         <div className="space-y-8">
            <div className="bg-white dark:bg-gray-950 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800/60 shadow-sm">
-              <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest mb-8">Management Shortcuts</h2>
+              <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest mb-8">Shortcuts</h2>
               <div className="grid grid-cols-2 gap-4">
                  {[
                     { id: 'sms', icon: 'ri-chat-voice-line', label: 'Broadcast', color: 'emerald' },
                     { id: 'pickups', icon: 'ri-map-pin-2-line', label: 'Dispatch', color: 'emerald' },
-                    { id: 'users', icon: 'ri-user-follow-line', label: 'User Registry', color: 'emerald' },
+                    { id: 'users', icon: 'ri-user-follow-line', label: 'User Management', color: 'emerald' },
                     { id: 'financials', icon: 'ri-line-chart-line', label: 'Balance', color: 'amber' },
                  ].map((action) => (
                     <button 
@@ -198,35 +198,6 @@ export default function Overview({ onNavigate }: OverviewProps) {
                     </button>
                  ))}
               </div>
-           </div>
-
-           <div className="bg-slate-900 dark:bg-white/5 p-8 rounded-[2.5rem] text-white relative overflow-hidden group">
-              <h2 className="text-[10px] font-bold uppercase tracking-[0.25em] mb-6 opacity-60">Status Integrity</h2>
-              <div className="space-y-4">
-                 {[
-                   { label: 'Database Node', active: true },
-                   { label: 'Cloud Systems', active: true },
-                   { label: 'Asset Tracking', active: true },
-                 ].map((sys, i) => (
-                   <div key={i} className="flex items-center justify-between">
-                      <span className="text-[11px] font-semibold opacity-80">{sys.label}</span>
-                      <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                        <i className="ri-check-line text-xs text-emerald-400"></i>
-                      </div>
-                   </div>
-                 ))}
-              </div>
-              <div className="mt-10 p-4 bg-white/5 rounded-2xl border border-white/5">
-                 <div className="flex justify-between items-center mb-2">
-                   <p className="text-[10px] font-bold opacity-60 uppercase">Node Reliability</p>
-                   <p className="text-[10px] font-bold text-emerald-400">99.8%</p>
-                 </div>
-                 <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div className="w-[99.8%] h-full bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-                 </div>
-              </div>
-              {/* Background Glow */}
-              <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-[60px] group-hover:bg-emerald-500/20 transition-all"></div>
            </div>
         </div>
       </div>

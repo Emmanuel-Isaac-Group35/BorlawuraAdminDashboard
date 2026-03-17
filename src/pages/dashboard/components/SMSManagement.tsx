@@ -176,7 +176,7 @@ export default function SMSManagement() {
           {canSend && (
             <button
               onClick={() => setShowComposeModal(true)}
-              className="px-8 py-4 bg-indigo-600 text-white rounded-[2rem] text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-indigo-500/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-3"
+              className="px-8 py-4 bg-emerald-600 text-white rounded-[2rem] text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-3"
             >
               <i className="ri-quill-pen-line text-lg"></i>
               Initiate Broadcast
@@ -187,7 +187,7 @@ export default function SMSManagement() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
-          { label: 'Transmission Volume', value: stats.total, icon: 'ri-chat-voice-line', color: 'indigo', sub: 'Total signals deployed' },
+          { label: 'Transmission Volume', value: stats.total, icon: 'ri-chat-voice-line', color: 'emerald', sub: 'Total signals deployed' },
           { label: 'Verified Delivery', value: stats.sent, icon: 'ri-checkbox-circle-line', color: 'emerald', sub: 'Confirmed by gateway' },
           { label: 'Signal Errors', value: stats.failed, icon: 'ri-close-circle-line', color: 'rose', sub: 'Failed transmissions' },
         ].map((stat, i) => (
@@ -218,7 +218,7 @@ export default function SMSManagement() {
         
         {loading ? (
           <div className="p-32 flex flex-col items-center justify-center">
-            <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
             <p className="text-[11px] text-slate-400 mt-6 font-bold uppercase tracking-widest animate-pulse">Synchronizing Terminal Logs...</p>
           </div>
         ) : (
@@ -237,7 +237,7 @@ export default function SMSManagement() {
                   <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all group">
                     <td className="px-10 py-7">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-indigo-500 border border-slate-100 dark:border-white/5 shadow-sm group-hover:scale-110 transition-transform">
+                        <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-emerald-500 border border-slate-100 dark:border-white/5 shadow-sm group-hover:scale-110 transition-transform">
                           <i className="ri-user-voice-line text-lg"></i>
                         </div>
                         <div>
@@ -285,7 +285,7 @@ export default function SMSManagement() {
             <div className="px-10 py-8 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
               <div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Signal Configuration</h2>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 px-1 border-l-2 border-indigo-500">Institutional Protocol 4.2</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 px-1 border-l-2 border-emerald-500">Institutional Protocol 4.2</p>
               </div>
               <button 
                 onClick={() => setShowComposeModal(false)} 
@@ -302,7 +302,7 @@ export default function SMSManagement() {
                   <select 
                     value={newMessage.target}
                     onChange={e => setNewMessage({...newMessage, target: e.target.value})}
-                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none cursor-pointer"
+                    className="w-full px-5 py-4 bg-slate-50 dark:bg-black border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all appearance-none cursor-pointer"
                   >
                     <option value="all_users">All Users (Residents)</option>
                     <option value="sector_users">Geographical Sector (Area)</option>
@@ -317,7 +317,7 @@ export default function SMSManagement() {
                     <select 
                       value={newMessage.sector}
                       onChange={e => setNewMessage({...newMessage, sector: e.target.value})}
-                      className="w-full px-5 py-4 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-500/20 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none cursor-pointer shadow-lg shadow-indigo-500/5 text-indigo-600"
+                      className="w-full px-5 py-4 bg-white dark:bg-black border border-emerald-200 dark:border-emerald-500/20 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all appearance-none cursor-pointer shadow-lg shadow-emerald-500/5 text-emerald-600"
                     >
                       <option value="all">Select Targeted Area</option>
                       {availableZones.map((zone: string) => (
@@ -333,7 +333,7 @@ export default function SMSManagement() {
                     type="text"
                     value={newMessage.sender_name}
                     onChange={e => setNewMessage({...newMessage, sender_name: e.target.value.slice(0, 11).toUpperCase()})}
-                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all uppercase"
+                    className="w-full px-5 py-4 bg-slate-50 dark:bg-black border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all uppercase"
                     placeholder="BORLAWURA"
                   />
                 </div>
@@ -347,7 +347,7 @@ export default function SMSManagement() {
                     required
                     value={newMessage.custom_recipient}
                     onChange={e => setNewMessage({...newMessage, custom_recipient: e.target.value})}
-                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                    className="w-full px-5 py-4 bg-slate-50 dark:bg-black border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                     placeholder="E.g. 0540000000"
                   />
                 </div>
@@ -359,7 +359,7 @@ export default function SMSManagement() {
                   required
                   value={newMessage.message}
                   onChange={e => setNewMessage({...newMessage, message: e.target.value})}
-                  className="w-full px-6 py-5 bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/10 rounded-[2rem] text-[14px] font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all min-h-[160px] resize-none scrollbar-hide"
+                  className="w-full px-6 py-5 bg-slate-50 dark:bg-black border border-slate-200/60 dark:border-white/10 rounded-[2rem] text-[14px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all min-h-[160px] resize-none scrollbar-hide"
                   placeholder="Compose institutional signal..."
                 ></textarea>
                 <div className="flex justify-between px-2 items-center">
@@ -371,7 +371,7 @@ export default function SMSManagement() {
                         <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
                      )}
                   </div>
-                  <span className="text-[9px] font-bold text-indigo-500 uppercase tracking-[0.1em] px-3 py-1 bg-indigo-50 rounded-lg dark:bg-indigo-500/10">
+                  <span className="text-[9px] font-bold text-emerald-500 uppercase tracking-[0.1em] px-3 py-1 bg-emerald-50 rounded-lg dark:bg-emerald-500/10">
                     Cycle: {Math.ceil(newMessage.message.length / 160)} SMS units
                   </span>
                 </div>
@@ -384,7 +384,7 @@ export default function SMSManagement() {
                   className={`w-full py-5 rounded-[2rem] text-xs font-bold uppercase tracking-[0.25em] shadow-2xl transition-all active:scale-[0.98] ${
                     sending 
                     ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed' 
-                    : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-600/30'
+                    : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/30'
                   }`}
                 >
                   {sending ? (

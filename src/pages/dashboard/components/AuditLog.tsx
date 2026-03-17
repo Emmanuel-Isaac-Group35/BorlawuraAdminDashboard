@@ -66,8 +66,8 @@ export default function AuditLog() {
     <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Security Audit Trail</h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Institutional record of all administrative operations and system modifications</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Activity History</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">A simple list of everything done on this dashboard by staff</p>
         </div>
         <div className="flex items-center gap-3">
           <ExportButton 
@@ -78,8 +78,8 @@ export default function AuditLog() {
               Target: l.target_type,
               IP: l.ip_address || 'Internal'
             }))}
-            fileName="Institutional_Security_Audit"
-            title="System Security Audit Archive"
+            fileName="Audit_Log_Report"
+            title="Activity History"
           />
         </div>
       </div>
@@ -87,20 +87,20 @@ export default function AuditLog() {
       <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden">
         <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10">
            <div className="relative max-w-md group">
-              <i className="ri-search-line absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors"></i>
+              <i className="ri-search-line absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors"></i>
               <input 
                 type="text"
-                placeholder="Query audit archive..."
+                placeholder="Search history..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-slate-900"
+                className="w-full pl-12 pr-4 py-3 bg-white dark:bg-black border border-slate-200/60 dark:border-white/5 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
            </div>
         </div>
 
         {loading ? (
           <div className="p-24 flex flex-col items-center justify-center">
-            <div className="w-10 h-10 border-4 border-slate-900 dark:border-white border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
             <p className="text-[11px] text-slate-400 font-bold uppercase mt-5 tracking-widest">Accessing records...</p>
           </div>
         ) : (
@@ -108,11 +108,11 @@ export default function AuditLog() {
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-slate-50/50 dark:bg-white/5 text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-50 dark:border-white/5">
-                  <th className="px-8 py-5">Timestamp</th>
-                  <th className="px-8 py-5">Initiator</th>
-                  <th className="px-8 py-5">Action Type</th>
-                  <th className="px-8 py-5">Object Class</th>
-                  <th className="px-8 py-5 text-right">Verification</th>
+                  <th className="px-8 py-5">Time</th>
+                  <th className="px-8 py-5">Staff Member</th>
+                  <th className="px-8 py-5">What they did</th>
+                  <th className="px-8 py-5">Category</th>
+                  <th className="px-8 py-5 text-right">Details</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-white/5">
@@ -141,7 +141,7 @@ export default function AuditLog() {
                     <td className="px-8 py-6 text-right">
                       <button 
                         onClick={() => setSelectedLog(log)}
-                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-950 border border-slate-100 dark:border-white/10 text-slate-300 hover:text-slate-900 hover:border-slate-300 group-hover:shadow-md transition-all"
+                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/10 text-slate-300 hover:text-emerald-500 hover:border-emerald-500/30 group-hover:shadow-md transition-all"
                       >
                         <i className="ri-shield-user-line text-lg"></i>
                       </button>
@@ -151,7 +151,7 @@ export default function AuditLog() {
                 {filteredLogs.length === 0 && (
                   <tr>
                     <td colSpan={5} className="py-24 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest">
-                       No audit records identified
+                       No history found
                     </td>
                   </tr>
                 )}
@@ -166,7 +166,7 @@ export default function AuditLog() {
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setSelectedLog(null)}></div>
           <div className="relative w-full max-w-lg bg-white dark:bg-slate-950 rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-up border border-slate-100 dark:border-white/10">
             <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Access Log Record</h2>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Activity Details</h2>
               <button onClick={() => setSelectedLog(null)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-400 hover:text-rose-500">
                 <i className="ri-close-line text-2xl"></i>
               </button>
@@ -175,19 +175,19 @@ export default function AuditLog() {
             <div className="p-10 space-y-8">
               <div className="grid grid-cols-2 gap-6">
                 <div className="p-5 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-100 dark:border-white/5">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Protocol Source</p>
-                  <p className="text-[11px] font-mono font-bold text-indigo-600 uppercase tracking-tight">{selectedLog.ip_address || 'Internal Network'}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Network ID</p>
+                  <p className="text-[11px] font-mono font-bold text-emerald-600 uppercase tracking-tight">{selectedLog.ip_address || 'Internal'}</p>
                 </div>
                 <div className="p-5 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-100 dark:border-white/5">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Object Identifier</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Activity ID</p>
                   <p className="text-[11px] font-mono font-bold text-slate-900 dark:text-white truncate uppercase tracking-tight">{selectedLog.target_id.slice(0,16)}...</p>
                 </div>
               </div>
               
               <div className="space-y-4">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Record Payload</p>
-                <div className="w-full p-6 bg-slate-900 rounded-[2rem] border border-white/5 overflow-hidden">
-                  <pre className="text-indigo-400 text-[11px] font-mono leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto scrollbar-hide">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">More Info</p>
+                <div className="w-full p-6 bg-black rounded-[2rem] border border-white/5 overflow-hidden">
+                  <pre className="text-emerald-400 text-[11px] font-mono leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto scrollbar-hide">
                     {JSON.stringify(selectedLog.details, null, 2)}
                   </pre>
                 </div>
@@ -195,9 +195,9 @@ export default function AuditLog() {
               
               <button 
                 onClick={() => setSelectedLog(null)} 
-                className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-[2rem] text-xs font-bold uppercase tracking-widest shadow-xl transition-all"
+                className="w-full py-4 bg-emerald-600 text-white rounded-[2rem] text-xs font-bold uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all"
               >
-                Retire Record
+                Close
               </button>
             </div>
           </div>

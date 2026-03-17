@@ -54,19 +54,18 @@ export default function Sidebar({ activeSection, setActiveSection, isOpen, onClo
     
     // Clear and understandable menu names
     const allItems = [
-      { id: 'overview', icon: 'ri-dashboard-3-line', label: 'Overall Overview', roles: ['super_admin', 'operations_admin', 'finance_admin', 'support_admin', 'admin', 'manager', 'dispatcher'], color: 'emerald' },
-      { id: 'admins', icon: 'ri-shield-user-line', label: 'Admin Team', roles: ['super_admin', 'admin'], color: 'slate' },
-      { id: 'riders', icon: 'ri-bike-line', label: 'Riders & Drivers', roles: ['super_admin', 'operations_admin', 'admin', 'manager', 'dispatcher'], color: 'emerald' },
-      { id: 'households', icon: 'ri-home-heart-line', label: 'Households', roles: ['super_admin', 'operations_admin', 'admin', 'manager'], color: 'emerald' },
-      { id: 'users', icon: 'ri-group-line', label: 'Users (Residents)', roles: ['super_admin', 'operations_admin', 'admin', 'manager'], color: 'emerald' },
-      { id: 'pickups', icon: 'ri-calendar-check-line', label: 'Pickup Orders', roles: ['super_admin', 'operations_admin', 'admin', 'manager', 'dispatcher'], color: 'emerald' },
-      { id: 'live-tracking', icon: 'ri-map-pin-user-line', label: 'Live Tracking', roles: ['super_admin', 'operations_admin', 'admin', 'dispatcher'], color: 'emerald' },
-      { id: 'financials', icon: 'ri-wallet-3-line', label: 'Payments & Fees', roles: ['super_admin', 'finance_admin', 'admin', 'manager'], color: 'amber' },
-      { id: 'analytics', icon: 'ri-bar-chart-box-line', label: 'Usage Reports', roles: ['super_admin', 'finance_admin', 'admin', 'manager'], color: 'orange' },
-      { id: 'sms', icon: 'ri-chat-bubble-3-line', label: 'SMS Campaigns', roles: ['super_admin', 'operations_admin', 'admin', 'manager'], color: 'emerald' },
-      { id: 'feedback', icon: 'ri-star-smile-line', label: 'User Feedback', roles: ['super_admin', 'support_admin', 'admin', 'manager'], color: 'emerald' },
-      { id: 'audit', icon: 'ri-file-shield-2-line', label: 'Security Logs', roles: ['super_admin', 'admin'], color: 'slate' },
-      { id: 'settings', icon: 'ri-settings-5-line', label: 'System Settings', roles: ['super_admin', 'admin', 'manager'], color: 'gray' },
+      { id: 'overview', icon: 'ri-dashboard-3-line', label: 'Home', roles: ['super_admin', 'operations_admin', 'finance_admin', 'support_admin', 'admin', 'manager', 'dispatcher', 'Super Admin'], color: 'emerald' },
+      { id: 'admins', icon: 'ri-shield-user-line', label: 'Staff', roles: ['super_admin', 'admin', 'Super Admin'], color: 'slate' },
+      { id: 'riders', icon: 'ri-bike-line', label: 'Riders', roles: ['super_admin', 'operations_admin', 'admin', 'manager', 'dispatcher', 'Super Admin'], color: 'emerald' },
+      { id: 'users', icon: 'ri-group-line', label: 'Users', roles: ['super_admin', 'operations_admin', 'admin', 'manager', 'Super Admin'], color: 'emerald' },
+      { id: 'pickups', icon: 'ri-calendar-check-line', label: 'Pickups', roles: ['super_admin', 'operations_admin', 'admin', 'manager', 'dispatcher', 'Super Admin'], color: 'emerald' },
+      { id: 'live-tracking', icon: 'ri-map-pin-user-line', label: 'Map', roles: ['super_admin', 'operations_admin', 'admin', 'dispatcher', 'Super Admin'], color: 'emerald' },
+      { id: 'financials', icon: 'ri-wallet-3-line', label: 'Money', roles: ['super_admin', 'finance_admin', 'admin', 'manager', 'Super Admin'], color: 'amber' },
+      { id: 'analytics', icon: 'ri-bar-chart-box-line', label: 'Reports', roles: ['super_admin', 'finance_admin', 'admin', 'manager', 'Super Admin'], color: 'orange' },
+      { id: 'sms', icon: 'ri-chat-bubble-3-line', label: 'SMS', roles: ['super_admin', 'operations_admin', 'admin', 'manager', 'Super Admin'], color: 'emerald' },
+      { id: 'feedback', icon: 'ri-star-smile-line', label: 'Feedback', roles: ['super_admin', 'support_admin', 'admin', 'manager', 'Super Admin'], color: 'emerald' },
+      { id: 'audit', icon: 'ri-file-shield-2-line', label: 'History', roles: ['super_admin', 'admin', 'Super Admin'], color: 'slate' },
+      { id: 'settings', icon: 'ri-settings-5-line', label: 'Settings', roles: ['super_admin', 'admin', 'manager', 'Super Admin'], color: 'gray' },
     ];
 
     if (roleKey === 'super_admin' || userInfo.role === 'Admin' || userInfo.role === 'Super Admin') return allItems;
@@ -127,18 +126,18 @@ export default function Sidebar({ activeSection, setActiveSection, isOpen, onClo
             </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white leading-none">BorlaWura</h1>
-              <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-[0.2em] block mt-1.5 opacity-80">Platform Control</span>
+              <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-[0.2em] block mt-1.5 opacity-80">Admin Area</span>
             </div>
           </div>
 
-          <div className="p-4 bg-slate-50/80 dark:bg-white/[0.03] backdrop-blur-md rounded-2xl border border-slate-100 dark:border-white/[0.05]">
+          <div className="p-4 bg-slate-50/50 dark:bg-white/[0.02] rounded-2xl border border-slate-100/50 dark:border-white/5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 flex items-center justify-center text-slate-500 dark:text-slate-400 shadow-sm">
+              <div className="w-10 h-10 rounded-xl bg-white dark:bg-black/20 flex items-center justify-center text-slate-500 dark:text-slate-400 shadow-sm border border-slate-50 dark:border-white/5">
                 <i className="ri-shield-user-line text-lg"></i>
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-bold text-slate-900 dark:text-white truncate uppercase">{userInfo.fullName}</p>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter truncate">{userInfo.role.replace('_', ' ')}</p>
+                <p className="text-[11px] font-bold text-slate-900 dark:text-white truncate uppercase tracking-tight">{userInfo.fullName}</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest truncate">{userInfo.role.replace('_', ' ')}</p>
               </div>
             </div>
           </div>
@@ -146,7 +145,7 @@ export default function Sidebar({ activeSection, setActiveSection, isOpen, onClo
 
         {/* Navigation Section */}
         <div className="flex-1 overflow-y-auto px-5 py-2 space-y-1.5 custom-scrollbar">
-          <p className="px-4 text-[9px] font-bold text-slate-400 dark:text-slate-600 uppercase tracking-[0.25em] mb-4 mt-4">Operational Nodes</p>
+          <p className="px-4 text-[9px] font-bold text-slate-400 dark:text-slate-600 uppercase tracking-[0.25em] mb-4 mt-4">Menu</p>
           
           {menuItems.map((item) => (
             <button
@@ -167,16 +166,6 @@ export default function Sidebar({ activeSection, setActiveSection, isOpen, onClo
           ))}
         </div>
 
-        {/* Footer Area */}
-        <div className="p-8">
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-100 dark:border-white/[0.05] flex items-center gap-3">
-             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-             <div className="flex-1">
-                <p className="text-[10px] font-bold text-slate-900 dark:text-white uppercase tracking-wider">System Operational</p>
-                <p className="text-[9px] text-slate-500 font-medium uppercase tracking-tighter">Gateway Synchronized</p>
-             </div>
-          </div>
-        </div>
       </div>
     </div>
   );

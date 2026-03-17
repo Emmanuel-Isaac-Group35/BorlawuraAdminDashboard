@@ -64,7 +64,7 @@ export default function FeedbackRatings() {
 
   const getRatingStars = (rating: number) => {
     return Array.from({ length: 5 }).map((_, i) => (
-      <i key={i} className={`ri-star-${i < rating ? 'fill text-amber-500' : 'line text-slate-200 dark:text-slate-800'} text-xs`}></i>
+      <i key={i} className={`ri-star-${i < rating ? 'fill text-emerald-500' : 'line text-slate-200 dark:text-slate-800'} text-xs`}></i>
     ));
   };
 
@@ -75,13 +75,13 @@ export default function FeedbackRatings() {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">User Sentiment</h1>
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Review user feedback and service quality ratings</p>
         </div>
-        <div className="flex gap-1.5 p-1 bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 rounded-2xl">
+        <div className="flex gap-1.5 p-1 bg-white dark:bg-black border border-slate-100 dark:border-white/5 rounded-2xl">
           {['all', 'pending', 'reviewed', 'resolved'].map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
               className={`px-5 py-2 text-[10px] font-bold uppercase rounded-xl transition-all ${statusFilter === s
-                ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
+                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
                 : 'text-slate-400 hover:text-slate-600'
               }`}
             >
@@ -93,7 +93,7 @@ export default function FeedbackRatings() {
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-24">
-           <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+           <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
            <p className="text-[11px] text-slate-400 font-bold uppercase mt-5 tracking-widest">Collecting Sentiment...</p>
         </div>
       ) : (
@@ -115,9 +115,9 @@ export default function FeedbackRatings() {
                        </div>
                     </div>
                     <span className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase border ${
-                      f.status === 'pending' ? 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-500/10 dark:text-amber-400' :
-                      f.status === 'reviewed' ? 'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-500/10 dark:text-blue-400' : 
-                      'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400'
+                      f.status === 'pending' ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400' :
+                      f.status === 'reviewed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400' : 
+                      'bg-emerald-600 text-white border-emerald-600'
                     }`}>
                        {f.status}
                     </span>
@@ -133,7 +133,7 @@ export default function FeedbackRatings() {
                  
                  <div className="mt-8 pt-6 border-t border-slate-50 dark:border-white/5 flex justify-between items-center">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Score: {f.rating}.0 / 5.0</p>
-                    <div className="w-8 h-8 flex items-center justify-center rounded-xl group-hover:bg-amber-500 group-hover:text-white dark:bg-slate-800 text-slate-300 transition-all">
+                    <div className="w-8 h-8 flex items-center justify-center rounded-xl group-hover:bg-emerald-500 group-hover:text-white dark:bg-slate-800 text-slate-300 transition-all">
                        <i className="ri-arrow-right-line"></i>
                     </div>
                  </div>
@@ -169,14 +169,14 @@ export default function FeedbackRatings() {
                     </div>
                  </div>
 
-                 <div className="p-8 rounded-[2rem] bg-amber-50/30 dark:bg-amber-500/5 border border-amber-100/50 dark:border-amber-500/20 shadow-inner">
-                    <div className="flex gap-1.5 mb-5">
-                       {getRatingStars(selectedFeedback.rating)}
-                    </div>
-                    <p className="text-[15px] font-medium text-slate-800 dark:text-white italic leading-relaxed">
-                       "{selectedFeedback.comment}"
-                    </p>
-                 </div>
+                  <div className="p-8 rounded-[2rem] bg-emerald-50/30 dark:bg-emerald-500/5 border border-emerald-100/50 dark:border-emerald-500/20 shadow-inner">
+                     <div className="flex gap-1.5 mb-5">
+                        {getRatingStars(selectedFeedback.rating)}
+                     </div>
+                     <p className="text-[15px] font-medium text-slate-800 dark:text-white italic leading-relaxed">
+                        "{selectedFeedback.comment}"
+                     </p>
+                  </div>
                  
                  <div className="space-y-4">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Modify Sentiment Status</p>

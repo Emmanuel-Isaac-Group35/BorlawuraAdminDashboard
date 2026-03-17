@@ -85,7 +85,7 @@ export default function Analytics() {
             <div key={index} className="flex items-center gap-3 mb-1">
               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }}></div>
               <p className="text-[11px] font-bold text-slate-900 dark:text-white uppercase leading-none">
-                {entry.name}: <span className="text-indigo-500">{entry.value}</span>
+                {entry.name}: <span className="text-emerald-500">{entry.value}</span>
               </p>
             </div>
           ))}
@@ -99,8 +99,8 @@ export default function Analytics() {
     <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Intelligence & Insights</h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Holistic analysis of platform metrics and growth trends</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Performance Reports</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">See how the business is growing and performing</p>
         </div>
         <button 
           onClick={fetchAnalyticsData} 
@@ -113,10 +113,10 @@ export default function Analytics() {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
          {[
-            { label: 'Weekly Growth', value: `+${stats.growth}%`, icon: 'ri-line-chart-line', color: 'indigo' },
-            { label: 'Peak Logistics', value: stats.peakHour, icon: 'ri-time-line', color: 'amber' },
-            { label: 'Flow Efficiency', value: `${stats.efficiency}%`, icon: 'ri-dashboard-3-line', color: 'emerald' },
-            { label: 'Network Points', value: stats.activeHotspots, icon: 'ri-base-station-line', color: 'rose' },
+            { label: 'Weekly Growth', value: `+${stats.growth}%`, icon: 'ri-line-chart-line', color: 'emerald' },
+            { label: 'Busiest Time', value: stats.peakHour, icon: 'ri-time-line', color: 'amber' },
+            { label: 'Success Rate', value: `${stats.efficiency}%`, icon: 'ri-dashboard-3-line', color: 'emerald' },
+            { label: 'Active Areas', value: stats.activeHotspots, icon: 'ri-base-station-line', color: 'rose' },
          ].map((stat, i) => (
             <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-white/5 shadow-sm flex items-center gap-5 transition-all hover:scale-[1.02]">
                <div className={`w-14 h-14 rounded-2xl bg-${stat.color}-500/10 flex items-center justify-center text-${stat.color}-600`}>
@@ -133,8 +133,8 @@ export default function Analytics() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
          <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 p-8 shadow-sm">
             <div className="mb-8">
-               <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Service Distribution</h3>
-               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Volume trends over 7-day period</p>
+               <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Pickups over time</h3>
+               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">How many pickups were done in the last 7 days</p>
             </div>
             
             <div className="h-[320px] w-full">
@@ -142,8 +142,8 @@ export default function Analytics() {
                   <AreaChart data={data}>
                      <defs>
                         <linearGradient id="colorPickups" x1="0" y1="0" x2="0" y2="1">
-                           <stop offset="5%" stopColor="#6366f1" stopOpacity={0.15}/>
-                           <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                           <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
+                           <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                         </linearGradient>
                      </defs>
                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888820" />
@@ -165,7 +165,7 @@ export default function Analytics() {
                         type="monotone" 
                         dataKey="pickups" 
                         name="Requests"
-                        stroke="#6366f1" 
+                        stroke="#10b981" 
                         strokeWidth={4}
                         fillOpacity={1} 
                         fill="url(#colorPickups)" 
@@ -210,7 +210,7 @@ export default function Analytics() {
          </div>
       </div>
 
-      <div className="bg-slate-900 dark:bg-white/5 rounded-[3rem] p-10 text-white relative overflow-hidden group border border-white/5">
+      <div className="bg-black rounded-[3rem] p-10 text-white relative overflow-hidden group border border-white/5">
          <div className="flex flex-col md:flex-row items-center justify-between gap-8 relative z-10">
             <div className="max-w-2xl">
                <h2 className="text-sm font-bold text-white uppercase tracking-[0.2em] mb-4 opacity-70">Executive Summary</h2>
@@ -231,7 +231,7 @@ export default function Analytics() {
             </div>
          </div>
          {/* Background Glow */}
-         <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-indigo-500/10 rounded-full blur-[100px] group-hover:bg-indigo-500/20 transition-all"></div>
+         <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-emerald-500/10 rounded-full blur-[100px] group-hover:bg-emerald-500/20 transition-all"></div>
       </div>
     </div>
   );

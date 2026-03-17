@@ -46,7 +46,7 @@ export default function Dashboard() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, (payload) => {
         const action = payload.new.action?.toLowerCase() || '';
         if (action.includes('delete') || action.includes('suspend') || action.includes('remove')) {
-          addToast(`Security Protocol: ${payload.new.action}`, 'warning', 'ri-shield-flash-line');
+          addToast(`Security Alert: ${payload.new.action}`, 'warning', 'ri-shield-flash-line');
         }
       })
       .subscribe();

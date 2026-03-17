@@ -50,7 +50,7 @@ export default function AdminPersonnel() {
   const handleAddAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canModify) {
-      alert('Administrative clearance required for this action.');
+      alert("Permission Denied: You don't have access to add staff.");
       return;
     }
     try {
@@ -78,19 +78,19 @@ export default function AdminPersonnel() {
 
       if (profileError) throw profileError;
 
-      alert('Personnel registration successful.');
+      alert('Staff member added successfully.');
       setShowAddModal(false);
       fetchAdmins();
       setNewAdmin({ full_name: '', email: '', role: 'dispatcher', password: '' });
     } catch (error) {
       console.error('Error adding admin:', error);
-      alert('Personnel Registration Failed');
+      alert('Could not add staff member.');
     }
   };
 
   const toggleStatus = async (id: string, currentStatus: string) => {
     if (!canModify) {
-      alert('Access Denied: Administrative override required.');
+      alert("Permission Denied: You don't have access to do this.");
       return;
     }
      try {
@@ -118,8 +118,8 @@ export default function AdminPersonnel() {
     <div className="space-y-10 animate-fade-in py-2 font-['Montserrat']">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Personnel Management</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Manage administrative staff and access privileges</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Staff Management</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Add and manage your team and what they can do</p>
         </div>
         {canModify && (
           <button
@@ -127,7 +127,7 @@ export default function AdminPersonnel() {
             className="px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-bold shadow-xl hover:shadow-2xl transition-all active:scale-95 cursor-pointer flex items-center gap-2"
           >
             <i className="ri-user-add-line"></i>
-            Authorize Personnel
+            Add New Staff
           </button>
         )}
       </div>
@@ -154,8 +154,8 @@ export default function AdminPersonnel() {
 
       <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden">
          <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex items-center justify-between">
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Access Control Directory</h2>
-            <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 rounded-full text-[10px] font-bold uppercase tracking-widest border border-indigo-100 dark:border-indigo-500/10">Registry v2.4</span>
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Staff List</h2>
+            <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 rounded-full text-[10px] font-bold uppercase tracking-widest border border-indigo-100 dark:border-indigo-500/10">Active Staff</span>
          </div>
          
          <div className="overflow-x-auto">
