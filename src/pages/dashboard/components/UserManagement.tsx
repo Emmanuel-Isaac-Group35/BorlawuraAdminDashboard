@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
+import { logActivity } from '../../../lib/audit';
 import ExportButton from './ExportButton';
 import { sendSMS } from '../../../lib/sms';
 
@@ -15,6 +16,7 @@ interface User {
   created_at: string;
   balance: number;
   subscription_type: string;
+  avatar_url?: string;
 }
 
 export default function UserManagement() {
@@ -33,7 +35,8 @@ export default function UserManagement() {
     location: 'Accra Central',
     balance: 0,
     role: 'customer',
-    subscription_type: 'pay-as-you-go'
+    subscription_type: 'pay-as-you-go',
+    avatar_url: ''
   });
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,8 +47,8 @@ export default function UserManagement() {
   const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
   const rawRole = userInfo.role || 'Super Admin';
   const roleKey = rawRole.toLowerCase().replace(/\s+/g, '_');
-  const isAdmin = roleKey === 'super_admin'; 
-  const canModify = isAdmin || roleKey === 'manager' || roleKey === 'support_admin'; 
+  const isAdmin = roleKey === 'super_admin' || roleKey === 'admin' || roleKey === 'manager'; 
+  const canModify = isAdmin || roleKey === 'support_admin'; 
 
   useEffect(() => {
     fetchUsers();
@@ -95,17 +98,11 @@ export default function UserManagement() {
 
       if (error) throw error;
 
-      // Log action for push notification
-      await supabase.from('audit_logs').insert([{
-        admin_id: userInfo.id,
-        action: 'New User Registered',
-        details: { 
-          message: `New protocol initialized for ${formData.full_name}`, 
-          user: formData.email, 
-          target_user_name: formData.full_name,
-          admin_name: userInfo.fullName 
-        }
-      }]);
+      await logActivity('New User Registered', 'users', 'new', { 
+        user: formData.email, 
+        target_user_name: formData.full_name,
+        message: `New protocol initialized for ${formData.full_name}`
+      });
 
       // Send Alert
       await sendSMS({
@@ -142,28 +139,24 @@ export default function UserManagement() {
             email: formData.email,
             full_name: formData.full_name,
             role: formData.role,
-            status: 'active'
+            status: 'active',
+            avatar_url: formData.avatar_url
          }], { onConflict: 'email' });
       } else if (formData.role === 'rider') {
          await supabase.from('riders').upsert([{
             full_name: formData.full_name,
             phone_number: formData.phone_number,
             email: formData.email,
-            status: 'active'
+            status: 'active',
+            avatar_url: formData.avatar_url
          }]);
       }
 
-      // Log action for push notification
-      await supabase.from('audit_logs').insert([{
-        admin_id: userInfo.id,
-        action: 'Account Role Updated',
-        details: { 
-          message: `${formData.full_name} repositioned to ${formData.role}`, 
-          user: formData.email, 
-          target_user_name: formData.full_name,
-          admin_name: userInfo.fullName 
-        }
-      }]);
+      await logActivity('Admin: Customer Profile Updated', 'users', selectedUser.id, { 
+        user_email: formData.email, 
+        target_username: formData.full_name,
+        message: `Admin synchronized profile details for ${formData.full_name}${formData.avatar_url ? ' (including image)' : ''}`
+      });
 
       // Send Alert
       await sendSMS({
@@ -187,12 +180,29 @@ export default function UserManagement() {
     if (!confirm('Are you sure you want to delete this user? This cannot be undone.')) return;
 
     try {
+      // Fetch user details before deleting for logging purposes
+      const { data: userToDelete, error: fetchError } = await supabase
+        .from('users')
+        .select('full_name, email')
+        .eq('id', id)
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') throw fetchError; // PGRST116 means no rows found
+
       const { error } = await supabase
         .from('users')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
+
+      // Log activity for audit trail
+      await logActivity('Delete User', 'users', id, { 
+        user_name: userToDelete?.full_name || 'Unknown User', 
+        user_email: userToDelete?.email || 'N/A',
+        message: `Deleted user ${userToDelete?.full_name || id}`
+      });
+      
       alert('User has been deleted.');
       setSelectedUser(null);
       fetchUsers();
@@ -210,7 +220,8 @@ export default function UserManagement() {
       location: 'Accra Central',
       balance: 0,
       role: 'customer',
-      subscription_type: 'pay-as-you-go'
+      subscription_type: 'pay-as-you-go',
+      avatar_url: ''
     });
     setIsEditing(false);
   };
@@ -225,7 +236,8 @@ export default function UserManagement() {
       location: user.location,
       balance: user.balance,
       role: user.role || 'customer',
-      subscription_type: user.subscription_type || 'pay-as-you-go'
+      subscription_type: user.subscription_type || 'pay-as-you-go',
+      avatar_url: user.avatar_url || ''
     });
     setIsEditing(true);
     setShowAddModal(true);
@@ -238,18 +250,45 @@ export default function UserManagement() {
     }
 
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({ status: currentStatus === 'active' ? 'suspended' : 'active' })
-        .eq('id', id);
-
-      if (error) throw error;
+      const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
       
-      const action = currentStatus === 'active' ? 'Suspended' : 'Activated';
-      alert(`User ${action} successfully.`);
+      // 1. Update Core Users Table
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .update({ status: newStatus })
+        .eq('id', id)
+        .select('*')
+        .single();
+
+      if (userError) throw userError;
+
+      // 2. Cascading Security Protocol: Sync status to other privilege tables
+      if (userData) {
+        // Sync to Admins if exists
+        await supabase
+          .from('admins')
+          .update({ status: newStatus === 'active' ? 'active' : 'inactive' })
+          .eq('email', userData.email);
+
+        // Sync to Riders if exists
+        await supabase
+          .from('riders')
+          .update({ status: newStatus === 'active' ? 'active' : 'suspended' })
+          .eq('email', userData.email);
+      }
+      
+      const actionLabel = newStatus === 'active' ? 'Activated' : 'Suspended';
+      await logActivity(`${actionLabel} User Access`, 'users', id, { 
+        status: newStatus,
+        user_name: userData?.full_name || 'Protocol User',
+        message: `Security clearance ${newStatus === 'active' ? 'restored' : 'revoked'} for ${userData?.full_name}`
+      });
+
+      alert(`Security protocol successfully ${newStatus === 'active' ? 'restored' : 'enforced'} for this account.`);
+      fetchUsers();
     } catch (err: any) {
-      console.error('Error toggling user status:', err);
-      alert(`Update Failed: ${err.message}`);
+      console.error('Security Update Failed:', err);
+      alert(`Critical Error: ${err.message}`);
     }
   };
 
@@ -314,9 +353,9 @@ export default function UserManagement() {
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden">
-        <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex flex-col md:flex-row gap-4 justify-between items-center bg-slate-50/10">
+        <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex flex-col lg:flex-row gap-4 justify-between items-center bg-slate-50/10">
           <div className="relative flex-1 max-w-md w-full group">
-            <i className="ri-search-line absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500"></i>
+            <i className="ri-search-line absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors"></i>
             <input 
               type="text"
               placeholder="Search by name, phone or email..."
@@ -325,38 +364,40 @@ export default function UserManagement() {
               className="w-full pl-12 pr-4 py-3 bg-white dark:bg-black border border-slate-200/60 dark:border-white/5 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm"
             />
           </div>
-          <div className="flex flex-wrap gap-2 p-1 bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl">
+          <div className="flex flex-col sm:flex-row flex-wrap items-center gap-2 p-1 bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl w-full lg:w-auto">
             <select 
               value={areaFilter}
               onChange={(e) => setAreaFilter(e.target.value)}
-              className="px-4 py-2 text-[10px] font-bold uppercase rounded-xl bg-transparent text-slate-500 border-none focus:ring-0 cursor-pointer"
+              className="w-full sm:w-auto px-4 py-2 text-[10px] font-bold uppercase rounded-xl bg-transparent text-slate-500 border-none focus:ring-0 cursor-pointer"
             >
               <option value="all">All Areas</option>
               {availableZones.map((zone: string) => (
                 <option key={zone} value={zone}>{zone}</option>
               ))}
             </select>
-            <div className="w-[1px] h-8 bg-slate-100 dark:bg-slate-800 self-center mx-1"></div>
-            {['all', 'active', 'suspended'].map((status) => (
-              <button
-                key={status}
-                onClick={() => setStatusFilter(status)}
-                className={`px-5 py-2 text-[10px] font-bold uppercase rounded-xl transition-all ${
-                  statusFilter === status 
-                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
-                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-                }`}
-              >
-                {status}
-              </button>
-            ))}
+            <div className="hidden sm:block w-[1px] h-8 bg-slate-100 dark:bg-slate-800 self-center mx-1"></div>
+            <div className="flex items-center gap-1 w-full sm:w-auto">
+              {['all', 'active', 'suspended'].map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(status)}
+                  className={`flex-1 sm:flex-none px-4 py-2 text-[10px] font-bold uppercase rounded-xl transition-all ${
+                    statusFilter === status 
+                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
+                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  }`}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         {error ? (
           <div className="p-16 text-center">
             <p className="text-rose-500 text-sm font-bold">{error}</p>
-            <button onClick={fetchUsers} className="mt-4 px-6 py-2 bg-indigo-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest">Retry Connection</button>
+            <button onClick={fetchUsers} className="mt-4 px-6 py-2 bg-indigo-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest leading-none">Retry Connection</button>
           </div>
         ) : loading ? (
           <div className="p-24 flex flex-col items-center justify-center">
@@ -364,87 +405,158 @@ export default function UserManagement() {
             <p className="text-[11px] text-slate-400 mt-5 font-bold uppercase tracking-[0.2em]">Loading Data...</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-slate-50/50 dark:bg-slate-800/20 text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-50 dark:border-slate-800/50">
-                  <th className="px-8 py-5 text-left">User Profile</th>
-                  <th className="px-8 py-5 text-left">Location</th>
-                  <th className="px-8 py-5 text-left">Balance</th>
-                  <th className="px-8 py-5 text-left">Status</th>
-                  <th className="px-8 py-5 text-right">Settings</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
-                {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all group">
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 font-bold text-sm group-hover:bg-emerald-600 group-hover:text-white transition-all">
-                          {user.full_name?.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="text-[13px] font-bold text-slate-900 dark:text-white leading-none mb-1">{user.full_name}</p>
-                          <div className="flex items-center gap-2">
-                             <p className="text-[10px] text-slate-500 font-medium">{user.phone_number}</p>
-                             <span className={`px-1.5 py-0.5 rounded-lg text-[8px] font-bold uppercase tracking-wider ${user.role === 'customer' ? 'bg-slate-100 text-slate-500' : 'bg-rose-500 text-white'}`}>
-                                {user.role?.replace('_', ' ') || 'customer'}
-                             </span>
+          <div>
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-slate-50/50 dark:bg-slate-800/20 text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-50 dark:border-slate-800/50">
+                    <th className="px-8 py-5 text-left">User Profile</th>
+                    <th className="px-8 py-5 text-left">Location</th>
+                    <th className="px-8 py-5 text-left">Balance</th>
+                    <th className="px-8 py-5 text-left">Status</th>
+                    <th className="px-8 py-5 text-right">Settings</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
+                  {filteredUsers.map((user) => (
+                    <tr key={user.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all group">
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 font-bold text-sm group-hover:bg-emerald-600 group-hover:text-white transition-all overflow-hidden">
+                            {user.avatar_url ? (
+                               <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                            ) : user.full_name?.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="text-[13px] font-bold text-slate-900 dark:text-white leading-none mb-1">{user.full_name}</p>
+                            <div className="flex items-center gap-2">
+                               <p className="text-[10px] text-slate-500 font-medium">{user.phone_number}</p>
+                               <span className={`px-1.5 py-0.5 rounded-lg text-[8px] font-bold uppercase tracking-wider ${user.role === 'customer' ? 'bg-slate-100 text-slate-500' : 'bg-rose-500 text-white'}`}>
+                                  {user.role?.replace('_', ' ') || 'customer'}
+                               </span>
+                            </div>
                           </div>
                         </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-2">
+                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.5)]"></div>
+                           <p className="text-[11px] font-bold text-slate-900 dark:text-white uppercase tracking-tight">{user.location || 'Not Set'}</p>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <p className="text-[13px] font-bold text-emerald-600">₵{(user.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                      </td>
+                      <td className="px-8 py-6">
+                        <span className={`px-4 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider ${
+                          user.status === 'active' 
+                          ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-100/50 dark:border-emerald-500/20' 
+                          : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-100/50 dark:border-rose-500/20'
+                        }`}>
+                          {user.status}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button 
+                            onClick={() => setSelectedUser(user)}
+                            className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-all"
+                            title="View Details"
+                          >
+                            <i className="ri-profile-line text-lg"></i>
+                          </button>
+                          {canModify && (
+                            <button 
+                              onClick={() => openEditModal(user)}
+                              className="w-9 h-9 flex items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
+                              title="Edit User"
+                            >
+                              <i className="ri-edit-line text-lg"></i>
+                            </button>
+                          )}
+                          {isAdmin && (
+                            <button 
+                              onClick={() => handleDeleteUser(user.id)}
+                              className="w-9 h-9 flex items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+                              title="Delete User"
+                            >
+                              <i className="ri-delete-bin-line text-lg"></i>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden p-4 space-y-4">
+              {filteredUsers.map((user) => (
+                <div key={user.id} className="bg-slate-50/50 dark:bg-white/[0.02] border border-slate-100 dark:border-white/5 rounded-3xl p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold text-sm overflow-hidden">
+                        {user.avatar_url ? (
+                           <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                        ) : user.full_name?.charAt(0)}
                       </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-2">
-                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                         <p className="text-[11px] font-bold text-slate-900 dark:text-white uppercase tracking-tight">{user.location || 'Not Set'}</p>
+                      <div>
+                        <p className="text-[13px] font-bold text-slate-900 dark:text-white leading-tight">{user.full_name}</p>
+                        <p className="text-[10px] text-slate-500 font-medium">{user.phone_number}</p>
                       </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <p className="text-[13px] font-bold text-emerald-600">₵{(user.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                    </td>
-                    <td className="px-8 py-6">
-                      <span className={`px-4 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider ${
-                        user.status === 'active' 
-                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-100/50 dark:border-emerald-500/20' 
-                        : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-100/50 dark:border-rose-500/20'
-                      }`}>
-                        {user.status}
-                      </span>
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      <div className="flex justify-end gap-2">
+                    </div>
+                    <span className={`px-3 py-1 rounded-xl text-[9px] font-bold uppercase tracking-wider ${
+                      user.status === 'active' 
+                      ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-100/20' 
+                      : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-100/20'
+                    }`}>
+                      {user.status}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="p-3 bg-white dark:bg-black/20 rounded-2xl border border-slate-100 dark:border-white/5">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Location</p>
+                      <p className="text-[11px] font-bold text-slate-800 dark:text-white truncate">{user.location || 'Not Set'}</p>
+                    </div>
+                    <div className="p-3 bg-white dark:bg-black/20 rounded-2xl border border-slate-100 dark:border-white/5">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Balance</p>
+                      <p className="text-[11px] font-bold text-emerald-600 truncate">₵{(user.balance || 0).toLocaleString()}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-white/5">
+                    <span className={`px-2 py-0.5 rounded-lg text-[8px] font-bold uppercase tracking-wider ${user.role === 'customer' ? 'bg-slate-100 text-slate-500' : 'bg-rose-500 text-white'}`}>
+                      {user.role?.replace('_', ' ') || 'customer'}
+                    </span>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => setSelectedUser(user)}
+                        className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400"
+                      >
+                        <i className="ri-profile-line"></i>
+                      </button>
+                      {canModify && (
                         <button 
-                          onClick={() => setSelectedUser(user)}
-                          className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-all"
-                          title="View Details"
+                          onClick={() => openEditModal(user)}
+                          className="w-8 h-8 flex items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500"
                         >
-                          <i className="ri-profile-line text-lg"></i>
+                          <i className="ri-edit-line"></i>
                         </button>
-                        {canModify && (
-                          <button 
-                            onClick={() => openEditModal(user)}
-                            className="w-9 h-9 flex items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all"
-                            title="Edit User"
-                          >
-                            <i className="ri-edit-line text-lg"></i>
-                          </button>
-                        )}
-                        {isAdmin && (
-                          <button 
-                            onClick={() => handleDeleteUser(user.id)}
-                            className="w-9 h-9 flex items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all"
-                            title="Delete User"
-                          >
-                            <i className="ri-delete-bin-line text-lg"></i>
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {filteredUsers.length === 0 && (
+                <div className="py-10 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest leading-none">
+                  No matches found
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -462,8 +574,10 @@ export default function UserManagement() {
             
             <div className="p-10">
               <div className="flex items-center gap-6 mb-10">
-                <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-4xl font-bold shadow-2xl shadow-emerald-500/20">
-                  {selectedUser.full_name?.charAt(0)}
+                <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-4xl font-bold shadow-2xl shadow-emerald-500/20 overflow-hidden">
+                  {selectedUser.avatar_url ? (
+                     <img src={selectedUser.avatar_url} alt="" className="w-full h-full object-cover" />
+                  ) : selectedUser.full_name?.charAt(0)}
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{selectedUser.full_name}</h3>
@@ -540,6 +654,51 @@ export default function UserManagement() {
             </div>
             
             <form onSubmit={isEditing ? handleUpdateUser : handleCreateUser} className="p-10 space-y-6">
+              <div className="flex flex-col items-center mb-6">
+                <div className="relative group">
+                  <div className="w-24 h-24 rounded-3xl bg-slate-100 dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center overflow-hidden">
+                    {formData.avatar_url ? (
+                      <img src={formData.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <i className="ri-user-line text-3xl text-slate-300"></i>
+                    )}
+                  </div>
+                  <label className="absolute -bottom-2 -right-2 w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center cursor-pointer shadow-lg hover:bg-emerald-700 transition-all border-4 border-white dark:border-slate-950">
+                    <i className="ri-camera-line"></i>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        
+                        try {
+                          const fileExt = file.name.split('.').pop();
+                          const fileName = `${Math.random()}.${fileExt}`;
+                          const filePath = `avatars/${fileName}`;
+
+                          const { error: uploadError } = await supabase.storage
+                            .from('avatars')
+                            .upload(filePath, file);
+
+                          if (uploadError) throw uploadError;
+
+                          const { data: { publicUrl } } = supabase.storage
+                            .from('avatars')
+                            .getPublicUrl(filePath);
+
+                          setFormData({ ...formData, avatar_url: publicUrl });
+                        } catch (err: any) {
+                          alert('Error uploading image: ' + err.message);
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-4">Profile Photo</p>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Full Name</label>

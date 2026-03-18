@@ -59,17 +59,18 @@ export default function Sidebar({ activeSection, setActiveSection, isOpen, onClo
 
     const allItems = [
       { id: 'overview', icon: 'ri-dashboard-3-line', label: 'Home', roles: ['super_admin', 'finance_admin', 'manager', 'dispatcher', 'support_admin'], color: 'emerald' },
-      { id: 'admins', icon: 'ri-shield-user-line', label: 'Staff', roles: ['super_admin'], color: 'slate' },
+      { id: 'admins', icon: 'ri-shield-user-line', label: 'Staff', roles: ['super_admin', 'admin', 'manager'], color: 'slate' },
       { id: 'riders', icon: 'ri-bike-line', label: 'Riders', roles: ['super_admin', 'manager', 'dispatcher'], color: 'emerald' },
-      { id: 'users', icon: 'ri-group-line', label: 'Users', roles: ['super_admin', 'manager', 'support_admin'], color: 'emerald' },
+      { id: 'users', icon: 'ri-group-line', label: 'Users', roles: ['super_admin', 'admin', 'manager', 'support_admin'], color: 'emerald' },
+      { id: 'households', icon: 'ri-home-4-line', label: 'Households', roles: ['super_admin', 'admin', 'manager', 'support_admin'], color: 'emerald' },
       { id: 'pickups', icon: 'ri-calendar-check-line', label: 'Pickups', roles: ['super_admin', 'manager', 'dispatcher'], color: 'emerald' },
       { id: 'live-tracking', icon: 'ri-map-pin-user-line', label: 'Map', roles: ['super_admin', 'manager', 'dispatcher'], color: 'emerald' },
       { id: 'financials', icon: 'ri-wallet-3-line', label: 'Money', roles: ['super_admin', 'finance_admin', 'manager'], color: 'amber' },
       { id: 'analytics', icon: 'ri-bar-chart-box-line', label: 'Reports', roles: ['super_admin', 'finance_admin', 'manager'], color: 'orange' },
       { id: 'sms', icon: 'ri-chat-bubble-3-line', label: 'SMS', roles: ['super_admin', 'manager', 'support_admin'], color: 'emerald' },
       { id: 'feedback', icon: 'ri-star-smile-line', label: 'Feedback', roles: ['super_admin', 'manager', 'support_admin'], color: 'emerald' },
-      { id: 'audit', icon: 'ri-file-shield-2-line', label: 'History', roles: ['super_admin'], color: 'slate' },
-      { id: 'settings', icon: 'ri-settings-5-line', label: 'Settings', roles: ['super_admin', 'manager'], color: 'gray' },
+      { id: 'audit', icon: 'ri-file-shield-2-line', label: 'History', roles: ['super_admin', 'admin', 'manager'], color: 'slate' },
+      { id: 'settings', icon: 'ri-settings-5-line', label: 'Settings', roles: ['super_admin', 'manager', 'admin'], color: 'gray' },
     ];
 
     if (isSuperAdmin) return allItems;

@@ -44,16 +44,28 @@ export default function Login() {
             if (error) throw error;
 
             if (data.session && data.user) {
-                // Fetch the actual role from the admins table
+                // Fetch the actual role and status from the admins table
                 const { data: adminData } = await supabase
                   .from('admins')
-                  .select('full_name, role')
+                  .select('full_name, role, status')
                   .eq('email', data.user.email)
                   .maybeSingle();
 
+                // 1. Check if they exist in the admins table at all
+                if (!adminData) {
+                    await supabase.auth.signOut();
+                    throw new Error("ACCESS DENIED: You are not authorized to access the BorlaWura Command Center. Please sign in with an administrator account.");
+                }
+
+                // 2. Check if suspended or inactive
+                if (adminData.status === 'inactive' || adminData.status === 'suspended') {
+                    await supabase.auth.signOut();
+                    throw new Error("ACCOUNT SUSPENDED: Your administrative clearance has been revoked. Access to the Command Center is restricted.");
+                }
+
                 const profile = {
-                    fullName: adminData?.full_name || data.user.user_metadata?.full_name || 'Super Admin',
-                    role: adminData?.role || data.user.user_metadata?.role || 'Super Admin',
+                    fullName: adminData.full_name,
+                    role: adminData.role,
                     email: data.user.email
                 };
 

@@ -69,9 +69,13 @@ export const getSMSBalance = async () => {
     }
 
     const data = await response.json();
-    const balance = data.data?.sms_balance || data.balance || 0;
+    console.log('Arkesel Balance Monitor Protocol:', data);
     
-    return { success: true, balance: Number(balance) };
+    // Pick the most likely balance fields from both V1 and V2 APIs
+    const rawBalance = data.data?.sms_balance ?? data.balance ?? data.balance_sms ?? 0;
+    const balance = Number(rawBalance);
+    
+    return { success: true, balance: isNaN(balance) ? 0 : balance };
   } catch (error: any) {
     console.error('Error fetching SMS balance:', error);
     return { success: false, balance: 0, message: error.message };

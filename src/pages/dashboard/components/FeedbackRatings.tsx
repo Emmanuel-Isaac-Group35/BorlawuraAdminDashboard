@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
+import { logActivity } from '../../../lib/audit';
 
 interface FeedbackEntry {
   id: string;
@@ -61,6 +62,12 @@ export default function FeedbackRatings() {
         .eq('id', id);
 
       if (error) throw error;
+      
+      await logActivity('Review Feedback', 'feedback', id, { 
+        status: newStatus,
+        message: `Feedback #${id.slice(0,5)} status transitioned to ${newStatus}`
+      });
+
       alert(`Status updated to ${newStatus}`);
       fetchFeedback();
       setSelectedFeedback(null);

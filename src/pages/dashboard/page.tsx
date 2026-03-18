@@ -62,9 +62,42 @@ export default function Dashboard() {
       })
       .subscribe();
 
+    // 3. Listen for Current Admin Session Status
+    const setupAdminListener = async () => {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser) {
+        const adminChannel = supabase
+          .channel(`admin-security-${authUser.id}`)
+          .on('postgres_changes', { 
+              event: 'UPDATE', 
+              schema: 'public', 
+              table: 'admins',
+              filter: `email=eq.${authUser.email}`
+            }, (payload) => {
+              const status = payload.new.status || 'active';
+              if (status === 'inactive' || status === 'suspended') {
+                console.log('Security Alert: Administrative access revoked by system.');
+                supabase.auth.signOut().then(() => {
+                  window.location.href = '/login';
+                });
+              }
+            })
+          .subscribe();
+        
+        return adminChannel;
+      }
+      return null;
+    };
+
+    let adminChannel: any = null;
+    setupAdminListener().then(channel => {
+      adminChannel = channel;
+    });
+
     return () => {
       supabase.removeChannel(pickupSub);
       supabase.removeChannel(auditSub);
+      if (adminChannel) supabase.removeChannel(adminChannel);
     };
   }, []);
 
@@ -85,7 +118,7 @@ export default function Dashboard() {
     // Permissions Map (Standardized for Hierarchy)
     const permissions: Record<string, string[]> = {
       overview: ['super_admin', 'admin', 'finance_admin', 'operations_admin', 'manager', 'dispatcher', 'support_admin'],
-      admins: ['super_admin'], // Only Super Admin manages staff
+      admins: ['super_admin', 'admin', 'manager'], // Expanded for Full Control
       riders: ['super_admin', 'admin', 'operations_admin', 'manager', 'dispatcher'],
       users: ['super_admin', 'admin', 'operations_admin', 'manager', 'support_admin'],
       households: ['super_admin', 'admin', 'operations_admin', 'manager', 'support_admin'],
@@ -96,8 +129,8 @@ export default function Dashboard() {
       analytics: ['super_admin', 'finance_admin', 'manager'],
       sms: ['super_admin', 'operations_admin', 'manager', 'support_admin'],
       feedback: ['super_admin', 'admin', 'manager', 'support_admin'],
-      settings: ['super_admin', 'manager'],
-      audit: ['super_admin'], // Security logs for Super Admin only
+      settings: ['super_admin', 'manager', 'admin'],
+      audit: ['super_admin', 'admin', 'manager'], // Expanded for Full Control
       profile: ['super_admin', 'admin', 'finance_admin', 'operations_admin', 'manager', 'dispatcher', 'support_admin'],
     };
 

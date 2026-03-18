@@ -15,7 +15,7 @@ export default function Overview({ onNavigate }: OverviewProps) {
     { id: 4, title: 'Total Paid', value: '₵0.00', icon: 'ri-wallet-3-line', color: 'amber', trend: '+8.4%', label: 'Money collected' },
   ]);
 
-  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [recentPickups, setRecentPickups] = useState<any[]>([]);
   const [topRiders, setTopRiders] = useState<any[]>([]);
 
   const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
@@ -37,20 +37,6 @@ export default function Overview({ onNavigate }: OverviewProps) {
     };
   }, []);
 
-  const fetchSmsBalance = async () => {
-    try {
-      const result = await getSMSBalance();
-      if (result.success) {
-        setStats(prev => prev.map(stat => 
-          stat.title === 'SMS Left' 
-            ? { ...stat, value: Number(result.balance).toLocaleString() } 
-            : stat
-        ));
-      }
-    } catch (error) {
-      console.error('SMS Balance fetch error:', error);
-    }
-  };
 
   const fetchDashboardData = async () => {
     try {
@@ -62,23 +48,29 @@ export default function Overview({ onNavigate }: OverviewProps) {
       const totalRevenue = payments?.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0) || 0;
       const avgRating = feedback?.length ? (feedback.reduce((acc, curr) => acc + curr.rating, 0) / feedback.length).toFixed(1) : '5.0';
 
+      const smsResult = await getSMSBalance();
+      const smsDisplayToken = smsResult.success ? Number(smsResult.balance).toLocaleString() : 'N/A';
+
       const allStats = [
         { id: 1, title: 'All Pickups', value: (pickupCount || 0).toLocaleString(), icon: 'ri-truck-line', color: 'emerald', trend: '+12%', label: 'Total Volume', roles: ['super_admin', 'manager', 'dispatcher'] },
         { id: 2, title: 'Riders Online', value: (riders?.length || 0).toLocaleString(), icon: 'ri-e-bike-2-line', color: 'slate', trend: 'Live', label: 'Field Staff', roles: ['super_admin', 'manager', 'dispatcher'] },
-        { id: 3, title: 'SMS Left', value: '0', icon: 'ri-message-3-line', color: 'emerald', trend: 'Units', label: 'Broadcasts', roles: ['super_admin', 'manager', 'support_admin'] },
+        { id: 3, title: 'SMS Left', value: smsDisplayToken, icon: 'ri-message-3-line', color: 'emerald', trend: 'Units', label: 'Broadcasts', roles: ['super_admin', 'manager', 'support_admin'] },
         { id: 4, title: 'Total Paid', value: `₵${(totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, icon: 'ri-wallet-3-line', color: 'amber', trend: '+8.4%', label: 'Revenue', roles: ['super_admin', 'manager', 'finance_admin'] },
         { id: 5, title: 'Satisfaction', value: avgRating, icon: 'ri-star-smile-line', color: 'emerald', trend: 'Avg', label: 'User Rating', roles: ['super_admin', 'manager', 'support_admin'] },
       ];
 
       setStats(allStats.filter(s => isFullAdmin || s.roles.includes(roleKey)).slice(0, 4));
 
-      const { data: activities } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(6);
-      if (activities) setRecentActivities(activities);
+      const { data: pickups } = await supabase
+        .from('pickups')
+        .select('*, users(full_name)')
+        .order('created_at', { ascending: false })
+        .limit(6);
+      
+      if (pickups) setRecentPickups(pickups);
 
       const { data: topRiderData } = await supabase.from('riders').select('*').order('total_pickups', { ascending: false }).limit(4);
       if (topRiderData) setTopRiders(topRiderData);
-      
-      fetchSmsBalance();
     } catch (error) {
       console.error('Dashboard data error:', error);
     } finally {
@@ -101,6 +93,16 @@ export default function Overview({ onNavigate }: OverviewProps) {
     emerald: 'from-emerald-600/10 to-emerald-600/5 text-emerald-600 border-emerald-100 dark:border-emerald-500/20',
     slate: 'from-slate-600/10 to-slate-600/5 text-slate-600 border-slate-100 dark:border-slate-500/20',
     amber: 'from-amber-500/10 to-amber-500/5 text-amber-600 border-amber-100 dark:border-amber-500/20',
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'requested': return 'bg-amber-100 text-amber-600 border-amber-200';
+      case 'scheduled': return 'bg-blue-100 text-blue-600 border-blue-200';
+      case 'in_progress': return 'bg-violet-100 text-violet-600 border-violet-200';
+      case 'completed': return 'bg-emerald-100 text-emerald-600 border-emerald-200';
+      default: return 'bg-gray-100 text-gray-500 border-gray-200';
+    }
   };
 
   const allShortcuts = [
@@ -152,22 +154,28 @@ export default function Overview({ onNavigate }: OverviewProps) {
         <div className="lg:col-span-2 space-y-8">
            <div className="bg-white dark:bg-gray-950 rounded-[2.5rem] border border-gray-100 dark:border-gray-800/60 shadow-sm overflow-hidden">
               <div className="px-8 py-6 border-b border-gray-50 dark:border-gray-800/40 flex justify-between items-center">
-                 <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest">Recently Done</h2>
-                 <button onClick={() => onNavigate?.('audit')} className="text-[11px] font-bold text-emerald-500 hover:text-emerald-600 transition-colors">View Logs</button>
+                 <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest">Active Requests</h2>
+                 <button onClick={() => onNavigate?.('pickups')} className="text-[11px] font-bold text-emerald-500 hover:text-emerald-600 transition-colors">Manage All</button>
               </div>
               <div className="divide-y divide-gray-50 dark:divide-gray-800/40">
-                 {recentActivities.map((activity) => (
-                    <div key={activity.id} className="px-8 py-5 flex items-center gap-4 hover:bg-gray-50/50 dark:hover:bg-white/[0.01] transition-colors group">
+                 {recentPickups.map((pickup) => (
+                    <div key={pickup.id} className="px-8 py-5 flex items-center gap-4 hover:bg-gray-50/50 dark:hover:bg-white/[0.01] transition-colors group">
                        <div className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 group-hover:bg-emerald-500/10 group-hover:text-emerald-500 transition-colors">
-                          <i className="ri-time-line text-lg"></i>
+                          <i className="ri-truck-line text-lg"></i>
                        </div>
                        <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-semibold text-gray-800 dark:text-gray-200 truncate">{activity.action}</p>
-                          <p className="text-[10px] text-gray-500 font-medium mt-1">{new Date(activity.created_at).toLocaleString()}</p>
+                          <p className="text-[13px] font-semibold text-gray-800 dark:text-gray-200 truncate pr-4">{pickup.users?.full_name || 'Anonymous User'}</p>
+                          <p className="text-[10px] text-gray-500 font-medium mt-1 truncate">{pickup.address}</p>
                        </div>
-                       <span className="text-[10px] font-bold px-3 py-1 bg-gray-100 dark:bg-gray-900 text-gray-500 rounded-full border border-gray-200/50 dark:border-gray-800/50">{activity.ip_address || 'System'}</span>
+                       <div className="flex flex-col items-end gap-1.5">
+                          <span className={`text-[9px] font-bold px-3 py-1 rounded-full border ${getStatusColor(pickup.status)} uppercase tracking-tighter`}>{pickup.status}</span>
+                          <span className="text-[9px] font-bold text-gray-400">{new Date(pickup.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                       </div>
                     </div>
                  ))}
+                 {recentPickups.length === 0 && (
+                    <div className="py-20 text-center text-[11px] text-gray-400 font-bold uppercase tracking-widest">No recent pickup requests</div>
+                 )}
               </div>
            </div>
 

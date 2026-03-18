@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
+import { logActivity } from '../../../lib/audit';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -40,7 +41,7 @@ export default function PickupOperations() {
 
   const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
   const role = (userInfo.role || 'Super Admin').toLowerCase().replace(/\s+/g, '_');
-  const canDispatch = role === 'super_admin' || role === 'manager' || role === 'dispatcher';
+  const canDispatch = role === 'super_admin' || role === 'manager' || role === 'dispatcher' || role === 'admin';
 
   useEffect(() => {
     loadData();
@@ -69,7 +70,7 @@ export default function PickupOperations() {
       // Robust select with fallback for joins
       const { data, error } = await supabase
         .from('pickups')
-        .select(`*, users!inner(full_name), riders(full_name)`)
+        .select(`*, users(full_name), riders(full_name)`)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -133,12 +134,10 @@ export default function PickupOperations() {
 
       if (error) throw error;
       
-      // Log action for push notification
-      await supabase.from('audit_logs').insert([{
-        admin_id: userInfo.id,
-        action: 'Job Assigned to Rider',
-        details: { message: `Pickup #${pickupId.slice(0, 8)} assigned to rider.`, admin: userInfo.fullName }
-      }]);
+      await logActivity('Assign Rider', 'pickups', pickupId, { 
+        rider_id: riderId,
+        message: `Assigned job #${pickupId.substring(0,8)} to rider`
+      });
 
       alert('Rider has been assigned successfully.');
       setShowAssignModal(false);
@@ -179,8 +178,8 @@ export default function PickupOperations() {
   };
 
   return (
-    <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="space-y-6 md:space-y-8 font-['Montserrat'] animate-fade-in pb-10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-1">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Pickups</h1>
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage all waste pickups and riders here</p>
@@ -194,26 +193,26 @@ export default function PickupOperations() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
         {/* Left Column: Request List */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/50 shadow-sm flex flex-col min-h-[700px]">
-           <div className="p-6 border-b border-slate-50 dark:border-slate-800/50 flex flex-col md:flex-row gap-4 items-center">
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/50 shadow-sm flex flex-col min-h-[500px] md:min-h-[700px]">
+           <div className="p-4 md:p-6 border-b border-slate-50 dark:border-slate-800/50 flex flex-col xl:flex-row gap-4 xl:items-center">
               <div className="relative flex-1 w-full">
                 <i className="ri-search-line absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
                 <input 
                   type="text"
-                  placeholder="Seach by name or request ID..."
+                  placeholder="Search by name or request ID..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-white dark:bg-black border border-slate-200/60 dark:border-white/5 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-medium"
+                  className="w-full pl-12 pr-4 py-3.5 bg-white dark:bg-black border border-slate-200/60 dark:border-white/5 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm"
                 />
               </div>
-              <div className="flex gap-1.5 p-1 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl overflow-x-auto scrollbar-hide">
+              <div className="flex gap-1.5 p-1 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl overflow-x-auto scrollbar-hide w-full xl:w-auto">
                 {['all', 'requested', 'scheduled', 'in_progress', 'completed'].map((s) => (
                   <button
                     key={s}
                     onClick={() => setStatusFilter(s)}
-                    className={`px-4 py-2 text-[10px] font-bold uppercase rounded-xl transition-all whitespace-nowrap ${
+                    className={`flex-1 xl:flex-none px-4 py-2 text-[10px] font-bold uppercase rounded-xl transition-all whitespace-nowrap ${
                       statusFilter === s ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'
                     }`}
                   >
@@ -229,38 +228,38 @@ export default function PickupOperations() {
                 <p className="text-[11px] text-slate-400 font-bold uppercase mt-5 tracking-widest">Loading Requests...</p>
              </div>
            ) : (
-             <div className="flex-1 overflow-y-auto divide-y divide-slate-50 dark:divide-slate-800/50">
+             <div className="flex-1 overflow-y-auto divide-y divide-slate-50 dark:divide-slate-800/50 max-h-[600px] xl:max-h-none">
                 {filteredPickups.map((p) => (
                   <div 
                     key={p.id} 
-                    className={`p-6 hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all cursor-pointer group ${selectedPickup?.id === p.id ? 'bg-emerald-50/30' : ''}`}
+                    className={`p-4 md:p-6 hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all cursor-pointer group ${selectedPickup?.id === p.id ? 'bg-emerald-50/30' : ''}`}
                     onClick={() => setSelectedPickup(p)}
                   >
                     <div className="flex justify-between items-start mb-4">
                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 mb-2">
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">#{p.id.slice(0,8)}</span>
                              <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase border ${getStatusStyle(p.status)}`}>
                                 {p.status}
                              </span>
                           </div>
-                          <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">{p.user_name}</h3>
+                          <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate pr-2">{p.user_name}</h3>
                        </div>
-                       <div className="text-right">
+                       <div className="text-right flex-shrink-0">
                           <p className="text-[11px] font-bold text-emerald-600 uppercase mb-1">{p.waste_type}</p>
                           <p className="text-[10px] text-slate-400 font-bold uppercase">{p.waste_size}</p>
                        </div>
                     </div>
                     
                     <div className="flex items-center justify-between gap-4">
-                       <div className="flex flex-col md:flex-row md:items-center gap-4 flex-1 min-w-0">
+                       <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 flex-1 min-w-0">
                           <div className="flex items-center gap-2 text-slate-500 text-[11px]">
-                             <i className="ri-map-pin-line text-emerald-500"></i>
-                             <span className="truncate max-w-[200px]">{p.address}</span>
+                             <i className="ri-map-pin-line text-emerald-500 flex-shrink-0"></i>
+                             <span className="truncate max-w-[250px]">{p.address}</span>
                           </div>
                           <div className="flex items-center gap-2 text-slate-400 text-[10px] font-bold uppercase">
-                             <i className="ri-steering-line"></i>
-                             <span>{p.rider_name || 'Awaiting Rider'}</span>
+                             <i className="ri-steering-line flex-shrink-0"></i>
+                             <span className="truncate">{p.rider_name || 'Awaiting Rider'}</span>
                           </div>
                        </div>
                     </div>
@@ -276,8 +275,8 @@ export default function PickupOperations() {
         </div>
 
         {/* Right Column: Detail & Map */}
-        <div className="space-y-8 h-full">
-           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden h-[350px] z-0">
+        <div className="flex flex-col gap-6 md:gap-8 h-full">
+           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden h-[300px] md:h-[350px] z-0 flex-shrink-0">
              {!mapError ? (
                <MapContainer center={[5.6037, -0.1870]} zoom={12} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
@@ -293,7 +292,7 @@ export default function PickupOperations() {
                   ))}
                </MapContainer>
              ) : (
-               <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-50">
+               <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-50 dark:bg-slate-950">
                   <i className="ri-map-pin-user-line text-3xl text-slate-300 mb-2"></i>
                   <p className="text-xs font-bold text-slate-400 uppercase">Map services temporarily unavailable</p>
                </div>
@@ -301,55 +300,55 @@ export default function PickupOperations() {
            </div>
 
            {selectedPickup ? (
-              <div className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-slate-800/50 p-8 shadow-sm flex flex-col gap-6 animate-scale-up">
+              <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] md:rounded-[3rem] border border-slate-100 dark:border-slate-800/50 p-6 md:p-8 shadow-sm flex flex-col gap-6 animate-scale-up">
                  <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-800 pb-4">
-                    <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Operational Sequence Details</h2>
+                    <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Job Narrative</h2>
                     <span className="text-[10px] font-bold text-emerald-500 uppercase">#{selectedPickup.id.slice(0,8)}</span>
                  </div>
                  
                  <div className="space-y-6">
                     <div>
-                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Service Address</p>
-                       <p className="text-sm font-bold text-slate-800 dark:text-white leading-relaxed">{selectedPickup.address}</p>
+                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Collection Point</p>
+                       <p className="text-[13px] md:text-sm font-bold text-slate-800 dark:text-white leading-relaxed">{selectedPickup.address}</p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3 md:gap-4">
                        <div className="p-4 bg-slate-50 dark:bg-black rounded-2xl border border-slate-100 dark:border-white/5">
-                          <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Waste Type</p>
-                          <p className="text-xs font-bold text-emerald-600">{selectedPickup.waste_type}</p>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Waste Info</p>
+                          <p className="text-[11px] md:text-xs font-bold text-emerald-600 truncate">{selectedPickup.waste_type}</p>
                        </div>
                        <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800/50">
-                          <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Package Size</p>
-                          <p className="text-xs font-bold text-slate-800 dark:text-white">{selectedPickup.waste_size}</p>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Volume</p>
+                          <p className="text-[11px] md:text-xs font-bold text-slate-800 dark:text-white truncate">{selectedPickup.waste_size}</p>
                        </div>
                     </div>
 
                     {selectedPickup.rider_id ? (
-                        <div className="p-5 bg-emerald-50 dark:bg-emerald-500/5 rounded-[2rem] border border-emerald-100 dark:border-emerald-500/20 flex items-center gap-4">
-                           <div className="w-12 h-12 rounded-2xl bg-emerald-500 flex items-center justify-center text-white text-lg font-bold">
+                        <div className="p-4 md:p-5 bg-emerald-50/50 dark:bg-emerald-500/5 rounded-[2rem] border border-emerald-100 dark:border-emerald-500/20 flex items-center gap-4">
+                           <div className="flex-shrink-0 w-11 md:w-12 h-11 md:h-12 rounded-2xl bg-emerald-500 flex items-center justify-center text-white text-lg font-bold">
                               {selectedPickup.rider_name?.charAt(0)}
                            </div>
-                           <div>
-                              <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase">Assigned Rider</p>
-                              <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">{selectedPickup.rider_name}</p>
+                           <div className="min-w-0">
+                              <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase">Deployed Rider</p>
+                              <p className="text-[13px] md:text-sm font-bold text-slate-900 dark:text-white mt-0.5 truncate">{selectedPickup.rider_name}</p>
                            </div>
                         </div>
                     ) : (
                         canDispatch && (
                            <button 
                              onClick={() => setShowAssignModal(true)}
-                             className="w-full py-4 bg-emerald-600 text-white rounded-[2rem] text-xs font-bold uppercase tracking-widest shadow-xl shadow-emerald-500/20 hover:scale-[1.02] transition-all"
+                             className="w-full py-4 bg-emerald-600 text-white rounded-[2rem] text-[11px] font-bold uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all active:scale-95"
                            >
-                              Assign Rider
+                              Assign Personnel
                            </button>
                         )
                     )}
                  </div>
               </div>
            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-slate-50/50 dark:bg-white/[0.01] rounded-[3rem] border border-dashed border-slate-200 dark:border-slate-800">
+              <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-slate-50/50 dark:bg-white/[0.01] rounded-[2.5rem] md:rounded-[3rem] border border-dashed border-slate-200 dark:border-slate-800/50">
                  <i className="ri-cursor-line text-3xl text-slate-300 mb-3"></i>
-                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Select a request to view profile</p>
+                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Select a listing to view dossier</p>
               </div>
            )}
         </div>

@@ -40,6 +40,14 @@ export default function SystemSettings() {
   }, []);
 
   const saveSettings = async () => {
+    const roleKey = (userInfo.role || '').toLowerCase().replace(/\s+/g, '_');
+    const canManage = roleKey === 'super_admin' || roleKey === 'manager' || roleKey === 'admin';
+    
+    if (!canManage) {
+      alert('Access Denied: Administrative authority required to modify core system protocols.');
+      return;
+    }
+
     const settings = { zones, categories, pricing, notifications };
     localStorage.setItem('borlawura_settings', JSON.stringify(settings));
 

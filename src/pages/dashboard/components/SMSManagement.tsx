@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
+import { logActivity } from '../../../lib/audit';
 import ExportButton from './ExportButton';
 import { sendSMS } from '../../../lib/sms';
 
@@ -41,7 +42,7 @@ export default function SMSManagement() {
 
   const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
   const currentRole = (userInfo.role || 'Super Admin').toLowerCase().replace(/\s+/g, '_');
-  const canSend = currentRole === 'super_admin' || currentRole === 'manager' || currentRole === 'support_admin';
+  const canSend = currentRole === 'super_admin' || currentRole === 'manager' || currentRole === 'support_admin' || currentRole === 'admin';
 
   useEffect(() => {
     fetchSMSLogs();
@@ -139,18 +140,11 @@ export default function SMSManagement() {
         status: status
       }]);
 
-      // Record Activity
-      await supabase.from('audit_logs').insert([{
-        admin_id: (userInfo as any).id,
-        action: `Sent SMS to ${targetLabel}`,
-        target_type: 'SMS',
-        target_id: status,
-        details: { 
-          message: newMessage.message, 
-          recipient_count: recipients.length,
-          gateway_status: status 
-        }
-      }]);
+      await logActivity(`Sent SMS to ${targetLabel}`, 'SMS', status, { 
+        message: newMessage.message, 
+        recipient_count: recipients.length,
+        gateway_status: status 
+      });
 
       if (!result.success) {
         throw new Error(result.message || 'System transmission error via Arkesel Gateway');

@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
+import { logActivity } from '../../../lib/audit';
 
 export default function ProfileView() {
   const [loading, setLoading] = useState(false);
   const [userInfo, setUserInfo] = useState({
+    id: '',
     fullName: '',
     role: '',
     email: '',
     phone: '',
-    joined: ''
+    joined: '',
+    avatarUrl: ''
   });
   const [isEditing, setIsEditing] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -33,15 +37,61 @@ export default function ProfileView() {
           .maybeSingle();
 
         setUserInfo({
+          id: adminData?.id || user.id,
           fullName: savedProfile?.fullName || adminData?.full_name || 'Admin User',
           role: savedProfile?.role || adminData?.role || 'Admin',
           email: user.email || '',
           phone: adminData?.phone_number || 'Not Set',
-          joined: adminData?.created_at || user.created_at || ''
+          joined: adminData?.created_at || user.created_at || '',
+          avatarUrl: adminData?.avatar_url || ''
         });
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${userInfo.id}-${Math.random()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      // 1. Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // 2. Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // 3. Update database
+      const { error: updateError } = await supabase
+        .from('admins')
+        .update({ avatar_url: publicUrl })
+        .eq('id', userInfo.id);
+
+      if (updateError) throw updateError;
+
+      await logActivity('Update Profile Photo', 'admins', userInfo.id, { 
+        message: 'Admin updated their own profile picture'
+      });
+
+      // 4. Update state
+      setUserInfo(prev => ({ ...prev, avatarUrl: publicUrl }));
+    } catch (error: any) {
+      console.error('Error uploading image:', error);
+      alert(`Upload Failed: ${error.message}`);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -58,6 +108,11 @@ export default function ProfileView() {
       });
 
       if (error) throw error;
+      
+      await logActivity('Update Security Key', 'admins', userInfo.id, { 
+        message: 'Admin successfully updated their local sign-in password'
+      });
+
       alert('Security protocol updated: Password changed successfully.');
       setNewPassword('');
       setConfirmPassword('');
@@ -88,11 +143,25 @@ export default function ProfileView() {
         <div className="md:col-span-1 space-y-6">
            <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm p-10 flex flex-col items-center text-center">
               <div className="w-32 h-32 rounded-[2.5rem] bg-gradient-to-tr from-emerald-500 to-emerald-700 flex items-center justify-center text-white text-5xl font-bold shadow-2xl shadow-emerald-500/30 mb-8 relative group overflow-hidden">
-                 <span className="relative z-10">{userInfo.fullName.charAt(0)}</span>
-                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                    <i className="ri-camera-line text-2xl"></i>
-                 </div>
-              </div>
+                  {userInfo.avatarUrl ? (
+                    <img src={userInfo.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="relative z-10">{userInfo.fullName.charAt(0)}</span>
+                  )}
+                  <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center cursor-pointer text-white">
+                     <i className={`ri-camera-line text-2xl ${uploading ? 'animate-bounce' : ''}`}></i>
+                     <span className="text-[8px] font-bold uppercase tracking-widest mt-1">
+                       {uploading ? 'Syncing...' : 'Update'}
+                     </span>
+                     <input 
+                       type="file" 
+                       className="hidden" 
+                       accept="image/*" 
+                       onChange={handleImageUpload}
+                       disabled={uploading}
+                     />
+                  </label>
+               </div>
               <h2 className="text-xl font-bold text-slate-900 dark:text-white uppercase tracking-tight mb-2">{userInfo.fullName}</h2>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-8">{userInfo.role.replace('_', ' ')}</p>
               

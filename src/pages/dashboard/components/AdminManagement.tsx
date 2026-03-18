@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
+import { logActivity } from '../../../lib/audit';
 import ExportButton from './ExportButton';
 import { sendSMS } from '../../../lib/sms';
 
@@ -11,6 +12,7 @@ interface AdminMember {
   status: 'active' | 'inactive';
   created_at: string;
   last_login: string | null;
+  avatar_url?: string;
 }
 
 export default function AdminManagement() {
@@ -21,14 +23,15 @@ export default function AdminManagement() {
     full_name: '',
     email: '',
     role: 'dispatcher',
-    password: ''
+    password: '',
+    avatar_url: ''
   });
   const [isEditing, setIsEditing] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState<AdminMember | null>(null);
 
   const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
   const roleKey = (userInfo.role || 'Admin').toLowerCase().replace(/\s+/g, '_');
-  const isSuperAdmin = roleKey === 'super_admin'; 
+  const canManage = roleKey === 'super_admin' || roleKey === 'admin' || roleKey === 'manager'; 
 
   useEffect(() => {
     fetchAdmins();
@@ -64,7 +67,7 @@ export default function AdminManagement() {
 
   const handleSaveAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isSuperAdmin) return;
+    if (!canManage) return;
 
     try {
       if (isEditing && selectedAdmin) {
@@ -72,17 +75,17 @@ export default function AdminManagement() {
           .from('admins')
           .update({
             full_name: newAdmin.full_name,
-            role: newAdmin.role
+            role: newAdmin.role,
+            avatar_url: newAdmin.avatar_url
           })
           .eq('id', selectedAdmin.id);
         if (error) throw error;
 
-        // Log action for push notification
-        await supabase.from('audit_logs').insert([{
-          admin_id: userInfo.id,
-          action: 'Staff Role Re-assigned',
-          details: { message: `${newAdmin.full_name} repositioned to ${newAdmin.role}`, admin: userInfo.fullName }
-        }]);
+        await logActivity('Staff Role Re-assigned', 'admins', selectedAdmin.id, { 
+          staff: newAdmin.full_name, 
+          role: newAdmin.role,
+          message: `${newAdmin.full_name} repositioned to ${newAdmin.role}`
+        });
 
         // Send Alert
         await sendSMS({
@@ -109,16 +112,16 @@ export default function AdminManagement() {
             full_name: newAdmin.full_name,
             email: newAdmin.email,
             role: newAdmin.role,
-            status: 'active'
+            status: 'active',
+            avatar_url: newAdmin.avatar_url
           }]);
         if (profileError) throw profileError;
 
-        // Log action for push notification
-        await supabase.from('audit_logs').insert([{
-          admin_id: userInfo.id,
-          action: 'New Staff Provisioned',
-          details: { message: `${newAdmin.full_name} onboarded as ${newAdmin.role}`, admin: userInfo.fullName }
-        }]);
+        await logActivity('New Staff Provisioned', 'admins', 'new', { 
+          staff: newAdmin.full_name, 
+          role: newAdmin.role,
+          message: `${newAdmin.full_name} onboarded as ${newAdmin.role}`
+        });
 
         // Send Alert
         await sendSMS({
@@ -138,7 +141,7 @@ export default function AdminManagement() {
   };
 
   const resetForm = () => {
-    setNewAdmin({ full_name: '', email: '', role: 'dispatcher', password: '' });
+    setNewAdmin({ full_name: '', email: '', role: 'dispatcher', password: '', avatar_url: '' });
     setIsEditing(false);
     setSelectedAdmin(null);
   };
@@ -149,27 +152,54 @@ export default function AdminManagement() {
       full_name: admin.full_name,
       email: admin.email,
       role: admin.role as any,
-      password: 'KEEP_EXISTING'
+      password: 'KEEP_EXISTING',
+      avatar_url: admin.avatar_url || ''
     });
     setIsEditing(true);
     setShowAddModal(true);
   };
 
   const toggleStatus = async (id: string, currentStatus: string) => {
-    if (!isSuperAdmin) return;
+    if (!canManage) return;
     try {
       const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
       await supabase.from('admins').update({ status: newStatus }).eq('id', id);
 
-      // Log action for push notification
-      await supabase.from('audit_logs').insert([{
-          admin_id: userInfo.id,
-          action: 'Staff Protocol Update',
-          details: { message: `Clearance ${newStatus} for personnel #${id.slice(0,5)}`, admin: userInfo.fullName }
-      }]);
+      await logActivity('Staff Protocol Update', 'admins', id, { 
+        status: newStatus,
+        message: `Clearance ${newStatus} for personnel #${id.slice(0,5)}`
+      });
 
       fetchAdmins();
     } catch (error) { console.error(error); }
+  };
+
+  const handleDeleteAdmin = async (id: string, email: string) => {
+    if (!canManage) return;
+    if (userInfo.id === id) {
+      alert("Self-Termination Aborted: You cannot delete your own account from this session.");
+      return;
+    }
+    if (!window.confirm(`CRITICAL SYSTEM ACTION: Are you sure you want to remove ${email} from the staff list forever? This will immediately revoke all their administrative access.`)) return;
+
+    try {
+      const { error } = await supabase
+        .from('admins')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      await logActivity('Staff Record Purged', 'admins', id, { 
+        staff_email: email,
+        message: `Personnel ${email} removed from system permanently.`
+      });
+
+      alert('Personnel record purged from the manifest successfully.');
+      fetchAdmins();
+    } catch (error: any) {
+      alert(`Purge Failed: ${error.message}`);
+    }
   };
 
   return (
@@ -191,7 +221,7 @@ export default function AdminManagement() {
             fileName="Staff_list_report"
             title="Office Team List"
           />
-          {isSuperAdmin && (
+          {canManage && (
             <button 
               onClick={() => { resetForm(); setShowAddModal(true); }}
               className="px-8 py-3.5 bg-emerald-600 text-white rounded-[2rem] text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all flex items-center gap-2.5 group"
@@ -203,83 +233,137 @@ export default function AdminManagement() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {[
-          { label: 'Total Team Members', value: admins.length, icon: 'ri-group-line', color: 'slate' },
-          { label: 'Admins (Full Access)', value: admins.filter(a => a.role.toLowerCase().includes('admin')).length, icon: 'ri-shield-check-line', color: 'rose' },
-          { label: 'Active Team', value: admins.filter(a => a.status === 'active').length, icon: 'ri-checkbox-circle-line', color: 'emerald' },
-          { label: 'Inactive Team', value: admins.filter(a => a.status === 'inactive').length, icon: 'ri-error-warning-line', color: 'slate' },
+          { label: 'Total team members', value: admins.length, icon: 'ri-group-line', color: 'emerald' },
+          { label: 'Admins (Authorized)', value: admins.filter(a => a.role.toLowerCase().includes('admin')).length, icon: 'ri-shield-check-line', color: 'rose' },
+          { label: 'Active protocol', value: admins.filter(a => a.status === 'active').length, icon: 'ri-checkbox-circle-line', color: 'emerald' },
+          { label: 'Inactive protocol', value: admins.filter(a => a.status === 'inactive').length, icon: 'ri-forbid-line', color: 'slate' },
         ].map((stat, i) => (
-          <div key={i} className="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-100 dark:border-white/5 shadow-sm transition-all hover:scale-[1.02]">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">{stat.label}</p>
-              <div className={`w-10 h-10 rounded-xl bg-${stat.color}-500/10 flex items-center justify-center text-${stat.color}-600`}>
-                <i className={`${stat.icon} text-lg`}></i>
-              </div>
+          <div key={i} className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[2rem] border border-slate-100 dark:border-white/5 shadow-sm transition-all hover:scale-[1.02] flex flex-row sm:flex-col justify-between items-center sm:items-start gap-4">
+            <div className="flex flex-col">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-3">{stat.label}</p>
+              <h3 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white leading-none tracking-tight">{stat.value}</h3>
             </div>
-            <h3 className="text-3xl font-bold text-slate-900 dark:text-white leading-none tracking-tight">{stat.value}</h3>
+            <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${stat.color === 'emerald' ? 'from-emerald-500/10 to-teal-500/5 text-emerald-600' : stat.color === 'rose' ? 'from-rose-500/10 to-pink-500/5 text-rose-600' : 'from-slate-500/10 to-slate-400/5 text-slate-500'} flex items-center justify-center text-xl shadow-sm`}>
+              <i className={stat.icon}></i>
+            </div>
           </div>
         ))}
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden min-h-[400px]">
         <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10">
-          <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Team Members</h2>
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Team Profile Manifest</h2>
         </div>
         
         {loading ? (
           <div className="p-24 flex flex-col items-center justify-center">
             <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-[11px] text-slate-400 font-bold uppercase mt-5 tracking-widest">Accessing records...</p>
+            <p className="text-[11px] text-slate-400 font-bold uppercase mt-5 tracking-[0.2em] animate-pulse">Synchronizing Personnel...</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-slate-50/50 dark:bg-white/5 text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-50 dark:border-white/5">
-                  <th className="px-8 py-5 text-left">Staff Profile</th>
-                  <th className="px-8 py-5 text-left">Role / Access</th>
-                  <th className="px-8 py-5 text-left">Last Activity</th>
-                  <th className="px-8 py-5 text-right">Settings</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-white/5">
-                {admins.map((admin) => (
-                  <tr key={admin.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all group">
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 font-bold text-sm">
-                          {admin.full_name?.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="text-[13px] font-bold text-slate-900 dark:text-white leading-none mb-1">{admin.full_name}</p>
-                          <p className="text-[10px] text-slate-400 font-medium">{admin.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <span className="px-3 py-1.5 rounded-xl text-[9px] font-bold uppercase tracking-widest border border-slate-100 dark:border-white/10 text-slate-600 dark:text-slate-400">
-                        {admin.role.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      <div className="flex justify-end gap-2">
-                         {isSuperAdmin && (
-                           <>
-                             <button onClick={() => openEdit(admin)} className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 flex items-center justify-center hover:bg-indigo-500 hover:text-white transition-all">
-                                <i className="ri-edit-line"></i>
-                             </button>
-                             <button onClick={() => toggleStatus(admin.id, admin.status)} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${admin.status === 'active' ? 'bg-emerald-50 text-emerald-500 hover:bg-emerald-500 hover:text-white' : 'bg-slate-50 text-slate-400 hover:bg-slate-200'}`}>
-                                <i className={admin.status === 'active' ? 'ri-checkbox-circle-line' : 'ri-forbid-line'}></i>
-                             </button>
-                           </>
-                         )}
-                      </div>
-                    </td>
+          <div>
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-slate-50/50 dark:bg-white/5 text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-50 dark:border-white/5">
+                    <th className="px-8 py-5 text-left">Staff Profile</th>
+                    <th className="px-8 py-5 text-left">Role / Access</th>
+                    <th className="px-8 py-5 text-right">Settings</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-50 dark:divide-white/5">
+                  {admins.map((admin) => (
+                    <tr key={admin.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all group">
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-slate-100 to-slate-200 dark:from-white/5 dark:to-white/10 flex items-center justify-center text-slate-500 font-bold text-sm shadow-sm overflow-hidden">
+                            {admin.avatar_url ? (
+                               <img src={admin.avatar_url} alt="" className="w-full h-full object-cover" />
+                            ) : admin.full_name?.charAt(0)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-bold text-slate-900 dark:text-white leading-none mb-1.5">{admin.full_name}</p>
+                            <p className="text-[10px] text-slate-500 font-medium truncate max-w-[200px]">{admin.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <span className={`px-3 py-1.5 rounded-xl text-[9px] font-bold uppercase tracking-widest border ${admin.status === 'active' ? 'bg-emerald-50/50 text-emerald-600 border-emerald-100/50 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' : 'bg-slate-50 text-slate-400 border-slate-100 dark:bg-white/5 dark:text-slate-500 dark:border-white/5'}`}>
+                          {admin.role.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <div className="flex justify-end gap-2.5">
+                           {canManage && (
+                             <>
+                               <button onClick={() => openEdit(admin)} className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 flex items-center justify-center hover:bg-indigo-500 hover:text-white transition-all shadow-sm">
+                                  <i className="ri-edit-line text-lg"></i>
+                               </button>
+                               <button onClick={() => toggleStatus(admin.id, admin.status)} className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all shadow-sm ${admin.status === 'active' ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500' : 'bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white dark:bg-rose-500/10'}`}>
+                                  <i className={admin.status === 'active' ? 'ri-shield-user-line text-lg' : 'ri-shield-flash-line text-lg'}></i>
+                               </button>
+                               <button onClick={() => handleDeleteAdmin(admin.id, admin.email)} className="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-500/10 text-rose-500 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all shadow-sm" title="Purge Record">
+                                  <i className="ri-delete-bin-line text-lg"></i>
+                               </button>
+                             </>
+                           )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden p-4 space-y-4">
+              {admins.map((admin) => (
+                <div key={admin.id} className="bg-slate-50/50 dark:bg-white/[0.02] border border-slate-100 dark:border-white/5 rounded-3xl p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-bold text-sm overflow-hidden">
+                        {admin.avatar_url ? (
+                           <img src={admin.avatar_url} alt="" className="w-full h-full object-cover" />
+                        ) : admin.full_name?.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-[13px] font-bold text-slate-900 dark:text-white leading-tight">{admin.full_name}</p>
+                        <p className="text-[10px] text-slate-500 font-medium">{admin.email}</p>
+                      </div>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-xl text-[9px] font-bold uppercase tracking-wider ${
+                      admin.status === 'active' 
+                      ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-100/20' 
+                      : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-100/20'
+                    }`}>
+                      {admin.status}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-white/5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">{admin.role.replace('_', ' ')}</span>
+                    <div className="flex gap-2">
+                      {canManage && (
+                        <>
+                          <button onClick={() => openEdit(admin)} className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 flex items-center justify-center shadow-sm">
+                            <i className="ri-edit-line"></i>
+                          </button>
+                          <button onClick={() => toggleStatus(admin.id, admin.status)} className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-sm ${admin.status === 'active' ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-600'}`}>
+                            <i className={admin.status === 'active' ? 'ri-shield-user-line' : 'ri-shield-flash-line'}></i>
+                          </button>
+                          <button onClick={() => handleDeleteAdmin(admin.id, admin.email)} className="w-9 h-9 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center shadow-sm">
+                            <i className="ri-delete-bin-line"></i>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -321,6 +405,10 @@ export default function AdminManagement() {
                     <input type="password" required value={newAdmin.password} onChange={e => setNewAdmin({...newAdmin, password: e.target.value})} className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                   </div>
                 )}
+                <div className="md:col-span-2 space-y-2">
+                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Profile Photo URL</label>
+                   <input type="url" value={newAdmin.avatar_url} onChange={e => setNewAdmin({...newAdmin, avatar_url: e.target.value})} className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="https://example.com/photo.jpg (Optional)" />
+                </div>
               </div>
               <button type="submit" className="w-full py-4 bg-emerald-600 text-white rounded-[2rem] text-xs font-bold uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all">
                 {isEditing ? 'Save Changes' : 'Add Staff'}
