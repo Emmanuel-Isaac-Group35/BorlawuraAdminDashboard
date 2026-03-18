@@ -39,8 +39,8 @@ export default function PickupOperations() {
   const [mapError, setMapError] = useState(false);
 
   const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
-  const role = (userInfo.role || 'Admin').toLowerCase().replace(/\s+/g, '_');
-  const canDispatch = role === 'super_admin' || role === 'dispatcher' || role === 'operations_admin' || userInfo.role === 'Admin';
+  const role = (userInfo.role || 'Super Admin').toLowerCase().replace(/\s+/g, '_');
+  const canDispatch = role === 'super_admin' || role === 'manager' || role === 'dispatcher';
 
   useEffect(() => {
     loadData();
@@ -133,6 +133,13 @@ export default function PickupOperations() {
 
       if (error) throw error;
       
+      // Log action for push notification
+      await supabase.from('audit_logs').insert([{
+        admin_id: userInfo.id,
+        action: 'Job Assigned to Rider',
+        details: { message: `Pickup #${pickupId.slice(0, 8)} assigned to rider.`, admin: userInfo.fullName }
+      }]);
+
       alert('Rider has been assigned successfully.');
       setShowAssignModal(false);
       setSelectedPickup(null);
@@ -175,14 +182,14 @@ export default function PickupOperations() {
     <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Manage Pickups</h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Assign riders to pick up waste from customers</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Pickups</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage all waste pickups and riders here</p>
         </div>
         <div className="flex items-center gap-3">
           <ExportButton 
             data={filteredPickups}
             fileName="Pickup_List"
-            title="Pickup History"
+            title="Reports"
           />
         </div>
       </div>
@@ -333,7 +340,7 @@ export default function PickupOperations() {
                              onClick={() => setShowAssignModal(true)}
                              className="w-full py-4 bg-emerald-600 text-white rounded-[2rem] text-xs font-bold uppercase tracking-widest shadow-xl shadow-emerald-500/20 hover:scale-[1.02] transition-all"
                            >
-                              Assign Available Rider
+                              Assign Rider
                            </button>
                         )
                     )}
@@ -353,7 +360,7 @@ export default function PickupOperations() {
            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setShowAssignModal(false)}></div>
            <div className="relative w-full max-w-md bg-white dark:bg-slate-950 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-2xl overflow-hidden animate-scale-up">
               <div className="p-8 border-b border-slate-50 dark:border-slate-800 bg-slate-50/50">
-                 <h2 className="text-xl font-bold text-slate-900">Rider Assignment</h2>
+                 <h2 className="text-xl font-bold text-slate-900">Assign Rider</h2>
                  <p className="text-xs font-medium text-slate-500 mt-1">Deploy an active rider to this location</p>
               </div>
               <div className="p-4 max-h-[350px] overflow-y-auto space-y-2">

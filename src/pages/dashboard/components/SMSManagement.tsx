@@ -40,8 +40,8 @@ export default function SMSManagement() {
   }, [configuredSenderId]);
 
   const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
-  const currentRole = (userInfo.role || 'Admin').toLowerCase().replace(/\s+/g, '_');
-  const canSend = currentRole === 'super_admin' || currentRole === 'manager' || currentRole === 'admin' || userInfo.role === 'Admin';
+  const currentRole = (userInfo.role || 'Super Admin').toLowerCase().replace(/\s+/g, '_');
+  const canSend = currentRole === 'super_admin' || currentRole === 'manager' || currentRole === 'support_admin';
 
   useEffect(() => {
     fetchSMSLogs();
@@ -117,11 +117,11 @@ export default function SMSManagement() {
         const { data: riders, error: ridersError } = await supabase.from('riders').select('phone_number');
         if (ridersError) throw ridersError;
         recipients = riders?.map(r => r.phone_number).filter(p => p && p.length >= 10) || [];
-        targetLabel = 'Field Personnel (Riders)';
+        targetLabel = 'Riders';
       }
 
       if (recipients.length === 0) {
-        throw new Error(`Operational Failure: No valid recipients identified for target [${newMessage.target}]. Ensure participant records contain active phone numbers.`);
+        throw new Error(`Could not find any phone numbers for [${newMessage.target}]. Please make sure they have phone numbers in their profile.`);
       }
 
       const result = await sendSMS({
@@ -137,6 +137,19 @@ export default function SMSManagement() {
         message: newMessage.message,
         sender_name: newMessage.sender_name,
         status: status
+      }]);
+
+      // Record Activity
+      await supabase.from('audit_logs').insert([{
+        admin_id: (userInfo as any).id,
+        action: `Sent SMS to ${targetLabel}`,
+        target_type: 'SMS',
+        target_id: status,
+        details: { 
+          message: newMessage.message, 
+          recipient_count: recipients.length,
+          gateway_status: status 
+        }
       }]);
 
       if (!result.success) {
@@ -159,8 +172,8 @@ export default function SMSManagement() {
     <div className="space-y-10 font-['Montserrat'] animate-fade-in pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Signal Broadcast</h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Deploy institutional communications and operational alerts via SMS</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">Messages</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Send SMS alerts to your riders or customers</p>
         </div>
         <div className="flex items-center gap-4">
           <ExportButton 
@@ -171,7 +184,7 @@ export default function SMSManagement() {
               Timestamp: new Date(l.created_at).toLocaleString() 
             }))}
             fileName="Communication_Audit_Trail"
-            title="Institutional SMS Audit"
+            title="SMS History"
           />
           {canSend && (
             <button
@@ -179,7 +192,7 @@ export default function SMSManagement() {
               className="px-8 py-4 bg-emerald-600 text-white rounded-[2rem] text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-3"
             >
               <i className="ri-quill-pen-line text-lg"></i>
-              Initiate Broadcast
+              Send SMS
             </button>
           )}
         </div>
@@ -187,9 +200,9 @@ export default function SMSManagement() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
-          { label: 'Transmission Volume', value: stats.total, icon: 'ri-chat-voice-line', color: 'emerald', sub: 'Total signals deployed' },
-          { label: 'Verified Delivery', value: stats.sent, icon: 'ri-checkbox-circle-line', color: 'emerald', sub: 'Confirmed by gateway' },
-          { label: 'Signal Errors', value: stats.failed, icon: 'ri-close-circle-line', color: 'rose', sub: 'Failed transmissions' },
+          { label: 'Total Sent', value: stats.total, icon: 'ri-chat-voice-line', color: 'emerald', sub: 'Total messages sent' },
+          { label: 'Delivered', value: stats.sent, icon: 'ri-checkbox-circle-line', color: 'emerald', sub: 'Confirmed by gateway' },
+          { label: 'Send Failed', value: stats.failed, icon: 'ri-close-circle-line', color: 'rose', sub: 'Failed messages' },
         ].map((stat, i) => (
           <div key={i} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm transition-all hover:shadow-md">
             <div className="flex items-start justify-between mb-6">
@@ -207,8 +220,8 @@ export default function SMSManagement() {
       <div className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden min-h-[400px]">
         <div className="px-10 py-8 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex items-center justify-between">
            <div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-[0.2em]">Transmission Hierarchy</h2>
-              <p className="text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-widest">Audit trail of institutional signals</p>
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-[0.2em]">Message History</h2>
+              <p className="text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-widest">Audit trail of sent messages</p>
            </div>
            <div className="flex h-2 w-2 relative">
               <div className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></div>
@@ -219,17 +232,17 @@ export default function SMSManagement() {
         {loading ? (
           <div className="p-32 flex flex-col items-center justify-center">
             <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-[11px] text-slate-400 mt-6 font-bold uppercase tracking-widest animate-pulse">Synchronizing Terminal Logs...</p>
+            <p className="text-[11px] text-slate-400 mt-6 font-bold uppercase tracking-widest animate-pulse">Loading History...</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-slate-50/50 dark:bg-white/[0.02] text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] border-b border-slate-50 dark:border-white/5">
-                  <th className="px-10 py-5">Signal Target</th>
-                  <th className="px-10 py-5">Communication Payload</th>
-                  <th className="px-10 py-5">Deployment Date</th>
-                  <th className="px-10 py-5 text-right">Gateway Status</th>
+                  <th className="px-10 py-5">Recipient</th>
+                  <th className="px-10 py-5">Message</th>
+                  <th className="px-10 py-5">Date Sent</th>
+                  <th className="px-10 py-5 text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-white/5">
@@ -242,7 +255,7 @@ export default function SMSManagement() {
                         </div>
                         <div>
                           <p className="text-[13px] font-bold text-slate-900 dark:text-white uppercase tracking-tight">{log.recipient}</p>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter mt-0.5">Origin: {log.sender_name}</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter mt-0.5">Sender: {log.sender_name}</p>
                         </div>
                       </div>
                     </td>
@@ -259,7 +272,7 @@ export default function SMSManagement() {
                         ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400' 
                         : 'bg-rose-50 text-rose-600 border-rose-100 dark:bg-rose-500/10 dark:text-rose-400'
                       }`}>
-                        {log.status === 'sent' ? 'Synchronized' : 'Deployment Failed'}
+                        {log.status === 'sent' ? 'Sent' : 'Failed'}
                       </span>
                     </td>
                   </tr>

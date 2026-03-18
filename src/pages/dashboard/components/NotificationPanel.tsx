@@ -1,62 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '../../../lib/supabase';
 
 interface Notification {
   id: string;
   type: 'pickup' | 'rider' | 'payment' | 'system' | 'alert';
   title: string;
   message: string;
-  time: string;
-  read: boolean;
+  created_at: string;
+  is_read: boolean;
   priority: 'high' | 'medium' | 'low';
 }
-
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    type: 'alert',
-    title: 'Anomalous Discharge Detected',
-    message: 'Rider #R-2847 identified outside designated geozone in Accra Central sector',
-    time: '5 minutes ago',
-    read: false,
-    priority: 'high'
-  },
-  {
-    id: '2',
-    type: 'pickup',
-    title: 'Surge Capacity Alert',
-    message: '23 pending service requests in Kumasi zone exceed standard throughput thresholds',
-    time: '12 minutes ago',
-    read: false,
-    priority: 'high'
-  },
-  {
-    id: '3',
-    type: 'rider',
-    title: 'Personnel Credential Review',
-    message: 'Kwame Mensah submitted institutional records for operational clearance',
-    time: '1 hour ago',
-    read: false,
-    priority: 'medium'
-  },
-  {
-    id: '4',
-    type: 'payment',
-    title: 'Liquidity Disbursement',
-    message: 'Institutional payout of ₵12,450 synchronized to 45 field personnel',
-    time: '2 hours ago',
-    read: true,
-    priority: 'low'
-  },
-  {
-    id: '5',
-    type: 'system',
-    title: 'Integrity Scan Complete',
-    message: 'Core system synchronization and maintenance executed at 02:00 GMT',
-    time: '5 hours ago',
-    read: true,
-    priority: 'low'
-  }
-];
 
 interface NotificationPanelProps {
   isOpen: boolean;
@@ -64,27 +17,84 @@ interface NotificationPanelProps {
 }
 
 export default function NotificationPanel({ isOpen, onClose }: NotificationPanelProps) {
-  const [notifications, setNotifications] = useState(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  useEffect(() => {
+    fetchNotifications();
+
+    // Setup Realtime Subscription
+    const channel = supabase
+      .channel('public:notifications')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
+        fetchNotifications();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const fetchNotifications = async () => {
+    setLoading(true);
+    try {
+      const { data } = await supabase
+        .from('notifications')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(30);
+
+      setNotifications(data || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = Math.floor((now.getTime() - date.getTime()) / 60000);
+    if (diff < 1) return 'Just now';
+    if (diff < 60) return `${diff}m ago`;
+    if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
+    return date.toLocaleDateString();
+  };
+
+  const unreadCount = notifications.filter(n => !n.is_read).length;
 
   const filteredNotifications = filter === 'unread' 
-    ? notifications.filter(n => !n.read)
+    ? notifications.filter(n => !n.is_read)
     : notifications;
 
-  const markAsRead = (id: string) => {
-    setNotifications(notifications.map(n => 
-      n.id === id ? { ...n, read: true } : n
-    ));
+  const markAsRead = async (id: string) => {
+    try {
+        await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+    } catch (err) {
+        console.error('Failed to update status:', err);
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })));
+  const markAllAsRead = async () => {
+    try {
+        await supabase.from('notifications').update({ is_read: true }).eq('is_read', false);
+        setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    } catch (err) {
+        console.error('Failed to sync status:', err);
+    }
   };
 
-  const clearAll = () => {
-    setNotifications([]);
+  const clearAll = async () => {
+    try {
+        await supabase.from('notifications').delete().neq('id', '0'); // Purge all
+        setNotifications([]);
+    } catch (err) {
+        console.error('Failed to purge:', err);
+    }
   };
 
   const getIcon = (type: string) => {
@@ -186,8 +196,8 @@ export default function NotificationPanel({ isOpen, onClose }: NotificationPanel
                 <div
                   key={notification.id}
                   onClick={() => markAsRead(notification.id)}
-                  className={`p-5 rounded-[2rem] border transition-all cursor-pointer group ${
-                    !notification.read 
+                  className={`p-5 rounded-[2.5rem] border transition-all cursor-pointer group ${
+                    !notification.is_read 
                     ? 'bg-white dark:bg-slate-900 border-indigo-100 dark:border-indigo-500/20 shadow-sm' 
                     : 'bg-transparent border-transparent hover:bg-slate-50 dark:hover:bg-white/[0.02]'
                   }`}
@@ -201,7 +211,7 @@ export default function NotificationPanel({ isOpen, onClose }: NotificationPanel
                         <h4 className="text-[13px] font-bold text-slate-900 dark:text-white leading-tight">
                           {notification.title}
                         </h4>
-                        {!notification.read && (
+                        {!notification.is_read && (
                           <div className="w-2 h-2 bg-indigo-500 rounded-full flex-shrink-0 mt-1 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
                         )}
                       </div>
@@ -210,7 +220,7 @@ export default function NotificationPanel({ isOpen, onClose }: NotificationPanel
                       </p>
                       <div className="flex items-center gap-3">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
-                          {notification.time}
+                          {formatTime(notification.created_at)}
                         </span>
                         {notification.priority === 'high' && (
                           <span className="px-2.5 py-1 text-[9px] font-bold bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 rounded-lg uppercase tracking-widest">

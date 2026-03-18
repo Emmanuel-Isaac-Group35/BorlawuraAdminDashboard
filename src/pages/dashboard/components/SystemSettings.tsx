@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '../../../lib/supabase';
 
 export default function SystemSettings() {
+  const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
   const [zones, setZones] = useState<string[]>(['Accra Central', 'Osu', 'Tema', 'Madina', 'Legon', 'Spintex']);
   const [categories, setCategories] = useState<any[]>([
     { name: 'General Waste', icon: 'ri-delete-bin-line', color: 'slate' },
@@ -37,10 +39,25 @@ export default function SystemSettings() {
     }
   }, []);
 
-  const saveSettings = () => {
+  const saveSettings = async () => {
     const settings = { zones, categories, pricing, notifications };
     localStorage.setItem('borlawura_settings', JSON.stringify(settings));
-    alert('Settings have been saved successfully.');
+
+    // Log action to database
+    try {
+      await supabase.from('audit_logs').insert([{
+        admin_id: userInfo.id,
+        action: 'System Configuration Updated',
+        details: { 
+          message: `Core business rules refined: Zones, Pricing, and notification protocols adjusted.`, 
+          admin: userInfo.fullName 
+        }
+      }]);
+    } catch (e) {
+      console.error('Audit log failed', e);
+    }
+
+    alert('Settings have been saved and logged to history.');
   };
 
   return (
@@ -79,7 +96,13 @@ export default function SystemSettings() {
                   </button>
                 </div>
               ))}
-              <button className="w-full py-4 border-2 border-dashed border-slate-100 dark:border-white/5 rounded-[2rem] text-[11px] font-bold text-slate-400 uppercase tracking-widest hover:border-emerald-500 hover:text-emerald-500 transition-all mt-4">
+              <button 
+                onClick={() => {
+                  const name = window.prompt('Enter new area name:');
+                  if (name) setZones([...zones, name]);
+                }}
+                className="w-full py-4 border-2 border-dashed border-slate-100 dark:border-white/5 rounded-[2rem] text-[11px] font-bold text-slate-400 uppercase tracking-widest hover:border-emerald-500 hover:text-emerald-500 transition-all mt-4"
+              >
                 + Add New Area
               </button>
            </div>
@@ -104,7 +127,13 @@ export default function SystemSettings() {
                   </button>
                 </div>
               ))}
-              <button className="w-full py-4 border-2 border-dashed border-slate-100 dark:border-white/5 rounded-[2rem] text-[11px] font-bold text-slate-400 uppercase tracking-widest hover:border-emerald-500 hover:text-emerald-500 transition-all mt-4">
+              <button 
+                onClick={() => {
+                   const name = window.prompt('Enter waste type name:');
+                   if (name) setCategories([...categories, { name, icon: 'ri-delete-bin-line', color: 'slate' }]);
+                }}
+                className="w-full py-4 border-2 border-dashed border-slate-100 dark:border-white/5 rounded-[2rem] text-[11px] font-bold text-slate-400 uppercase tracking-widest hover:border-emerald-500 hover:text-emerald-500 transition-all mt-4"
+              >
                  + Add New Waste Type
               </button>
            </div>
@@ -144,13 +173,13 @@ export default function SystemSettings() {
         {/* Global Notifications */}
         <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden flex flex-col">
            <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10">
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">System Signal Nodes</h2>
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Notification Settings</h2>
            </div>
            <div className="p-8 space-y-6 flex-1">
               {[
-                { label: 'SMS Gateway Link', key: 'sms', desc: 'Real-time broadcast node' },
-                { label: 'Direct Push Signals', key: 'push', desc: 'Native app transmission' },
-                { label: 'Global Audit Alerts', key: 'adminAlerts', desc: 'System integrity signals' },
+                { label: 'SMS Notifications', key: 'sms', desc: 'Send messages to users' },
+                { label: 'App Push Signals', key: 'push', desc: 'Direct phone alerts' },
+                { label: 'Admin Security Alerts', key: 'adminAlerts', desc: 'System safety signals' },
               ].map((notif) => (
                 <div key={notif.key} className="flex items-center justify-between group p-2 rounded-2xl hover:bg-slate-50/50 transition-colors">
                    <div className="min-w-0">
@@ -170,7 +199,7 @@ export default function SystemSettings() {
               ))}
 
               <div className="pt-6 border-t border-slate-50 dark:border-white/5 space-y-3">
-                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] pl-1 text-emerald-600">Global Signal ID (Sender Name)</label>
+                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] pl-1 text-emerald-600">SMS Sender Name</label>
                  <div className="relative group">
                     <i className="ri-shield-user-line absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors"></i>
                     <input 
@@ -182,7 +211,7 @@ export default function SystemSettings() {
                        placeholder="E.G. BORLAWURA"
                      />
                  </div>
-                 <p className="text-[9px] text-slate-400 font-medium px-2 uppercase tracking-tighter">* Maximum 11 characters, no special symbols for GSM compatibility</p>
+                 <p className="text-[9px] text-slate-400 font-medium px-2 uppercase tracking-tighter">* Maximum 11 characters, no special symbols for phone compatibility</p>
               </div>
            </div>
         </div>

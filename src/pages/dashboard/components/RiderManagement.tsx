@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import ExportButton from './ExportButton';
+import { sendSMS } from '../../../lib/sms';
 
 interface Rider {
   id: string;
@@ -23,6 +24,7 @@ export default function RiderManagement() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedRider, setSelectedRider] = useState<Rider | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
   const [newRider, setNewRider] = useState({
     full_name: '',
     phone_number: '',
@@ -32,8 +34,8 @@ export default function RiderManagement() {
   });
 
   const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
-  const role = (userInfo.role || 'Admin').toLowerCase().replace(/\s+/g, '_');
-  const canManage = role === 'super_admin' || role === 'operations_admin' || role === 'admin' || userInfo.role === 'Admin';
+  const role = (userInfo.role || 'Super Admin').toLowerCase().replace(/\s+/g, '_');
+  const canManage = role === 'super_admin' || role === 'manager' || role === 'dispatcher';
 
   useEffect(() => {
     fetchRiders();
@@ -87,20 +89,97 @@ export default function RiderManagement() {
 
       if (error) throw error;
 
-      alert('Personnel registered successfully.');
-      setShowAddModal(false);
-      setNewRider({
-        full_name: '',
-        phone_number: '',
-        email: '',
-        vehicle_type: 'Motorbike',
-        vehicle_number: ''
+      // Log action for push notification
+      await supabase.from('audit_logs').insert([{
+        admin_id: userInfo.id,
+        action: 'New Rider Registered',
+        details: { 
+          message: `${newRider.full_name} onboarded to the fleet.`, 
+          admin: userInfo.fullName,
+          target_user_name: newRider.full_name
+        }
+      }]);
+
+      // Send Alert
+      await sendSMS({
+        recipients: [newRider.phone_number],
+        message: `Welcome to the Fleet, ${newRider.full_name}! You are registered as a rider on BorlaWura. Your vehicle: ${newRider.vehicle_number}.`,
+        sender: 'BORLAWURA'
       });
+
+      alert('Personnel registered and notified via SMS.');
+      setShowAddModal(false);
+      resetForm();
       fetchRiders();
     } catch (err: any) {
       console.error('Error registering rider:', err);
       alert(`Registration Failed: ${err.message}`);
     }
+  };
+
+  const handleUpdateRider = async (e: React.FormEvent) => {
+     e.preventDefault();
+     if (!selectedRider || !canManage) return;
+
+     try {
+       const { error } = await supabase
+         .from('riders')
+         .update(newRider)
+         .eq('id', selectedRider.id);
+
+       if (error) throw error;
+
+        // Log action for push notification
+       await supabase.from('audit_logs').insert([{
+         admin_id: userInfo.id,
+         action: 'Rider Profile Updated',
+         details: { 
+           message: `Logistical data adjusted for ${newRider.full_name}.`, 
+           riderId: selectedRider.id, 
+           admin_name: userInfo.fullName,
+           target_user_name: newRider.full_name
+         }
+       }]);
+
+       // Send Alert
+       await sendSMS({
+         recipients: [newRider.phone_number],
+         message: `Hello ${newRider.full_name}, your BorlaWura rider profile has been updated. Please check the rider app for latest details.`,
+         sender: 'BORLAWURA'
+       });
+
+       alert('Rider profile synchronized across fleet database.');
+       setShowAddModal(false);
+       resetForm();
+       fetchRiders();
+     } catch (err: any) {
+       alert(`Sync Failed: ${err.message}`);
+     }
+  };
+
+  const openEditModal = (rider: Rider) => {
+     setSelectedRider(rider);
+     setNewRider({
+        full_name: rider.full_name,
+        phone_number: rider.phone_number,
+        email: rider.email || '',
+        vehicle_type: rider.vehicle_type,
+        vehicle_number: rider.vehicle_number
+     });
+     setIsEditing(true);
+     setShowAddModal(true);
+  };
+
+  const resetForm = () => {
+    setNewRider({
+      full_name: '',
+      phone_number: '',
+      email: '',
+      vehicle_type: 'Motorbike',
+      vehicle_number: ''
+    });
+    setIsEditing(false);
+    setSelectedRider(null);
   };
 
   const filteredRiders = riders.filter(rider => {
@@ -113,12 +192,12 @@ export default function RiderManagement() {
 
   return (
     <div className="space-y-8 font-['Montserrat'] animate-fade-in">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Riders & Drivers</h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Add, update, and manage your riders and their vehicles</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">Riders</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage all your field riders here</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <ExportButton 
             data={filteredRiders.map(r => ({
               Name: r.full_name,
@@ -133,11 +212,11 @@ export default function RiderManagement() {
             title="Rider List"
           />
           {canManage && (
-            <button
+            <button 
               onClick={() => setShowAddModal(true)}
-              className="px-6 py-2.5 bg-emerald-600 dark:bg-emerald-500 text-white rounded-2xl text-xs font-bold shadow-xl shadow-emerald-500/20 hover:bg-emerald-700 dark:hover:bg-emerald-400 transition-all flex items-center gap-2"
+              className="px-8 py-3.5 bg-emerald-600 text-white rounded-[2rem] text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all flex items-center gap-2.5 group"
             >
-              <i className="ri-user-add-line"></i>
+              <i className="ri-user-add-line text-lg group-hover:rotate-12 transition-transform"></i>
               Add New Rider
             </button>
           )}
@@ -201,12 +280,12 @@ export default function RiderManagement() {
             <table className="w-full">
               <thead>
                 <tr className="bg-slate-50/50 dark:bg-slate-800/20 text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-50 dark:border-slate-800/50">
-                  <th className="px-8 py-5 text-left">Rider Identity</th>
-                  <th className="px-8 py-5 text-left">Asset Details</th>
-                  <th className="px-8 py-5 text-left">Operational Data</th>
-                  <th className="px-8 py-5 text-left">Service Status</th>
-                  <th className="px-8 py-5 text-right">Registry</th>
-                </tr>
+                <th className="px-8 py-5 text-left">Rider Info</th>
+                <th className="px-8 py-5 text-left">Location (Area)</th>
+                <th className="px-8 py-5 text-left">Work Record</th>
+                <th className="px-8 py-5 text-left">Status</th>
+                <th className="px-8 py-5 text-right">Settings</th>
+              </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
                 {filteredRiders.map((rider) => (
@@ -251,12 +330,24 @@ export default function RiderManagement() {
                       </span>
                     </td>
                     <td className="px-8 py-6 text-right">
-                       <button 
-                         onClick={() => setSelectedRider(rider)}
-                         className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-all border border-transparent hover:border-emerald-100 dark:hover:border-emerald-500/20"
-                       >
-                         <i className="ri-folder-user-line text-lg"></i>
-                       </button>
+                       <div className="flex justify-end gap-2">
+                         <button 
+                           onClick={() => setSelectedRider(rider)}
+                           className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-emerald-500 transition-all border border-transparent"
+                           title="Visual Statistics"
+                         >
+                           <i className="ri-folder-user-line text-lg"></i>
+                         </button>
+                         {canManage && (
+                           <button 
+                             onClick={() => openEditModal(rider)}
+                             className="w-9 h-9 flex items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
+                             title="Modify Profile"
+                           >
+                             <i className="ri-edit-line text-lg"></i>
+                           </button>
+                         )}
+                       </div>
                     </td>
                   </tr>
                 ))}
@@ -339,13 +430,16 @@ export default function RiderManagement() {
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setShowAddModal(false)}></div>
           <div className="relative w-full max-w-lg bg-white dark:bg-slate-950 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 shadow-2xl overflow-hidden animate-scale-up">
             <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-slate-50/10">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Personnel Onboarding</h2>
-              <button onClick={() => setShowAddModal(false)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-400 hover:text-rose-500 transition-all">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">{isEditing ? 'Modify Personnel' : 'Personnel Onboarding'}</h2>
+              <button 
+                onClick={() => { setShowAddModal(false); resetForm(); }} 
+                className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-rose-500 transition-all"
+              >
                 <i className="ri-close-line text-2xl"></i>
               </button>
             </div>
             
-            <form onSubmit={handleRegister} className="p-8 space-y-6">
+            <form onSubmit={isEditing ? handleUpdateRider : handleRegister} className="p-8 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Full Identity</label>
@@ -401,13 +495,13 @@ export default function RiderManagement() {
                   />
                 </div>
               </div>
-              
+
               <div className="pt-6 flex gap-4">
-                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-4 text-xs font-bold uppercase text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-all">
+                <button type="button" onClick={() => { setShowAddModal(false); resetForm(); }} className="flex-1 py-4 text-xs font-bold uppercase text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-all">
                   Abort
                 </button>
-                 <button type="submit" className="flex-1 py-4 bg-emerald-600 text-white rounded-2xl text-xs font-bold shadow-xl shadow-emerald-500/20 hover:bg-emerald-700 transition-all active:scale-95">
-                   Confirm Registration
+                 <button type="submit" className="flex-1 py-4 bg-emerald-600 text-white rounded-2xl text-xs font-bold shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all active:scale-95 leading-none">
+                   {isEditing ? 'Confirm Update' : 'Initialize Rider'}
                  </button>
               </div>
             </form>

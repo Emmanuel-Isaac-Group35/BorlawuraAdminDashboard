@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import ExportButton from './ExportButton';
+import { sendSMS } from '../../../lib/sms';
 
 interface User {
   id: string;
@@ -9,9 +10,11 @@ interface User {
   email: string;
   address: string;
   location: string;
+  role: string;
   status: 'active' | 'suspended';
   created_at: string;
   balance: number;
+  subscription_type: string;
 }
 
 export default function UserManagement() {
@@ -28,7 +31,9 @@ export default function UserManagement() {
     email: '',
     address: '',
     location: 'Accra Central',
-    balance: 0
+    balance: 0,
+    role: 'customer',
+    subscription_type: 'pay-as-you-go'
   });
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -37,9 +42,10 @@ export default function UserManagement() {
   const availableZones = settings.zones || ['Accra Central', 'Osu', 'Tema', 'Madina', 'Legon', 'Spintex'];
 
   const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
-  const role = (userInfo.role || 'Super Admin').toLowerCase();
-  const isAdmin = role.includes('admin') || role === 'super_admin' || true; 
-  const canModify = isAdmin || role.includes('manager'); 
+  const rawRole = userInfo.role || 'Super Admin';
+  const roleKey = rawRole.toLowerCase().replace(/\s+/g, '_');
+  const isAdmin = roleKey === 'super_admin'; 
+  const canModify = isAdmin || roleKey === 'manager' || roleKey === 'support_admin'; 
 
   useEffect(() => {
     fetchUsers();
@@ -88,7 +94,27 @@ export default function UserManagement() {
         }]);
 
       if (error) throw error;
-      alert('User has been added successfully.');
+
+      // Log action for push notification
+      await supabase.from('audit_logs').insert([{
+        admin_id: userInfo.id,
+        action: 'New User Registered',
+        details: { 
+          message: `New protocol initialized for ${formData.full_name}`, 
+          user: formData.email, 
+          target_user_name: formData.full_name,
+          admin_name: userInfo.fullName 
+        }
+      }]);
+
+      // Send Alert
+      await sendSMS({
+        recipients: [formData.phone_number],
+        message: `Welcome to BorlaWura, ${formData.full_name}! Your account has been initialized. You can now login to manage your waste services.`,
+        sender: 'BORLAWURA'
+      });
+
+      alert('User has been added and notified via SMS.');
       setShowAddModal(false);
       resetForm();
       fetchUsers();
@@ -108,7 +134,45 @@ export default function UserManagement() {
         .eq('id', selectedUser.id);
 
       if (error) throw error;
-      alert('User details have been updated.');
+
+      // promotion logic if someone is promoted to an admin role or rider
+      const adminRoles = ['super_admin', 'finance_admin', 'manager', 'dispatcher', 'support_admin'];
+      if (adminRoles.includes(formData.role)) {
+         await supabase.from('admins').upsert([{
+            email: formData.email,
+            full_name: formData.full_name,
+            role: formData.role,
+            status: 'active'
+         }], { onConflict: 'email' });
+      } else if (formData.role === 'rider') {
+         await supabase.from('riders').upsert([{
+            full_name: formData.full_name,
+            phone_number: formData.phone_number,
+            email: formData.email,
+            status: 'active'
+         }]);
+      }
+
+      // Log action for push notification
+      await supabase.from('audit_logs').insert([{
+        admin_id: userInfo.id,
+        action: 'Account Role Updated',
+        details: { 
+          message: `${formData.full_name} repositioned to ${formData.role}`, 
+          user: formData.email, 
+          target_user_name: formData.full_name,
+          admin_name: userInfo.fullName 
+        }
+      }]);
+
+      // Send Alert
+      await sendSMS({
+        recipients: [formData.phone_number],
+        message: `Security Update: Your BorlaWura role has been updated to ${formData.role.replace('_', ' ')}. Please re-login to see your new dashboard.`,
+        sender: 'BORLAWURA'
+      });
+
+      alert('Protocol Update: Permissions synchronized and user notified via SMS.');
       setShowAddModal(false);
       setSelectedUser(null);
       resetForm();
@@ -144,7 +208,9 @@ export default function UserManagement() {
       email: '',
       address: '',
       location: 'Accra Central',
-      balance: 0
+      balance: 0,
+      role: 'customer',
+      subscription_type: 'pay-as-you-go'
     });
     setIsEditing(false);
   };
@@ -157,7 +223,9 @@ export default function UserManagement() {
       email: user.email,
       address: user.address,
       location: user.location,
-      balance: user.balance
+      balance: user.balance,
+      role: user.role || 'customer',
+      subscription_type: user.subscription_type || 'pay-as-you-go'
     });
     setIsEditing(true);
     setShowAddModal(true);
@@ -195,13 +263,13 @@ export default function UserManagement() {
   });
 
   return (
-    <div className="space-y-8 font-['Montserrat'] animate-fade-in">
+    <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Registered Customers</h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage all people who use our services</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">Customers</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage all registered households and their accounts</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <ExportButton 
             data={filteredUsers.map(u => ({
               Name: u.full_name,
@@ -229,9 +297,9 @@ export default function UserManagement() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
-          { label: 'Total Customers', value: users.length, color: 'indigo', icon: 'ri-team-line' },
-          { label: 'Active Users', value: users.filter(u => u.status === 'active').length, color: 'emerald', icon: 'ri-checkbox-circle-line' },
-          { label: 'Suspended Users', value: users.filter(u => u.status === 'suspended').length, color: 'rose', icon: 'ri-forbid-2-line' },
+          { label: 'Total Users', value: users.length, color: 'indigo', icon: 'ri-team-line' },
+          { label: 'Active Now', value: users.filter(u => u.status === 'active').length, color: 'emerald', icon: 'ri-checkbox-circle-line' },
+          { label: 'Stopped', value: users.filter(u => u.status === 'suspended').length, color: 'rose', icon: 'ri-forbid-2-line' },
         ].map((stat, i) => (
           <div key={i} className="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-100 dark:border-slate-800/50 shadow-sm flex items-center gap-5 transition-all hover:scale-[1.02]">
             <div className={`w-14 h-14 rounded-2xl bg-${stat.color}-500/10 flex items-center justify-center text-${stat.color}-600`}>
@@ -300,20 +368,36 @@ export default function UserManagement() {
             <table className="w-full">
               <thead>
                 <tr className="bg-slate-50/50 dark:bg-slate-800/20 text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-50 dark:border-slate-800/50">
-                  <th className="px-8 py-5 text-left">Customer Profile</th>
-                  <th className="px-8 py-5 text-left">Sector (Area)</th>
-                  <th className="px-8 py-5 text-left">Wallet Funds</th>
-                  <th className="px-8 py-5 text-left">Account Status</th>
-                  <th className="px-8 py-5 text-right">Options</th>
+                  <th className="px-8 py-5 text-left">User Profile</th>
+                  <th className="px-8 py-5 text-left">Location</th>
+                  <th className="px-8 py-5 text-left">Balance</th>
+                  <th className="px-8 py-5 text-left">Status</th>
+                  <th className="px-8 py-5 text-right">Settings</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
                 {filteredUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all group">
                     <td className="px-8 py-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 font-bold text-sm group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                          {user.full_name?.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-[13px] font-bold text-slate-900 dark:text-white leading-none mb-1">{user.full_name}</p>
+                          <div className="flex items-center gap-2">
+                             <p className="text-[10px] text-slate-500 font-medium">{user.phone_number}</p>
+                             <span className={`px-1.5 py-0.5 rounded-lg text-[8px] font-bold uppercase tracking-wider ${user.role === 'customer' ? 'bg-slate-100 text-slate-500' : 'bg-rose-500 text-white'}`}>
+                                {user.role?.replace('_', ' ') || 'customer'}
+                             </span>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-6">
                       <div className="flex items-center gap-2">
                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                         <p className="text-[11px] font-bold text-slate-900 dark:text-white uppercase tracking-tight">{(user as any).location || 'Not Set'}</p>
+                         <p className="text-[11px] font-bold text-slate-900 dark:text-white uppercase tracking-tight">{user.location || 'Not Set'}</p>
                       </div>
                     </td>
                     <td className="px-8 py-6">
@@ -509,6 +593,49 @@ export default function UserManagement() {
                     placeholder="123 Street Name, Accra"
                   />
                 </div>
+                 <div className="space-y-2">
+                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Wallet Funds (₵)</label>
+                   <input 
+                     type="number" required
+                     value={formData.balance}
+                     onChange={e => setFormData({...formData, balance: Number(e.target.value)})}
+                     className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 text-emerald-600"
+                   />
+                 </div>
+                 <div className="space-y-2">
+                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Service Tier</label>
+                   <select 
+                     value={formData.subscription_type}
+                     onChange={e => setFormData({...formData, subscription_type: e.target.value})}
+                     className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                   >
+                     <option value="pay-as-you-go">Pay-As-You-Go</option>
+                     <option value="scheduled">Scheduled Routine</option>
+                     <option value="subscription">Premium Subscription</option>
+                   </select>
+                 </div>
+                 {roleKey === 'super_admin' && (
+                   <div className="md:col-span-2 pt-4 space-y-2">
+                     <label className="text-[10px] font-bold text-rose-500 uppercase tracking-widest pl-1">Security / Staff Clearance</label>
+                     <div className="relative group">
+                        <i className="ri-shield-user-line absolute left-4 top-1/2 -translate-y-1/2 text-rose-500 z-10"></i>
+                        <select 
+                          value={formData.role} 
+                          onChange={e => setFormData({...formData, role: e.target.value})} 
+                          className="w-full pl-12 pr-5 py-4 bg-rose-50/10 dark:bg-rose-500/5 border border-rose-500/20 rounded-2xl text-[13px] font-bold text-rose-600 dark:text-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-500 appearance-none cursor-pointer"
+                        >
+                         <option value="customer">Regular User</option>
+                         <option value="manager">Make Manager</option>
+                         <option value="admin">Make Office Staff</option>
+                         <option value="finance_admin">Make Finance Staff</option>
+                         <option value="super_admin">Make Super Admin</option>
+                         <option value="dispatcher">Make Dispatcher</option>
+                         <option value="support_admin">Make Support Staff</option>
+                         <option value="rider">Make Field Rider</option>
+                       </select>
+                    </div>
+                  </div>
+                )}
               </div>
               
               <div className="pt-6 flex gap-4">
@@ -516,7 +643,7 @@ export default function UserManagement() {
                   type="submit" 
                   className="w-full py-4 bg-emerald-600 text-white rounded-[2rem] text-xs font-bold uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all"
                 >
-                  {isEditing ? 'Save Changes' : 'Create Account'}
+                   {isEditing ? 'Save Changes' : 'Add New User'}
                 </button>
               </div>
             </form>

@@ -113,15 +113,15 @@ export default function LiveTracking() {
     <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Active Tracking</h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Real-time GPS visualization of the field operations fleet</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Live Map</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">See all your riders on the map in real-time</p>
         </div>
         <div className="flex items-center gap-3 px-5 py-2.5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 rounded-2xl shadow-sm">
            <div className="flex h-2.5 w-2.5 relative">
               <div className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></div>
               <div className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></div>
            </div>
-           <span className="text-[11px] font-bold text-slate-800 dark:text-white uppercase tracking-widest">Active GNSS Link</span>
+           <span className="text-[11px] font-bold text-slate-800 dark:text-white uppercase tracking-widest">GPS Connection Active</span>
         </div>
       </div>
 
@@ -233,7 +233,7 @@ export default function LiveTracking() {
            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setSelectedRider(null)}></div>
            <div className="relative w-full max-w-lg bg-white dark:bg-slate-950 rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-up border border-slate-100 dark:border-white/10">
               <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
-                 <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Personnel Dossier</h2>
+                 <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Rider Details</h2>
                  <button onClick={() => setSelectedRider(null)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-400 hover:text-rose-500">
                     <i className="ri-close-line text-2xl"></i>
                  </button>
@@ -249,19 +249,19 @@ export default function LiveTracking() {
                     </div>
                  </div>
 
-                 <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-2 gap-6">
                     <div className="p-5 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-100 dark:border-white/5">
                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Live Status</p>
                        <p className="text-[13px] font-bold text-emerald-600 uppercase">{selectedRider.status}</p>
                     </div>
                     <div className="p-5 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-100 dark:border-white/5">
-                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Moving Velocity</p>
+                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Speed</p>
                        <p className="text-[13px] font-bold text-slate-900 dark:text-white uppercase">{selectedRider.speed} KM/H</p>
                     </div>
                  </div>
 
                  <div className="p-6 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-100 dark:border-white/5">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Verified Geolocation</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Current Location</p>
                     <p className="text-[13px] font-bold text-slate-900 dark:text-white leading-relaxed">{selectedRider.location.address}</p>
                     <p className="text-[10px] font-mono text-slate-500 mt-3">{selectedRider.location.lat.toFixed(6)} N, {selectedRider.location.lng.toFixed(6)} W</p>
                  </div>

@@ -23,34 +23,64 @@ export default function AuditLog() {
   useEffect(() => {
     fetchLogs();
     
-    const channel = supabase
+    const auditChannel = supabase
       .channel('public:audit_logs')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, () => {
         fetchLogs();
       })
       .subscribe();
 
+    const smsChannel = supabase
+      .channel('public:sms_logs_audit')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sms_logs' }, () => {
+        fetchLogs();
+      })
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(auditChannel);
+      supabase.removeChannel(smsChannel);
     };
   }, []);
 
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data: auditData, error: auditError } = await supabase
         .from('audit_logs')
         .select(`*, admins (full_name)`)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (auditError) throw auditError;
+
+      const { data: smsData, error: smsError } = await supabase
+        .from('sms_logs')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (smsError) throw smsError;
+
+      const combinedLogs = [
+        ...(auditData || []).map(l => ({
+          ...l,
+          admin_name: (l as any).admins?.full_name || 'System'
+        })),
+        ...(smsData || []).map(s => ({
+          id: s.id,
+          admin_id: 'system',
+          admin_name: s.sender_name || 'SMS Gateway',
+          action: `Broadcast: ${s.recipient}`,
+          target_type: 'SMS',
+          target_id: s.id,
+          details: { message: s.message, status: s.status },
+          ip_address: 'Gateway',
+          created_at: s.created_at
+        }))
+      ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       
-      setLogs((data || []).map(l => ({
-        ...l,
-        admin_name: (l as any).admins?.full_name || 'System'
-      })));
+      setLogs(combinedLogs);
     } catch (error) {
-      console.error('Error fetching audit logs:', error);
+      console.error('Error fetching combined logs:', error);
     } finally {
       setLoading(false);
     }
@@ -110,8 +140,8 @@ export default function AuditLog() {
                 <tr className="bg-slate-50/50 dark:bg-white/5 text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-50 dark:border-white/5">
                   <th className="px-8 py-5">Time</th>
                   <th className="px-8 py-5">Staff Member</th>
-                  <th className="px-8 py-5">What they did</th>
-                  <th className="px-8 py-5">Category</th>
+                  <th className="px-8 py-5">Activity</th>
+                  <th className="px-8 py-5">Type</th>
                   <th className="px-8 py-5 text-right">Details</th>
                 </tr>
               </thead>
@@ -164,40 +194,82 @@ export default function AuditLog() {
       {selectedLog && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setSelectedLog(null)}></div>
-          <div className="relative w-full max-w-lg bg-white dark:bg-slate-950 rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-up border border-slate-100 dark:border-white/10">
+          <div className="relative w-full max-w-xl bg-white dark:bg-slate-950 rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-up border border-slate-100 dark:border-white/10">
             <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Activity Details</h2>
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Security Audit Dossier</h2>
+                <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-[0.2em] mt-1">Transaction Log Analysis</p>
+              </div>
               <button onClick={() => setSelectedLog(null)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-400 hover:text-rose-500">
                 <i className="ri-close-line text-2xl"></i>
               </button>
             </div>
             
             <div className="p-10 space-y-8">
-              <div className="grid grid-cols-2 gap-6">
-                <div className="p-5 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-100 dark:border-white/5">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Network ID</p>
-                  <p className="text-[11px] font-mono font-bold text-emerald-600 uppercase tracking-tight">{selectedLog.ip_address || 'Internal'}</p>
-                </div>
-                <div className="p-5 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-100 dark:border-white/5">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Activity ID</p>
-                  <p className="text-[11px] font-mono font-bold text-slate-900 dark:text-white truncate uppercase tracking-tight">{selectedLog.target_id.slice(0,16)}...</p>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">More Info</p>
-                <div className="w-full p-6 bg-black rounded-[2rem] border border-white/5 overflow-hidden">
-                  <pre className="text-emerald-400 text-[11px] font-mono leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto scrollbar-hide">
-                    {JSON.stringify(selectedLog.details, null, 2)}
-                  </pre>
-                </div>
-              </div>
-              
-              <button 
+               <div className="grid grid-cols-2 gap-4">
+                  <div className="p-6 bg-slate-50 dark:bg-white/[0.02] rounded-3xl border border-slate-100 dark:border-white/5">
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Initiated By (Staff)</p>
+                     <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">
+                           {selectedLog.admin_name.charAt(0)}
+                        </div>
+                        <p className="text-[13px] font-bold text-slate-900 dark:text-white">{selectedLog.admin_name}</p>
+                     </div>
+                  </div>
+                  <div className="p-6 bg-slate-50 dark:bg-white/[0.02] rounded-3xl border border-slate-100 dark:border-white/5">
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Target Personnel</p>
+                     <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-500 text-white flex items-center justify-center text-xs font-bold">
+                           {(selectedLog.details?.target_user_name || selectedLog.target_type).charAt(0)}
+                        </div>
+                        <p className="text-[13px] font-bold text-slate-900 dark:text-white truncate">
+                           {selectedLog.details?.target_user_name || selectedLog.details?.user || 'System Entity'}
+                        </p>
+                     </div>
+                  </div>
+               </div>
+
+               <div className="space-y-4">
+                  <div className="p-6 bg-slate-50 dark:bg-white/[0.02] rounded-3xl border border-slate-100 dark:border-white/5">
+                     <div className="flex justify-between items-center mb-4">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Protocol Executed</p>
+                        <span className="px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 text-[9px] font-bold uppercase">{selectedLog.action}</span>
+                     </div>
+                     <p className="text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed italic">
+                        "{selectedLog.details?.message || 'No manual log entry provided'}"
+                     </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                     <div className="p-5 bg-slate-50 dark:bg-white/[0.02] rounded-3xl border border-slate-100 dark:border-white/5">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Execution Time</p>
+                        <p className="text-[12px] font-bold text-slate-900 dark:text-white">
+                           {new Date(selectedLog.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                        </p>
+                     </div>
+                     <div className="p-5 bg-slate-50 dark:bg-white/[0.02] rounded-3xl border border-slate-100 dark:border-white/5">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Network Node (IP)</p>
+                        <p className="text-[12px] font-mono font-bold text-emerald-600">
+                           {selectedLog.ip_address || '127.0.0.1 (Internal)'}
+                        </p>
+                     </div>
+                  </div>
+               </div>
+
+               <div className="space-y-3">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Raw System Signal</p>
+                  <div className="p-6 bg-slate-950 rounded-[2rem] border border-white/5 max-h-40 overflow-y-auto scrollbar-hide">
+                     <pre className="text-[11px] font-mono text-emerald-400/80 leading-relaxed">
+                        {JSON.stringify(selectedLog.details, null, 2)}
+                     </pre>
+                  </div>
+               </div>
+
+               <button 
                 onClick={() => setSelectedLog(null)} 
-                className="w-full py-4 bg-emerald-600 text-white rounded-[2rem] text-xs font-bold uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all"
+                className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-[2rem] text-[11px] font-bold uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] transition-all active:scale-95"
               >
-                Close
+                Dismiss Dossier
               </button>
             </div>
           </div>

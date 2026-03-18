@@ -18,6 +18,11 @@ export default function Overview({ onNavigate }: OverviewProps) {
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [topRiders, setTopRiders] = useState<any[]>([]);
 
+  const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
+  const rawRole = userInfo.role || 'Super Admin';
+  const roleKey = rawRole.toLowerCase().replace(/\s+/g, '_');
+  const isFullAdmin = roleKey === 'super_admin';
+    
   useEffect(() => {
     fetchDashboardData();
     
@@ -37,7 +42,7 @@ export default function Overview({ onNavigate }: OverviewProps) {
       const result = await getSMSBalance();
       if (result.success) {
         setStats(prev => prev.map(stat => 
-          stat.title === 'SMS Balance' 
+          stat.title === 'SMS Left' 
             ? { ...stat, value: Number(result.balance).toLocaleString() } 
             : stat
         ));
@@ -51,16 +56,21 @@ export default function Overview({ onNavigate }: OverviewProps) {
     try {
       const { count: pickupCount } = await supabase.from('pickups').select('*', { count: 'exact', head: true });
       const { data: riders } = await supabase.from('riders').select('*').eq('status', 'active');
-      const { data: users } = await supabase.from('users').select('balance');
+      const { data: payments } = await supabase.from('payments').select('amount').eq('status', 'paid');
+      const { data: feedback } = await supabase.from('feedback').select('*');
 
-      const totalRevenue = users?.reduce((acc, curr) => acc + (curr.balance || 0), 0) || 0;
+      const totalRevenue = payments?.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0) || 0;
+      const avgRating = feedback?.length ? (feedback.reduce((acc, curr) => acc + curr.rating, 0) / feedback.length).toFixed(1) : '5.0';
 
-      setStats(prev => prev.map(stat => {
-        if (stat.title === 'All Pickups') return { ...stat, value: (pickupCount || 0).toLocaleString() };
-        if (stat.title === 'Riders Online') return { ...stat, value: (riders?.length || 0).toLocaleString() };
-        if (stat.title === 'Total Paid') return { ...stat, value: `₵${(totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2 })}` };
-        return stat;
-      }));
+      const allStats = [
+        { id: 1, title: 'All Pickups', value: (pickupCount || 0).toLocaleString(), icon: 'ri-truck-line', color: 'emerald', trend: '+12%', label: 'Total Volume', roles: ['super_admin', 'manager', 'dispatcher'] },
+        { id: 2, title: 'Riders Online', value: (riders?.length || 0).toLocaleString(), icon: 'ri-e-bike-2-line', color: 'slate', trend: 'Live', label: 'Field Staff', roles: ['super_admin', 'manager', 'dispatcher'] },
+        { id: 3, title: 'SMS Left', value: '0', icon: 'ri-message-3-line', color: 'emerald', trend: 'Units', label: 'Broadcasts', roles: ['super_admin', 'manager', 'support_admin'] },
+        { id: 4, title: 'Total Paid', value: `₵${(totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, icon: 'ri-wallet-3-line', color: 'amber', trend: '+8.4%', label: 'Revenue', roles: ['super_admin', 'manager', 'finance_admin'] },
+        { id: 5, title: 'Satisfaction', value: avgRating, icon: 'ri-star-smile-line', color: 'emerald', trend: 'Avg', label: 'User Rating', roles: ['super_admin', 'manager', 'support_admin'] },
+      ];
+
+      setStats(allStats.filter(s => isFullAdmin || s.roles.includes(roleKey)).slice(0, 4));
 
       const { data: activities } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(6);
       if (activities) setRecentActivities(activities);
@@ -93,6 +103,17 @@ export default function Overview({ onNavigate }: OverviewProps) {
     amber: 'from-amber-500/10 to-amber-500/5 text-amber-600 border-amber-100 dark:border-amber-500/20',
   };
 
+  const allShortcuts = [
+    { id: 'sms', icon: 'ri-chat-voice-line', label: 'Broadcast', color: 'emerald', roles: ['super_admin', 'support_admin', 'manager'] },
+    { id: 'pickups', icon: 'ri-map-pin-2-line', label: 'Dispatch', color: 'emerald', roles: ['super_admin', 'dispatcher', 'manager'] },
+    { id: 'users', icon: 'ri-user-follow-line', label: 'Manage Users', color: 'emerald', roles: ['super_admin', 'manager', 'support_admin'] },
+    { id: 'financials', icon: 'ri-line-chart-line', label: 'Ledger', color: 'amber', roles: ['super_admin', 'finance_admin', 'manager'] },
+    { id: 'riders', icon: 'ri-bike-line', label: 'Fleet', color: 'emerald', roles: ['super_admin', 'manager', 'dispatcher'] },
+    { id: 'feedback', icon: 'ri-star-line', label: 'Ratings', color: 'emerald', roles: ['super_admin', 'support_admin', 'manager'] },
+  ];
+
+  const shortcuts = allShortcuts.filter(s => isFullAdmin || s.roles.includes(roleKey)).slice(0, 4);
+
   return (
     <div className="space-y-8 font-['Montserrat'] animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -110,8 +131,8 @@ export default function Overview({ onNavigate }: OverviewProps) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => (
-          <div key={stat.id} className={`bg-gradient-to-br ${statColors[stat.color]} p-6 rounded-[2rem] border transition-all hover:scale-[1.02] cursor-default group`}>
+        {stats.map((stat: any) => (
+          <div key={stat.id} className={`bg-gradient-to-br ${statColors[stat.color] || statColors.emerald} p-6 rounded-[2rem] border transition-all hover:scale-[1.02] cursor-default group`}>
             <div className="flex items-center justify-between mb-5">
                <div className={`w-12 h-12 rounded-2xl bg-white dark:bg-gray-900 shadow-sm flex items-center justify-center group-hover:rotate-6 transition-transform`}>
                   <i className={`${stat.icon} text-xl`}></i>
@@ -180,12 +201,7 @@ export default function Overview({ onNavigate }: OverviewProps) {
            <div className="bg-white dark:bg-gray-950 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800/60 shadow-sm">
               <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest mb-8">Shortcuts</h2>
               <div className="grid grid-cols-2 gap-4">
-                 {[
-                    { id: 'sms', icon: 'ri-chat-voice-line', label: 'Broadcast', color: 'emerald' },
-                    { id: 'pickups', icon: 'ri-map-pin-2-line', label: 'Dispatch', color: 'emerald' },
-                    { id: 'users', icon: 'ri-user-follow-line', label: 'User Management', color: 'emerald' },
-                    { id: 'financials', icon: 'ri-line-chart-line', label: 'Balance', color: 'amber' },
-                 ].map((action) => (
+                 {shortcuts.map((action) => (
                     <button 
                       key={action.id}
                       onClick={() => onNavigate?.(action.id)}

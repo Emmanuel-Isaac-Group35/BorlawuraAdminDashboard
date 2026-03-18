@@ -4,7 +4,7 @@ import { supabase } from '../../../lib/supabase';
 interface Household {
   id: string;
   full_name: string;
-  phone: string;
+  phone_number: string;
   location: string;
   subscription_type: string;
   status: string;
@@ -18,6 +18,17 @@ export default function HouseholdManagement() {
 
   useEffect(() => {
     fetchHouseholds();
+
+    const channel = supabase
+      .channel('public:households')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
+        fetchHouseholds();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchHouseholds = async () => {
@@ -59,8 +70,25 @@ export default function HouseholdManagement() {
 
   const filteredHouseholds = households.filter(h => 
     h.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (h.phone || '').includes(searchQuery)
+    (h.phone_number || '').includes(searchQuery)
   );
+
+  const handleToggleStatus = async (id: string, currentStatus: string) => {
+     const newStatus = currentStatus === 'active' ? 'flagged' : 'active';
+     if (!window.confirm(`Are you sure you want to set this customer as ${newStatus}?`)) return;
+
+     try {
+       const { error } = await supabase
+         .from('users')
+         .update({ status: newStatus })
+         .eq('id', id);
+
+       if (error) throw error;
+       fetchHouseholds();
+     } catch (err: any) {
+       alert('Operation failed: ' + err.message);
+     }
+  };
 
   return (
     <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
@@ -145,7 +173,7 @@ export default function HouseholdManagement() {
                       <span className="text-[13px] font-bold text-slate-900 dark:text-white">{household.full_name}</span>
                     </div>
                   </td>
-                  <td className="px-8 py-6 whitespace-nowrap text-[13px] font-medium text-slate-600 dark:text-slate-400 uppercase tracking-tight">{household.phone}</td>
+                  <td className="px-8 py-6 whitespace-nowrap text-[13px] font-medium text-slate-600 dark:text-slate-400 uppercase tracking-tight">{household.phone_number}</td>
                   <td className="px-8 py-6 whitespace-nowrap text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">{household.location}</td>
                   <td className="px-8 py-6 whitespace-nowrap">
                     <span className="px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase border bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20">
@@ -160,8 +188,12 @@ export default function HouseholdManagement() {
                   </td>
                   <td className="px-8 py-6 whitespace-nowrap text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <button className="w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/10 text-slate-400 hover:text-emerald-600 hover:border-emerald-200 transition-all">
-                        <i className="ri-folder-user-line text-lg"></i>
+                      <button 
+                        onClick={() => handleToggleStatus(household.id, household.status)}
+                        className={`w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/10 transition-all ${household.status === 'flagged' ? 'text-emerald-500 hover:border-emerald-200' : 'text-slate-400 hover:text-rose-600 hover:border-rose-200'}`}
+                        title={household.status === 'flagged' ? 'Restore Account' : 'Flag Account'}
+                      >
+                        <i className={household.status === 'flagged' ? 'ri-checkbox-circle-line text-lg' : 'ri-flag-line text-lg'}></i>
                       </button>
                     </div>
                   </td>
@@ -170,7 +202,7 @@ export default function HouseholdManagement() {
               {filteredHouseholds.length === 0 && !loading && (
                 <tr>
                   <td colSpan={7} className="py-24 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest">
-                     No household records identified
+                     No customers found
                   </td>
                 </tr>
               )}

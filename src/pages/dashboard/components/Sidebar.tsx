@@ -10,9 +10,9 @@ interface SidebarProps {
 
 export default function Sidebar({ activeSection, setActiveSection, isOpen, onClose }: SidebarProps) {
   const [userInfo, setUserInfo] = useState({
-    fullName: 'Admin User',
-    role: 'Admin',
-    email: ''
+    fullName: 'Super Admin',
+    role: 'Super Admin',
+    email: 'admin@borlawura.gh'
   });
 
   useEffect(() => {
@@ -26,22 +26,23 @@ export default function Sidebar({ activeSection, setActiveSection, isOpen, onClo
       if (user) {
         const { data: adminData } = await supabase
           .from('admins')
-          .select('full_name, role, email')
+          .select('id, full_name, role, email')
           .eq('email', user.email)
           .maybeSingle();
 
-        let role = adminData?.role || 'Admin';
+        let role = adminData?.role || 'Super Admin';
         
         setUserInfo({
-          fullName: adminData?.full_name || user.user_metadata?.full_name || 'Admin User',
+          fullName: adminData?.full_name || user.user_metadata?.full_name || 'Super Admin',
           role: role,
-          email: adminData?.email || user.email || ''
+          email: adminData?.email || user.email || 'admin@borlawura.gh'
         });
 
         localStorage.setItem('user_profile', JSON.stringify({
-           fullName: adminData?.full_name || 'Admin User',
+           id: adminData?.id || user.id, // Store the user/admin ID
+           fullName: adminData?.full_name || 'Super Admin',
            role: role,
-           email: adminData?.email || user.email || ''
+           email: adminData?.email || user.email || 'admin@borlawura.gh'
         }));
       }
     } catch (error) {
@@ -50,25 +51,28 @@ export default function Sidebar({ activeSection, setActiveSection, isOpen, onClo
   };
 
   const getMenuItems = () => {
-    const roleKey = userInfo.role.toLowerCase().replace(/\s+/g, '_');
+    const rawRole = userInfo.role || 'Admin';
+    const roleKey = rawRole.toLowerCase().replace(/\s+/g, '_');
     
-    // Clear and understandable menu names
+    // Only Super Admin gets everything automatically
+    const isSuperAdmin = roleKey === 'super_admin';
+
     const allItems = [
-      { id: 'overview', icon: 'ri-dashboard-3-line', label: 'Home', roles: ['super_admin', 'operations_admin', 'finance_admin', 'support_admin', 'admin', 'manager', 'dispatcher', 'Super Admin'], color: 'emerald' },
-      { id: 'admins', icon: 'ri-shield-user-line', label: 'Staff', roles: ['super_admin', 'admin', 'Super Admin'], color: 'slate' },
-      { id: 'riders', icon: 'ri-bike-line', label: 'Riders', roles: ['super_admin', 'operations_admin', 'admin', 'manager', 'dispatcher', 'Super Admin'], color: 'emerald' },
-      { id: 'users', icon: 'ri-group-line', label: 'Users', roles: ['super_admin', 'operations_admin', 'admin', 'manager', 'Super Admin'], color: 'emerald' },
-      { id: 'pickups', icon: 'ri-calendar-check-line', label: 'Pickups', roles: ['super_admin', 'operations_admin', 'admin', 'manager', 'dispatcher', 'Super Admin'], color: 'emerald' },
-      { id: 'live-tracking', icon: 'ri-map-pin-user-line', label: 'Map', roles: ['super_admin', 'operations_admin', 'admin', 'dispatcher', 'Super Admin'], color: 'emerald' },
-      { id: 'financials', icon: 'ri-wallet-3-line', label: 'Money', roles: ['super_admin', 'finance_admin', 'admin', 'manager', 'Super Admin'], color: 'amber' },
-      { id: 'analytics', icon: 'ri-bar-chart-box-line', label: 'Reports', roles: ['super_admin', 'finance_admin', 'admin', 'manager', 'Super Admin'], color: 'orange' },
-      { id: 'sms', icon: 'ri-chat-bubble-3-line', label: 'SMS', roles: ['super_admin', 'operations_admin', 'admin', 'manager', 'Super Admin'], color: 'emerald' },
-      { id: 'feedback', icon: 'ri-star-smile-line', label: 'Feedback', roles: ['super_admin', 'support_admin', 'admin', 'manager', 'Super Admin'], color: 'emerald' },
-      { id: 'audit', icon: 'ri-file-shield-2-line', label: 'History', roles: ['super_admin', 'admin', 'Super Admin'], color: 'slate' },
-      { id: 'settings', icon: 'ri-settings-5-line', label: 'Settings', roles: ['super_admin', 'admin', 'manager', 'Super Admin'], color: 'gray' },
+      { id: 'overview', icon: 'ri-dashboard-3-line', label: 'Home', roles: ['super_admin', 'finance_admin', 'manager', 'dispatcher', 'support_admin'], color: 'emerald' },
+      { id: 'admins', icon: 'ri-shield-user-line', label: 'Staff', roles: ['super_admin'], color: 'slate' },
+      { id: 'riders', icon: 'ri-bike-line', label: 'Riders', roles: ['super_admin', 'manager', 'dispatcher'], color: 'emerald' },
+      { id: 'users', icon: 'ri-group-line', label: 'Users', roles: ['super_admin', 'manager', 'support_admin'], color: 'emerald' },
+      { id: 'pickups', icon: 'ri-calendar-check-line', label: 'Pickups', roles: ['super_admin', 'manager', 'dispatcher'], color: 'emerald' },
+      { id: 'live-tracking', icon: 'ri-map-pin-user-line', label: 'Map', roles: ['super_admin', 'manager', 'dispatcher'], color: 'emerald' },
+      { id: 'financials', icon: 'ri-wallet-3-line', label: 'Money', roles: ['super_admin', 'finance_admin', 'manager'], color: 'amber' },
+      { id: 'analytics', icon: 'ri-bar-chart-box-line', label: 'Reports', roles: ['super_admin', 'finance_admin', 'manager'], color: 'orange' },
+      { id: 'sms', icon: 'ri-chat-bubble-3-line', label: 'SMS', roles: ['super_admin', 'manager', 'support_admin'], color: 'emerald' },
+      { id: 'feedback', icon: 'ri-star-smile-line', label: 'Feedback', roles: ['super_admin', 'manager', 'support_admin'], color: 'emerald' },
+      { id: 'audit', icon: 'ri-file-shield-2-line', label: 'History', roles: ['super_admin'], color: 'slate' },
+      { id: 'settings', icon: 'ri-settings-5-line', label: 'Settings', roles: ['super_admin', 'manager'], color: 'gray' },
     ];
 
-    if (roleKey === 'super_admin' || userInfo.role === 'Admin' || userInfo.role === 'Super Admin') return allItems;
+    if (isSuperAdmin) return allItems;
     return allItems.filter(item => item.roles.includes(roleKey));
   };
 

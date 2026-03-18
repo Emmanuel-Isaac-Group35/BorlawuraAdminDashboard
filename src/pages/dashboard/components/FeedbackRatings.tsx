@@ -19,6 +19,17 @@ export default function FeedbackRatings() {
 
   useEffect(() => {
     fetchFeedback();
+
+    const channel = supabase
+      .channel('public:feedback')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'feedback' }, () => {
+        fetchFeedback();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchFeedback = async () => {
@@ -72,8 +83,8 @@ export default function FeedbackRatings() {
     <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">User Sentiment</h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Review user feedback and service quality ratings</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">User Feedback</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">See what people are saying about your service</p>
         </div>
         <div className="flex gap-1.5 p-1 bg-white dark:bg-black border border-slate-100 dark:border-white/5 rounded-2xl">
           {['all', 'pending', 'reviewed', 'resolved'].map((s) => (
@@ -94,7 +105,7 @@ export default function FeedbackRatings() {
       {loading ? (
         <div className="flex flex-col items-center justify-center py-24">
            <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-           <p className="text-[11px] text-slate-400 font-bold uppercase mt-5 tracking-widest">Collecting Sentiment...</p>
+           <p className="text-[11px] text-slate-400 font-bold uppercase mt-5 tracking-widest">Loading Feedback...</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -152,7 +163,7 @@ export default function FeedbackRatings() {
            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setSelectedFeedback(null)}></div>
            <div className="relative w-full max-w-lg bg-white dark:bg-slate-950 rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-up border border-slate-100 dark:border-white/10">
               <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
-                 <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Review Sentiment</h2>
+                 <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Feedback Details</h2>
                  <button onClick={() => setSelectedFeedback(null)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-400 hover:text-rose-500">
                     <i className="ri-close-line text-2xl"></i>
                  </button>
@@ -177,9 +188,8 @@ export default function FeedbackRatings() {
                         "{selectedFeedback.comment}"
                      </p>
                   </div>
-                 
-                 <div className="space-y-4">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Modify Sentiment Status</p>
+                                  <div className="space-y-4">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Update Status</p>
                     <div className="grid grid-cols-3 gap-3 p-1 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-white/5 rounded-2xl">
                        {['pending', 'reviewed', 'resolved'].map((s) => (
                           <button
@@ -201,7 +211,7 @@ export default function FeedbackRatings() {
                   onClick={() => setSelectedFeedback(null)} 
                   className="w-full py-4 text-xs font-bold text-slate-400 hover:text-slate-900 uppercase tracking-widest transition-all"
                  >
-                   Dismiss View
+                   Close
                  </button>
               </div>
            </div>

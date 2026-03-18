@@ -17,6 +17,7 @@ import RouteOptimization from './components/RouteOptimization';
 import FeedbackRatings from './components/FeedbackRatings';
 import LogoutDialog from './components/LogoutDialog';
 import FinancialManagement from './components/FinancialManagement';
+import ProfileView from './components/ProfileView';
 
 interface Toast {
   id: number;
@@ -28,6 +29,7 @@ interface Toast {
 export default function Dashboard() {
   const [activeSection, setActiveSection] = useState('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [userRole, setUserRole] = useState('Super Admin');
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -40,13 +42,22 @@ export default function Dashboard() {
       })
       .subscribe();
 
-    // 2. Listen for Audit Logs (Security Alerts)
+    // 2. Listen for Audit Logs (Security & System Signals)
     const auditSub = supabase
       .channel('live_audit')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, (payload) => {
-        const action = payload.new.action?.toLowerCase() || '';
-        if (action.includes('delete') || action.includes('suspend') || action.includes('remove')) {
-          addToast(`Security Alert: ${payload.new.action}`, 'warning', 'ri-shield-flash-line');
+        const action = payload.new.action || 'System Event';
+        const lowerAction = action.toLowerCase();
+        const details = payload.new.details?.message || action;
+
+        if (lowerAction.includes('register') || lowerAction.includes('onboard') || lowerAction.includes('provision')) {
+           addToast(details, 'success', 'ri-user-add-line');
+        } else if (lowerAction.includes('role') || lowerAction.includes('update') || lowerAction.includes('assign')) {
+           addToast(details, 'info', 'ri-shield-user-line');
+        } else if (lowerAction.includes('delete') || lowerAction.includes('suspend') || lowerAction.includes('remove')) {
+           addToast(`Security Alert: ${details}`, 'warning', 'ri-error-warning-line');
+        } else {
+           addToast(details, 'info', 'ri-notification-3-line');
         }
       })
       .subscribe();
@@ -66,6 +77,36 @@ export default function Dashboard() {
   };
 
   const renderContent = () => {
+    const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
+    const rawRole = userInfo.role || 'Admin';
+    const roleKey = rawRole.toLowerCase().replace(/\s+/g, '_');
+    const isSuperAdmin = roleKey === 'super_admin';
+
+    // Permissions Map (Standardized for Hierarchy)
+    const permissions: Record<string, string[]> = {
+      overview: ['super_admin', 'admin', 'finance_admin', 'operations_admin', 'manager', 'dispatcher', 'support_admin'],
+      admins: ['super_admin'], // Only Super Admin manages staff
+      riders: ['super_admin', 'admin', 'operations_admin', 'manager', 'dispatcher'],
+      users: ['super_admin', 'admin', 'operations_admin', 'manager', 'support_admin'],
+      households: ['super_admin', 'admin', 'operations_admin', 'manager', 'support_admin'],
+      pickups: ['super_admin', 'admin', 'operations_admin', 'manager', 'dispatcher'],
+      'live-tracking': ['super_admin', 'operations_admin', 'dispatcher'],
+      'route-optimization': ['super_admin', 'operations_admin', 'dispatcher'],
+      financials: ['super_admin', 'finance_admin', 'manager'],
+      analytics: ['super_admin', 'finance_admin', 'manager'],
+      sms: ['super_admin', 'operations_admin', 'manager', 'support_admin'],
+      feedback: ['super_admin', 'admin', 'manager', 'support_admin'],
+      settings: ['super_admin', 'manager'],
+      audit: ['super_admin'], // Security logs for Super Admin only
+      profile: ['super_admin', 'admin', 'finance_admin', 'operations_admin', 'manager', 'dispatcher', 'support_admin'],
+    };
+
+    const isPermitted = isSuperAdmin || (permissions[activeSection] && permissions[activeSection].includes(roleKey));
+
+    if (!isPermitted) {
+      return <Overview onNavigate={setActiveSection} />;
+    }
+
     switch (activeSection) {
       case 'overview': return <Overview onNavigate={setActiveSection} />;
       case 'admins': return <AdminManagement />;
@@ -81,6 +122,7 @@ export default function Dashboard() {
       case 'feedback': return <FeedbackRatings />;
       case 'settings': return <SystemSettings />;
       case 'audit': return <AuditLog />;
+      case 'profile': return <ProfileView />;
       default: return <Overview onNavigate={setActiveSection} />;
     }
   };
@@ -109,6 +151,7 @@ export default function Dashboard() {
         <Header
           onLogout={() => setShowLogoutDialog(true)}
           onMenuClick={() => setIsSidebarOpen(true)}
+          onNavigate={setActiveSection}
         />
         <main className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth scrollbar-hide">
           <div key={activeSection} className="animate-fade-in max-w-[1400px] mx-auto pb-10">

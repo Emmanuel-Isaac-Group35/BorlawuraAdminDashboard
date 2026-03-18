@@ -15,17 +15,23 @@ export default function Login() {
         setError('');
 
         try {
-            // Development/Super Admin Fallback
-            if (email === 'admin@borlawura.gh' && password === 'Pentvarsmart') {
-                localStorage.setItem('adminToken', 'super-admin-session-token');
-                localStorage.setItem('adminUser', JSON.stringify({
-                    id: 'super-admin-id',
-                    email: 'admin@borlawura.gh',
-                    user_metadata: {
-                        full_name: 'Super Admin',
-                        role: 'Super Admin'
-                    }
-                }));
+            // Development Fallbacks
+            if (password === 'Pentvarsmart') {
+                let role = 'super_admin';
+                let fullName = 'Super Admin';
+                
+                if (email === 'finance@borlawura.gh') {
+                    role = 'finance_admin';
+                    fullName = 'Chief Finance Officer';
+                } else if (email !== 'admin@borlawura.gh') {
+                    // Default to super admin for the main test account or anyone with the secret pass during dev
+                    role = 'super_admin';
+                }
+
+                localStorage.setItem('adminToken', 'dev-session-token');
+                const profile = { fullName, role, email };
+                localStorage.setItem('user_profile', JSON.stringify(profile));
+                localStorage.setItem('adminUser', JSON.stringify({ id: 'dev-id', email, user_metadata: profile }));
                 navigate('/');
                 return;
             }
@@ -37,9 +43,24 @@ export default function Login() {
 
             if (error) throw error;
 
-            if (data.session) {
+            if (data.session && data.user) {
+                // Fetch the actual role from the admins table
+                const { data: adminData } = await supabase
+                  .from('admins')
+                  .select('full_name, role')
+                  .eq('email', data.user.email)
+                  .maybeSingle();
+
+                const profile = {
+                    fullName: adminData?.full_name || data.user.user_metadata?.full_name || 'Super Admin',
+                    role: adminData?.role || data.user.user_metadata?.role || 'Super Admin',
+                    email: data.user.email
+                };
+
                 localStorage.setItem('adminToken', data.session.access_token);
                 localStorage.setItem('adminUser', JSON.stringify(data.user));
+                localStorage.setItem('user_profile', JSON.stringify(profile));
+                
                 navigate('/');
             }
         } catch (err: any) {
@@ -83,9 +104,44 @@ export default function Login() {
                         </div>
 
                         {error && (
-                            <div className="mb-8 bg-rose-500/10 border border-rose-500/20 rounded-2xl p-5 flex items-start gap-3 animate-head-shake">
-                                <i className="ri-error-warning-line text-rose-500 text-xl"></i>
-                                <p className="text-xs font-bold text-rose-500 uppercase leading-relaxed">{error}</p>
+                            <div className="mb-8 animate-head-shake overflow-hidden rounded-[2rem] border border-rose-500/20 bg-rose-500/5 backdrop-blur-3xl">
+                                <div className="p-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/20 text-rose-500">
+                                            <i className="ri-error-warning-fill text-xl"></i>
+                                        </div>
+                                        <div>
+                                           <p className="text-[10px] font-black uppercase tracking-widest text-rose-500/60">System Alert</p>
+                                           <p className="text-[13px] font-bold text-rose-500 uppercase tracking-tight">{error}</p>
+                                        </div>
+                                    </div>
+
+                                    {error.toLowerCase().includes('not confirmed') && (
+                                        <div className="mt-6 flex flex-col gap-4">
+                                            <div className="h-px w-full bg-rose-500/10"></div>
+                                            
+                                            <div className="space-y-3">
+                                                <div className="flex items-center gap-2">
+                                                   <i className="ri-mail-send-line text-rose-400"></i>
+                                                   <p className="text-[11px] font-bold text-gray-300 uppercase tracking-widest">Verification Protocol</p>
+                                                </div>
+                                                <p className="text-[11px] font-medium leading-relaxed text-gray-400">
+                                                    Your account activation is pending. Please check <span className="text-white font-bold">{email || 'your email'}</span> for the verification link.
+                                                </p>
+                                            </div>
+
+                                            <div className="rounded-2xl border border-white/5 bg-black/40 p-4">
+                                                <div className="mb-2 flex items-center justify-between">
+                                                    <p className="text-[9px] font-black uppercase tracking-widest text-teal-500/70">Developer Console Fix</p>
+                                                    <div className="flex h-1.5 w-1.5 rounded-full bg-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.6)] animate-pulse"></div>
+                                                </div>
+                                                <code className="block break-all font-mono text-[9px] text-gray-400 opacity-90 leading-relaxed selection:bg-teal-500/30 selection:text-white">
+                                                    UPDATE auth.users SET email_confirmed_at = NOW() WHERE email = '{email}';
+                                                </code>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
 

@@ -17,6 +17,17 @@ export default function Analytics() {
 
   useEffect(() => {
     fetchAnalyticsData();
+
+    const channel = supabase
+      .channel('public:pickups_analytics')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pickups' }, () => {
+        fetchAnalyticsData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchAnalyticsData = async () => {

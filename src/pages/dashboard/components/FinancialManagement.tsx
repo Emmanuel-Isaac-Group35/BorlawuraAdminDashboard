@@ -27,6 +27,17 @@ export default function FinancialManagement() {
 
   useEffect(() => {
     fetchFinancials();
+
+    const channel = supabase
+      .channel('public:payments')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => {
+        fetchFinancials();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchFinancials = async () => {
@@ -88,6 +99,11 @@ export default function FinancialManagement() {
     }
   };
 
+  const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
+  const rawRole = userInfo.role || 'Super Admin';
+  const roleKey = rawRole.toLowerCase().replace(/\s+/g, '_');
+  const isFinanceAdmin = roleKey === 'super_admin' || roleKey === 'manager' || roleKey === 'finance_admin';
+
   return (
     <div className="space-y-10 font-['Montserrat'] animate-fade-in pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -147,10 +163,10 @@ export default function FinancialManagement() {
             <table className="w-full">
               <thead>
                 <tr className="bg-slate-50/50 dark:bg-white/[0.01] text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] border-b border-slate-50 dark:border-white/5">
-                  <th className="px-10 py-5 text-left font-bold">Involved Entity</th>
-                  <th className="px-10 py-5 text-left font-bold">Inflow Amount</th>
-                  <th className="px-10 py-5 text-left font-bold">Protocol Status</th>
-                  <th className="px-10 py-5 text-right font-bold">Audit Date</th>
+                  <th className="px-10 py-5 text-left font-bold">Customer</th>
+                  <th className="px-10 py-5 text-left font-bold">Amount</th>
+                  <th className="px-10 py-5 text-left font-bold">Status</th>
+                  <th className="px-10 py-5 text-right font-bold">Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-white/5">
@@ -187,10 +203,12 @@ export default function FinancialManagement() {
 
         <div className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden flex flex-col h-fit">
           <div className="px-10 py-8 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex flex-col gap-4">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-[0.2em]">Personnel Settlements</h3>
-            <button className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:scale-[0.98] transition-all shadow-xl shadow-slate-900/20 dark:shadow-white/5">
-              Execute Mass Settlement
-            </button>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-[0.2em]">Payments to Staff</h3>
+            {isFinanceAdmin && (
+              <button className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:scale-[0.98] transition-all shadow-xl shadow-slate-900/20 dark:shadow-white/5">
+                Pay All Riders
+              </button>
+            )}
           </div>
           <div className="p-6 space-y-4">
              {riders.map((rider) => (
@@ -200,19 +218,19 @@ export default function FinancialManagement() {
                          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 font-bold">
                             {rider.full_name.charAt(0)}
                          </div>
-                         <div>
+                          <div>
                             <h4 className="text-[12px] font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 transition-colors uppercase">{rider.full_name}</h4>
-                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{rider.total_pickups} Deployments</p>
-                         </div>
-                      </div>
-                      <span className={`px-3 py-1 rounded-lg text-[8px] font-bold uppercase tracking-widest border ${getStatusStyle('pending')}`}>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{rider.total_pickups} Pickups</p>
+                          </div>
+                       </div>
+                       <span className={`px-3 py-1 rounded-lg text-[8px] font-bold uppercase tracking-widest border ${getStatusStyle('pending')}`}>
                         Pending
-                      </span>
-                   </div>
-                   <div className="flex items-center justify-between">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Net Payable</p>
-                      <p className="text-lg font-bold text-emerald-600 tracking-tight">₵{rider.total_earnings}</p>
-                   </div>
+                       </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Amount to Pay</p>
+                       <p className="text-lg font-bold text-emerald-600 tracking-tight">₵{rider.total_earnings}</p>
+                    </div>
                 </div>
              ))}
           </div>

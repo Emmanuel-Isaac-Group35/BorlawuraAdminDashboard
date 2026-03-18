@@ -49,8 +49,11 @@ CREATE TABLE public.users (
     email TEXT,
     address TEXT,
     location TEXT,
+    subscription_type TEXT DEFAULT 'pay-as-you-go',
+    registration_status TEXT DEFAULT 'pending' CHECK (registration_status IN ('pending', 'approved', 'rejected')),
     status TEXT DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'pending', 'flagged')),
     balance NUMERIC(10, 2) DEFAULT 0.00,
+    role TEXT DEFAULT 'customer',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now())
 );
 
@@ -70,15 +73,15 @@ CREATE TABLE public.pickups (
     completed_at TIMESTAMP WITH TIME ZONE
 );
 
--- 5. Payments Table (Removed as per request)
--- CREATE TABLE public.payments (
---     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
---     user_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
---     pickup_id UUID REFERENCES public.pickups(id) ON DELETE SET NULL,
---     amount NUMERIC(10, 2) NOT NULL,
---     status TEXT DEFAULT 'pending' CHECK (status IN ('paid', 'pending', 'failed')),
---     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now())
--- );
+-- 5. Payments Table (Active)
+CREATE TABLE public.payments (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    pickup_id UUID REFERENCES public.pickups(id) ON DELETE SET NULL,
+    amount NUMERIC(10, 2) NOT NULL,
+    status TEXT DEFAULT 'pending' CHECK (status IN ('paid', 'pending', 'failed')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now())
+);
 
 -- 6. SMS Logs Table (New)
 CREATE TABLE public.sms_logs (
@@ -118,7 +121,7 @@ ALTER TABLE public.admins ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.riders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pickups ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sms_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.feedback ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
@@ -128,7 +131,7 @@ CREATE POLICY "Enable all for admins" ON public.admins FOR ALL USING (true);
 CREATE POLICY "Enable all for riders" ON public.riders FOR ALL USING (true);
 CREATE POLICY "Enable all for users" ON public.users FOR ALL USING (true);
 CREATE POLICY "Enable all for pickups" ON public.pickups FOR ALL USING (true);
--- CREATE POLICY "Enable all for payments" ON public.payments FOR ALL USING (true);
+CREATE POLICY "Enable all for payments" ON public.payments FOR ALL USING (true);
 CREATE POLICY "Enable all for sms_logs" ON public.sms_logs FOR ALL USING (true);
 CREATE POLICY "Enable all for feedback" ON public.feedback FOR ALL USING (true);
 CREATE POLICY "Enable all for audit_logs" ON public.audit_logs FOR ALL USING (true);

@@ -158,8 +158,8 @@ export default function RouteOptimization() {
     <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Logistic Optimization</h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Computational route orchestration for maximum operational throughput</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Route Planning</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Plan the best paths for your riders to save time and fuel</p>
         </div>
         <button
           onClick={handleOptimizeRoutes}
@@ -169,12 +169,12 @@ export default function RouteOptimization() {
           {optimizing ? (
             <>
               <i className="ri-loader-4-line animate-spin text-lg"></i>
-              Calculating Node Paths...
+              Planning Routes...
             </>
           ) : (
             <>
               <i className="ri-guide-line text-lg"></i>
-              Generate Optimal Paths
+              Find Best Routes
             </>
           )}
         </button>
@@ -182,10 +182,10 @@ export default function RouteOptimization() {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
-          { label: 'Active Deployment', value: routes.filter(r => r.status === 'active').length, icon: 'ri-radar-line', color: 'indigo', sub: 'Nodes syncing' },
-          { label: 'Network Coverage', value: `${totalDistance.toFixed(1)} km`, icon: 'ri-map-pin-distance-line', color: 'emerald', sub: 'Operational radius' },
-          { label: 'Fuel Mitigation', value: `${avgFuelSaved}%`, icon: 'ri-drop-line', color: 'amber', sub: 'Revenue optimization' },
-          { label: 'Efficiency Gain', value: `${totalTimeSaved} m`, icon: 'ri-flashlight-line', color: 'rose', sub: 'vs. manual dispatch' },
+          { label: 'Active Riders', value: routes.filter(r => r.status === 'active').length, icon: 'ri-radar-line', color: 'indigo', sub: 'Currently moving' },
+          { label: 'Total Distance', value: `${totalDistance.toFixed(1)} km`, icon: 'ri-map-pin-distance-line', color: 'emerald', sub: 'Coverage today' },
+          { label: 'Fuel Saved', value: `${avgFuelSaved}%`, icon: 'ri-drop-line', color: 'amber', sub: 'Efficiency' },
+          { label: 'Time Saved', value: `${totalTimeSaved} m`, icon: 'ri-flashlight-line', color: 'rose', sub: 'vs. manual planning' },
         ].map((stat, i) => (
           <div key={i} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm transition-all hover:scale-[1.02]">
             <div className="flex items-center justify-between mb-4">
@@ -230,9 +230,9 @@ export default function RouteOptimization() {
 
                 <div className="grid grid-cols-4 gap-6 bg-slate-50/50 dark:bg-white/[0.02] p-6 rounded-3xl border border-slate-50 dark:border-white/5 mb-8">
                   <div>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Node Logic</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Job Status</p>
                     <p className="text-sm font-bold text-slate-900 dark:text-white">
-                      {route.completedStops} / {route.totalStops} COMP
+                      {route.completedStops} / {route.totalStops} DONE
                     </p>
                   </div>
                   <div>
@@ -240,11 +240,11 @@ export default function RouteOptimization() {
                     <p className="text-sm font-bold text-slate-900 dark:text-white uppercase">{route.totalDistance}</p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Time Delta</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Duration</p>
                     <p className="text-sm font-bold text-slate-900 dark:text-white uppercase">{route.estimatedDuration}</p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Fuel Index</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Savings</p>
                     <p className="text-sm font-bold text-emerald-600 uppercase">+{route.fuelSaved}</p>
                   </div>
                 </div>
@@ -254,10 +254,10 @@ export default function RouteOptimization() {
                     onClick={() => setSelectedRoute(route)}
                     className="flex-1 py-4 bg-white dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-white rounded-2xl hover:bg-slate-50 transition-all shadow-sm"
                   >
-                    Analyze Sequence
+                    View Route
                   </button>
                   <button className="flex-1 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-bold uppercase tracking-widest rounded-2xl transition-all shadow-xl">
-                    Deploy to Fleet
+                    Assign to Rider
                   </button>
                 </div>
               </div>
@@ -273,16 +273,16 @@ export default function RouteOptimization() {
 
         <div className="space-y-8">
            <div className="bg-slate-900 dark:bg-white/5 rounded-[3rem] border border-white/5 p-10 text-white relative overflow-hidden group">
-              <h3 className="text-[10px] font-bold text-indigo-400 uppercase tracking-[0.2em] mb-6">Neural Insights</h3>
+              <h3 className="text-[10px] font-bold text-indigo-400 uppercase tracking-[0.2em] mb-6">Smart Tips</h3>
               <div className="space-y-6 relative z-10">
                  <div className="flex items-start gap-4">
                     <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
                        <i className="ri-donut-chart-line text-xl"></i>
                     </div>
                     <div>
-                       <h4 className="text-[11px] font-bold uppercase tracking-widest mb-1.5 text-emerald-400">Yield Optimization</h4>
+                       <h4 className="text-[11px] font-bold uppercase tracking-widest mb-1.5 text-emerald-400">Time Saved</h4>
                        <p className="text-[10px] font-medium text-slate-400 leading-relaxed">
-                          Routing algorithms have yielded an 18.4% reduction in fleet idle time.
+                          Our routes have helped riders finish work 18.4% faster today.
                        </p>
                     </div>
                  </div>
@@ -291,9 +291,9 @@ export default function RouteOptimization() {
                        <i className="ri-error-warning-line text-xl"></i>
                     </div>
                     <div>
-                       <h4 className="text-[11px] font-bold uppercase tracking-widest mb-1.5 text-amber-400">Traffic Intelligence</h4>
+                       <h4 className="text-[11px] font-bold uppercase tracking-widest mb-1.5 text-amber-400">Traffic Alert</h4>
                        <p className="text-[10px] font-medium text-slate-400 leading-relaxed">
-                          Congestion detected in Osu sector. Dynamic rerouting is active.
+                          Heavy traffic detected in Osu. We are finding better paths.
                        </p>
                     </div>
                  </div>
@@ -302,11 +302,11 @@ export default function RouteOptimization() {
            </div>
 
            <div className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 p-10">
-              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-6">Network Health</h4>
+              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-6">System Health</h4>
               <div className="space-y-6">
                  <div>
                     <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest mb-2.5">
-                       <span className="text-slate-400">Throughput Cap</span>
+                       <span className="text-slate-400">Work Load</span>
                        <span className="text-slate-900 dark:text-white">94%</span>
                     </div>
                     <div className="w-full h-2 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
@@ -315,7 +315,7 @@ export default function RouteOptimization() {
                  </div>
                  <div>
                     <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest mb-2.5">
-                       <span className="text-slate-400">Fleet Integrity</span>
+                       <span className="text-slate-400">Rider Online</span>
                        <span className="text-slate-900 dark:text-white">88%</span>
                     </div>
                     <div className="w-full h-2 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">

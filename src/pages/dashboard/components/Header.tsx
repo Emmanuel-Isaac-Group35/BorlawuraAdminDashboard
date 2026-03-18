@@ -5,15 +5,17 @@ import NotificationPanel from './NotificationPanel';
 interface HeaderProps {
   onLogout: () => void;
   onMenuClick: () => void;
+  onNavigate: (section: string) => void;
 }
 
-export default function Header({ onLogout, onMenuClick }: HeaderProps) {
+export default function Header({ onLogout, onMenuClick, onNavigate }: HeaderProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [userInfo, setUserInfo] = useState({
-    fullName: 'Admin User',
-    role: 'Admin',
-    email: 'admin@borlawura.com'
+    fullName: 'Super Admin',
+    role: 'Super Admin',
+    email: 'admin@borlawura.gh'
   });
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -26,7 +28,28 @@ export default function Header({ onLogout, onMenuClick }: HeaderProps) {
 
   useEffect(() => {
     fetchUserProfile();
+    fetchUnreadCount();
+
+    // Set up real-time subscription for notification badge
+    const channel = supabase
+      .channel('header-notifications')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
+        fetchUnreadCount();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
+
+  const fetchUnreadCount = async () => {
+    const { count } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_read', false);
+    setUnreadCount(count || 0);
+  };
 
   const fetchUserProfile = async () => {
     try {
@@ -76,9 +99,9 @@ export default function Header({ onLogout, onMenuClick }: HeaderProps) {
         <div className="flex flex-col">
           <div className="flex items-center gap-2.5">
              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-             <h2 className="text-[15px] font-bold text-slate-900 dark:text-white tracking-tight uppercase">Home</h2>
+             <h2 className="text-[15px] font-bold text-slate-900 dark:text-white tracking-tight uppercase">BorlaWura Control</h2>
           </div>
-          <p className="hidden md:block text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">BorlaWura Admin</p>
+          <p className="hidden md:block text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Smart Waste Management</p>
         </div>
       </div>
 
@@ -108,7 +131,9 @@ export default function Header({ onLogout, onMenuClick }: HeaderProps) {
               }`}
             >
               <i className="ri-notification-4-line text-xl transition-transform group-active:scale-90"></i>
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white dark:ring-slate-950 shadow-sm animate-pulse"></span>
+              {unreadCount > 0 && (
+                <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white dark:ring-slate-950 shadow-sm animate-pulse"></span>
+              )}
             </button>
 
             <NotificationPanel 
@@ -148,11 +173,17 @@ export default function Header({ onLogout, onMenuClick }: HeaderProps) {
                   <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate mt-1">{userInfo.email}</p>
                 </div>
                 <div className="p-2.5">
-                  <button className="w-full flex items-center gap-4 px-4 py-3 text-[11px] font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/[0.03] rounded-2xl transition-all uppercase tracking-widest group">
+                  <button 
+                    onClick={() => { setShowProfile(false); onNavigate('profile'); }}
+                    className="w-full flex items-center gap-4 px-4 py-3 text-[11px] font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/[0.03] rounded-2xl transition-all uppercase tracking-widest group"
+                  >
                      <i className="ri-user-settings-line text-lg text-slate-400 group-hover:text-emerald-500 transition-colors"></i>
                      <span>My Profile</span>
                   </button>
-                  <button className="w-full flex items-center gap-4 px-4 py-3 text-[11px] font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/[0.03] rounded-2xl transition-all uppercase tracking-widest group">
+                  <button 
+                    onClick={() => { setShowProfile(false); onNavigate('profile'); }}
+                    className="w-full flex items-center gap-4 px-4 py-3 text-[11px] font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/[0.03] rounded-2xl transition-all uppercase tracking-widest group"
+                  >
                      <i className="ri-shield-keyhole-line text-lg text-slate-400 group-hover:text-emerald-500 transition-colors"></i>
                      <span>Security</span>
                    </button>
