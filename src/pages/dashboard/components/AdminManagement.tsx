@@ -162,8 +162,11 @@ export default function AdminManagement() {
   const toggleStatus = async (id: string, currentStatus: string) => {
     if (!canManage) return;
     try {
-      const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-      await supabase.from('admins').update({ status: newStatus }).eq('id', id);
+      const status = (currentStatus || '').toLowerCase().trim();
+      const newStatus = status === 'active' ? 'inactive' : 'active';
+      
+      const { error } = await supabase.from('admins').update({ status: newStatus }).eq('id', id);
+      if (error) throw error;
 
       await logActivity('Staff Protocol Update', 'admins', id, { 
         status: newStatus,
@@ -171,7 +174,15 @@ export default function AdminManagement() {
       });
 
       fetchAdmins();
-    } catch (error) { console.error(error); }
+      
+      // Update local selection if modal is open
+      if (selectedAdmin && selectedAdmin.id === id) {
+        setSelectedAdmin({ ...selectedAdmin, status: newStatus as any });
+      }
+    } catch (error) { 
+      console.error(error);
+      alert('Failed to update staff status');
+    }
   };
 
   const handleDeleteAdmin = async (id: string, email: string) => {

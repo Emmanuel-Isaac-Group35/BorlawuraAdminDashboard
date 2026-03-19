@@ -13,6 +13,7 @@ interface User {
   location: string;
   role: string;
   status: 'active' | 'suspended';
+  registration_status?: 'pending' | 'approved' | 'rejected' | 'pending';
   created_at: string;
   balance: number;
   subscription_type: string;
@@ -250,12 +251,18 @@ export default function UserManagement() {
     }
 
     try {
-      const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
+      // Normalize and determine new status
+      const status = (currentStatus || '').toLowerCase().trim();
+      const newStatus = status === 'active' ? 'suspended' : 'active';
+      const newRegStatus = newStatus === 'active' ? 'approved' : selectedUser?.registration_status || 'approved';
       
       // 1. Update Core Users Table
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .update({ status: newStatus })
+        .update({ 
+          status: newStatus,
+          registration_status: newRegStatus
+        })
         .eq('id', id)
         .select('*')
         .single();
@@ -264,17 +271,21 @@ export default function UserManagement() {
 
       // 2. Cascading Security Protocol: Sync status to other privilege tables
       if (userData) {
-        // Sync to Admins if exists
-        await supabase
-          .from('admins')
-          .update({ status: newStatus === 'active' ? 'active' : 'inactive' })
-          .eq('email', userData.email);
+        const adminStatus = newStatus === 'active' ? 'active' : 'inactive';
+        const riderStatus = newStatus === 'active' ? 'active' : 'suspended';
 
-        // Sync to Riders if exists
-        await supabase
+        // Use ID for consistent syncing across tables
+        supabase
+          .from('admins')
+          .update({ status: adminStatus })
+          .eq('id', userData.id)
+          .then(({ error }) => error && console.error('Admin sync failed:', error));
+
+        supabase
           .from('riders')
-          .update({ status: newStatus === 'active' ? 'active' : 'suspended' })
-          .eq('email', userData.email);
+          .update({ status: riderStatus })
+          .eq('id', userData.id)
+          .then(({ error }) => error && console.error('Rider sync failed:', error));
       }
       
       const actionLabel = newStatus === 'active' ? 'Activated' : 'Suspended';
@@ -286,6 +297,11 @@ export default function UserManagement() {
 
       alert(`Security protocol successfully ${newStatus === 'active' ? 'restored' : 'enforced'} for this account.`);
       fetchUsers();
+      
+      // Update local state if a modal is open
+      if (selectedUser && selectedUser.id === id) {
+        setSelectedUser({ ...selectedUser, status: newStatus as any });
+      }
     } catch (err: any) {
       console.error('Security Update Failed:', err);
       alert(`Critical Error: ${err.message}`);
@@ -561,7 +577,7 @@ export default function UserManagement() {
         )}
       </div>
 
-      {selectedUser && (
+      {selectedUser && !showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setSelectedUser(null)}></div>
           <div className="relative w-full max-w-xl bg-white dark:bg-slate-950 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 shadow-2xl overflow-hidden animate-scale-up">
@@ -645,12 +661,37 @@ export default function UserManagement() {
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setShowAddModal(false)}></div>
           <div className="relative w-full max-w-lg bg-white dark:bg-slate-950 rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-up border border-slate-100 dark:border-white/10">
             <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-                {isEditing ? 'Edit User Details' : 'Add New User'}
-              </h2>
-              <button onClick={() => setShowAddModal(false)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-400 hover:text-rose-500">
-                <i className="ri-close-line text-2xl"></i>
-              </button>
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  {isEditing ? 'Edit User Details' : 'Add New User'}
+                </h2>
+                {isEditing && selectedUser && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`px-2 py-0.5 rounded-lg text-[8px] font-bold uppercase ${selectedUser.status === 'active' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+                      {selectedUser.status}
+                    </span>
+                    <span className="text-[10px] font-medium text-slate-400">UUID: {selectedUser.id.slice(0, 8)}</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {isEditing && selectedUser && canModify && (
+                   <button 
+                      type="button"
+                      onClick={() => toggleUserStatus(selectedUser.id, selectedUser.status)}
+                      className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all border ${
+                        selectedUser.status === 'active' 
+                        ? 'bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-500 hover:text-white' 
+                        : 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-500 hover:text-white'
+                      }`}
+                   >
+                    {selectedUser.status === 'active' ? 'Suspend' : 'Activate'}
+                   </button>
+                )}
+                <button type="button" onClick={() => setShowAddModal(false)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-400 hover:text-rose-500">
+                  <i className="ri-close-line text-2xl"></i>
+                </button>
+              </div>
             </div>
             
             <form onSubmit={isEditing ? handleUpdateUser : handleCreateUser} className="p-10 space-y-6">

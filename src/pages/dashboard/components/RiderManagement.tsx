@@ -12,6 +12,7 @@ interface Rider {
   vehicle_type: string;
   vehicle_number: string;
   status: 'active' | 'suspended';
+  registration_status?: 'pending' | 'approved' | 'rejected' | null;
   rating: number;
   total_pickups: number;
   total_earnings: number;
@@ -192,27 +193,44 @@ export default function RiderManagement() {
     }
 
     try {
-      const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
+      const status = (currentStatus || '').toLowerCase().trim();
+      const newStatus = status === 'active' ? 'suspended' : 'active';
+      const newRegStatus = newStatus === 'active' ? 'approved' : (selectedRider?.registration_status || 'approved');
+      
+      // 1. Update Rider table
       const { error } = await supabase
         .from('riders')
-        .update({ status: newStatus })
+        .update({ 
+          status: newStatus,
+          registration_status: newRegStatus
+        })
         .eq('id', id);
 
       if (error) throw error;
+
+      // 2. Mirror status to user table
+      await supabase
+        .from('users')
+        .update({ 
+          status: newStatus,
+          registration_status: newRegStatus
+        })
+        .eq('id', id);
+
       
-      const actionLabel = currentStatus === 'active' ? 'Suspended' : 'Activated';
+      const actionLabel = newStatus === 'suspended' ? 'Suspended' : 'Activated';
       await logActivity(`${actionLabel} Rider`, 'riders', id, { 
         status: newStatus,
         message: `${actionLabel} rider #${id.substring(0,8)}`
       });
 
-      await logActivity('Rider Status Update', 'riders', id, { 
-        status: newStatus,
-        message: `Rider ID ${id.slice(0,5)} status set to ${newStatus}`
-      });
-
       alert(`Personnel ${actionLabel} successfully.`);
       fetchRiders();
+
+      // Update local state if modal is open
+      if (selectedRider && selectedRider.id === id) {
+        setSelectedRider({ ...selectedRider, status: newStatus as any });
+      }
     } catch (err: any) {
       alert(`Status Update Failed: ${err.message}`);
     }

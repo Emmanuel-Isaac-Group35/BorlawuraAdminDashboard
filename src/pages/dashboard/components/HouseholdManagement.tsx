@@ -55,11 +55,16 @@ export default function HouseholdManagement() {
   };
 
   const getStatusStyle = (status: string) => {
-    switch (status) {
+    const s = (status || '').toLowerCase().trim();
+    switch (s) {
       case 'active':
         return 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20';
-      case 'flagged':
+      case 'suspended':
         return 'bg-rose-50 text-rose-600 border-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20';
+      case 'flagged':
+        return 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20';
+      case 'pending':
+        return 'bg-slate-50 text-slate-500 border-slate-100 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20';
       default:
         return 'bg-slate-50 text-slate-500 border-slate-100 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20';
     }
@@ -76,8 +81,11 @@ export default function HouseholdManagement() {
   );
 
   const handleToggleStatus = async (id: string, currentStatus: string) => {
-     const newStatus = currentStatus === 'active' ? 'flagged' : 'active';
-     if (!window.confirm(`Are you sure you want to set this customer as ${newStatus}?`)) return;
+     const status = (currentStatus || '').toLowerCase().trim();
+     const newStatus = status === 'active' ? 'suspended' : 'active';
+     const actionText = newStatus === 'suspended' ? 'suspend' : 'reactivate';
+     
+     if (!window.confirm(`Are you sure you want to ${actionText} this household account?`)) return;
 
      try {
        const { error } = await supabase
@@ -87,7 +95,7 @@ export default function HouseholdManagement() {
 
        if (error) throw error;
        
-       const actionLabel = newStatus === 'flagged' ? 'Flagged Customer Account' : 'Cleared Customer Account';
+       const actionLabel = newStatus === 'suspended' ? 'Suspended Household Account' : 'Activated Household Account';
        await logActivity(actionLabel, 'users', id, { 
          status: newStatus,
          message: `${actionLabel} for ID #${id.slice(0,8)}`
