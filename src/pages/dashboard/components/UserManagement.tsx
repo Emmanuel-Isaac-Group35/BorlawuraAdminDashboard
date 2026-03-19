@@ -39,6 +39,8 @@ export default function UserManagement() {
     avatar_url: ''
   });
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [userPickups, setUserPickups] = useState<any[]>([]);
+  const [loadingPickups, setLoadingPickups] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const settings = JSON.parse(localStorage.getItem('borlawura_settings') || '{}');
@@ -64,6 +66,32 @@ export default function UserManagement() {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  useEffect(() => {
+    if (selectedUser) {
+      fetchUserPickups(selectedUser.id);
+    } else {
+      setUserPickups([]);
+    }
+  }, [selectedUser]);
+
+  const fetchUserPickups = async (userId: string) => {
+    setLoadingPickups(true);
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setUserPickups(data || []);
+    } catch (e) {
+      console.error('Error fetching user pickups:', e);
+    } finally {
+      setLoadingPickups(false);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -547,6 +575,19 @@ export default function UserManagement() {
                           <i className="ri-edit-line"></i>
                         </button>
                       )}
+                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
+                        <button onClick={(e) => { e.stopPropagation(); openEditModal(user); }} className="w-8 h-8 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-white/5 transition-all">
+                          <i className="ri-edit-line"></i>
+                        </button>
+                        {isAdmin && (
+                           <button 
+                             onClick={(e) => { e.stopPropagation(); handleDeleteUser(user.id); }} 
+                             className="w-8 h-8 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-white/5 transition-all"
+                           >
+                              <i className="ri-delete-bin-line"></i>
+                           </button>
+                        )}
+                     </div>
                     </div>
                   </div>
                 </div>
@@ -564,7 +605,7 @@ export default function UserManagement() {
       {selectedUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setSelectedUser(null)}></div>
-          <div className="relative w-full max-w-xl bg-white dark:bg-slate-950 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 shadow-2xl overflow-hidden animate-scale-up">
+          <div className="relative w-full max-w-xl bg-white dark:bg-slate-950 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 shadow-2xl max-h-[90vh] overflow-y-auto animate-scale-up custom-scrollbar">
             <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-slate-50/10">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Customer Information</h2>
               <button onClick={() => setSelectedUser(null)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-400 hover:text-rose-500 transition-all">
@@ -613,28 +654,77 @@ export default function UserManagement() {
                 </div>
               </div>
 
-              <div className="flex gap-4">
-                {canModify && (
+              {/* Enhanced: Recent User Requests Section */}
+              <div className="mb-10">
+                <div className="flex items-center justify-between mb-4 px-2">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Recent Service History</h4>
+                  <span className="text-[9px] font-bold text-emerald-500 uppercase">{userPickups.length} Orders</span>
+                </div>
+                <div className="space-y-3 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                  {loadingPickups ? (
+                    <div className="py-8 text-center bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                      <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                    </div>
+                  ) : userPickups.length > 0 ? (
+                    userPickups.slice(0, 4).map((p) => (
+                      <div key={p.id} className="p-4 bg-slate-50 dark:bg-white/[0.02] border border-slate-100 dark:border-white/5 rounded-2xl flex items-center justify-between group hover:bg-white dark:hover:bg-white/[0.05] transition-all">
+                        <div className="flex items-center gap-3">
+                           <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                              <i className="ri-truck-line text-sm"></i>
+                           </div>
+                           <div>
+                              <p className="text-[11px] font-bold text-slate-800 dark:text-white uppercase tracking-tight">{p.waste_type || 'Waste Pickup'}</p>
+                              <p className="text-[9px] text-slate-400 font-bold uppercase">{new Date(p.created_at).toLocaleDateString()}</p>
+                           </div>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase border ${
+                          p.status === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                          p.status === 'requested' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                          'bg-slate-50 text-slate-400 border-slate-100'
+                        }`}>
+                          {p.status}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="py-8 text-center bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">No previous requests identified</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-col gap-4">
+                <div className="flex gap-4">
+                  {canModify && (
+                    <button 
+                      onClick={() => {
+                        toggleUserStatus(selectedUser.id, selectedUser.status);
+                        setSelectedUser(null);
+                      }}
+                      className={`flex-1 py-4 text-xs font-bold uppercase rounded-3xl transition-all shadow-xl ${
+                        selectedUser.status === 'active' 
+                        ? 'bg-rose-500 text-white hover:bg-rose-600 shadow-rose-500/20' 
+                        : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-500/20'
+                      }`}
+                    >
+                      {selectedUser.status === 'active' ? 'Suspend Account' : 'Reactivate Account'}
+                    </button>
+                  )}
                   <button 
-                    onClick={() => {
-                      toggleUserStatus(selectedUser.id, selectedUser.status);
-                      setSelectedUser(null);
-                    }}
-                    className={`flex-1 py-4 text-xs font-bold uppercase rounded-3xl transition-all shadow-xl ${
-                      selectedUser.status === 'active' 
-                      ? 'bg-rose-500 text-white hover:bg-rose-600 shadow-rose-500/20' 
-                      : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-500/20'
-                    }`}
+                     onClick={() => setSelectedUser(null)} 
+                     className="px-8 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-white text-xs font-bold uppercase rounded-3xl hover:bg-slate-200 transition-all"
                   >
-                    {selectedUser.status === 'active' ? 'Suspend Account' : 'Reactivate Account'}
+                     Close
+                  </button>
+                </div>
+                {roleKey === 'super_admin' && (
+                  <button 
+                    onClick={() => handleDeleteUser(selectedUser.id)}
+                    className="w-full py-4 text-[10px] font-bold text-rose-500 uppercase tracking-widest hover:bg-rose-50 dark:hover:bg-rose-500/5 rounded-2xl transition-all border border-transparent hover:border-rose-100 dark:hover:border-rose-500/20"
+                  >
+                    Permanently Terminate Account
                   </button>
                 )}
-                <button 
-                   onClick={() => setSelectedUser(null)} 
-                   className="px-8 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-white text-xs font-bold uppercase rounded-3xl hover:bg-slate-200 transition-all"
-                >
-                   Close
-                </button>
               </div>
             </div>
           </div>

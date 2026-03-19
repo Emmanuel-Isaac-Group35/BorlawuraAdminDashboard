@@ -26,6 +26,18 @@ const createRiderIcon = (status: string) => {
   });
 };
 
+const createOrderIcon = (status: string) => {
+  const color = status === 'requested' ? '#f59e0b' : '#3b82f6';
+  return L.divIcon({
+    className: 'custom-order-marker',
+    html: `<div style="background-color: ${color}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+             <div style="position: absolute; top: -2px; left: -2px; width: 100%; height: 100%; border-radius: 50%; background: white; opacity: 0.3; animation: pulse-marker 2s infinite;"></div>
+           </div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7]
+  });
+};
+
 interface Rider {
   id: string;
   name: string;
@@ -41,8 +53,17 @@ interface Rider {
   speed: number;
 }
 
+interface Pickup {
+  id: string;
+  address: string;
+  location: { lat: number; lng: number };
+  status: string;
+  waste_type: string;
+}
+
 export default function LiveTracking() {
   const [riders, setRiders] = useState<Rider[]>([]);
+  const [pickups, setPickups] = useState<Pickup[]>([]);
   const [selectedRider, setSelectedRider] = useState<Rider | null>(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,18 +74,52 @@ export default function LiveTracking() {
 
   useEffect(() => {
     fetchRiders();
+    fetchPickups();
 
-    const channel = supabase
-      .channel('public:riders')
+    const channelRiders = supabase
+      .channel('public:riders_live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'riders' }, () => {
         fetchRiders();
       })
       .subscribe();
 
+    const channelPickups = supabase
+      .channel('public:orders_live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        fetchPickups();
+      })
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(channelRiders);
+      supabase.removeChannel(channelPickups);
     };
   }, []);
+
+   const fetchPickups = async () => {
+      try {
+         const { data } = await supabase
+           .from('orders')
+           .select('*')
+           .neq('status', 'completed')
+           .neq('status', 'cancelled');
+         
+         if (data) {
+            setPickups(data.map(p => ({
+               id: p.id,
+               address: p.address,
+               location: {
+                  lat: p.latitude || BASE_LAT,
+                  lng: p.longitude || BASE_LNG
+               },
+               status: p.status,
+               waste_type: p.service_type || p.waste_type || 'General Waste'
+            })));
+         }
+      } catch (e) {
+        console.error('Error fetching pickups for map:', e);
+     }
+  };
 
   const fetchRiders = async () => {
     try {
@@ -129,9 +184,11 @@ export default function LiveTracking() {
         <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden h-[680px] z-0 relative">
           <MapContainer center={[BASE_LAT, BASE_LNG]} zoom={13} style={{ height: '100%', width: '100%' }}>
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            
+            {/* Display Riders */}
             {riders.filter(r => r.status !== 'offline').map((rider) => (
               <Marker
-                key={rider.id}
+                key={`rider-${rider.id}`}
                 position={[rider.location.lat, rider.location.lng]}
                 icon={createRiderIcon(rider.status)}
                 eventHandlers={{ click: () => setSelectedRider(rider) }}
@@ -139,7 +196,27 @@ export default function LiveTracking() {
                 <Popup>
                   <div className="p-1 min-w-[100px]">
                     <p className="font-bold text-xs">{rider.name}</p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{rider.status}</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Rider: {rider.status}</p>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
+
+            {/* Display User Orders (Pickups) */}
+            {pickups.map((pickup) => (
+              <Marker
+                key={`order-${pickup.id}`}
+                position={[pickup.location.lat, pickup.location.lng]}
+                icon={createOrderIcon(pickup.status)}
+              >
+                <Popup>
+                  <div className="p-2 min-w-[150px]">
+                    <p className="font-bold text-[11px] text-slate-900 leading-none mb-1">New Order Request</p>
+                    <p className="text-[9px] text-slate-500 mb-2 truncate">{pickup.address}</p>
+                    <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-100">
+                       <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[8px] font-bold uppercase">{pickup.status}</span>
+                       <span className="text-[9px] font-bold text-slate-400 capitalize">{pickup.waste_type}</span>
+                    </div>
                   </div>
                 </Popup>
               </Marker>
@@ -147,14 +224,24 @@ export default function LiveTracking() {
           </MapContainer>
           
           <div className="absolute top-6 right-6 z-[500] bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-5 rounded-3xl shadow-2xl border border-slate-100 dark:border-white/10">
-             <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                   <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-                   <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">Available</span>
+             <div className="space-y-4">
+                <div className="flex flex-col gap-2 border-b border-slate-100 dark:border-white/5 pb-3">
+                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Fleet</p>
+                   <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                      <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">Online</span>
+                   </div>
+                   <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+                      <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">Busy</span>
+                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                   <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-                   <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">In-Transit</span>
+                <div>
+                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Live Requests</p>
+                   <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full bg-blue-500 ring-2 ring-blue-500/20 animate-pulse"></div>
+                      <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">Pending Orders</span>
+                   </div>
                 </div>
              </div>
           </div>

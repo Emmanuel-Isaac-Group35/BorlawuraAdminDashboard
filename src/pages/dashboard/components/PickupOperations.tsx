@@ -18,6 +18,7 @@ interface PickupRequest {
   id: string;
   user_name: string;
   user_id: string;
+  user_phone: string;
   rider_name: string | null;
   rider_id: string | null;
   status: 'requested' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
@@ -36,8 +37,14 @@ export default function PickupOperations() {
   const [selectedPickup, setSelectedPickup] = useState<PickupRequest | null>(null);
   const [riders, setRiders] = useState<any[]>([]);
   const [showAssignModal, setShowAssignModal] = useState(false);
-
   const [mapError, setMapError] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+     address: '',
+     waste_type: '',
+     waste_size: '',
+     status: ''
+  });
 
   const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
   const role = (userInfo.role || 'Super Admin').toLowerCase().replace(/\s+/g, '_');
@@ -47,8 +54,8 @@ export default function PickupOperations() {
     loadData();
 
     const channel = supabase
-      .channel('public:pickups')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pickups' }, () => {
+      .channel('public:orders_registry_sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
         fetchPickups();
       })
       .subscribe();
@@ -67,17 +74,17 @@ export default function PickupOperations() {
   const fetchPickups = async (updateLoading = true) => {
     if (updateLoading) setLoading(true);
     try {
-      // Robust select with fallback for joins
+      // Fetch from 'orders' table instead of 'pickups'
       const { data, error } = await supabase
-        .from('pickups')
-        .select(`*, users(full_name), riders(full_name)`)
+        .from('orders')
+        .select(`*, users(full_name, phone_number), riders(full_name)`)
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Initial Pickups Query Error:', error);
-        // Fallback to basic query if joins fail
+        console.error('Initial Orders Query Error:', error);
+        // Fallback to basic query
         const { data: fallbackData, error: fallbackError } = await supabase
-          .from('pickups')
+          .from('orders')
           .select('*')
           .order('created_at', { ascending: false });
         
@@ -86,14 +93,20 @@ export default function PickupOperations() {
         setPickups((fallbackData || []).map((p: any) => ({
           ...p,
           user_name: 'Anonymous User',
+          user_phone: 'N/A',
           rider_name: null,
+          waste_type: p.service_type || 'General Waste',
+          waste_size: p.waste_size || 'N/A',
           location: validateLocation(p.location)
         })));
       } else if (data) {
         setPickups(data.map((p: any) => ({
           ...p,
           user_name: p.users?.full_name || 'Anonymous User',
+          user_phone: p.users?.phone_number || 'N/A',
           rider_name: p.riders?.full_name || null,
+          waste_type: p.service_type || p.waste_type || 'General Waste',
+          waste_size: p.waste_size || 'Standard',
           location: validateLocation(p.location)
         })));
       }
@@ -120,6 +133,82 @@ export default function PickupOperations() {
     }
   };
 
+  const updatePickupStatus = async (pickupId: string, newStatus: string) => {
+    if (!canDispatch) {
+      alert("Permission Denied: Administrative Clearance required.");
+      return;
+    }
+
+    const confirmMsg = newStatus === 'cancelled' 
+      ? "Warning: This action will terminate the request. Continue?" 
+      : "Confirm manual transition to 'Completed' status?";
+    
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          status: newStatus,
+          completed_at: newStatus === 'completed' ? new Date().toISOString() : null
+        })
+        .eq('id', pickupId);
+
+      if (error) throw error;
+      
+      await logActivity('Update Pickup Status', 'pickups', pickupId, { 
+        new_status: newStatus,
+        message: `Manual administrative protocol: Moved job #${pickupId.substring(0,8)} to ${newStatus}`
+      });
+
+      alert(`Job status successfully updated to ${newStatus}.`);
+      setSelectedPickup(null);
+      fetchPickups();
+    } catch (error) {
+       alert('Protocol Error: System database refused the update.');
+    }
+  };
+  const handleEditOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPickup || !canDispatch) return;
+
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          address: editFormData.address,
+          service_type: editFormData.waste_type, // Map waste_type to service_type
+          waste_size: editFormData.waste_size,
+          status: editFormData.status
+        })
+        .eq('id', selectedPickup.id);
+
+      if (error) throw error;
+      
+      await logActivity('Edit Order Details', 'orders', selectedPickup.id, { 
+        changes: editFormData,
+        message: `Administrative protocol override: Adjusted logistics for job #${selectedPickup.id.substring(0,8)}`
+      });
+
+      alert('Order registry entry synchronized successfully.');
+      setShowEditModal(false);
+      setSelectedPickup(null);
+      fetchPickups();
+    } catch (error) {
+       alert('Registry update failed. Database constraint violation.');
+    }
+  };
+
+  const openEditModal = (p: PickupRequest) => {
+     setEditFormData({
+        address: p.address,
+        waste_type: p.waste_type,
+        waste_size: p.waste_size,
+        status: p.status
+     });
+     setShowEditModal(true);
+  };
+
   const handleAssignRider = async (pickupId: string, riderId: string) => {
     if (!canDispatch) {
       alert("Permission Denied: You don't have access to assign riders.");
@@ -128,7 +217,7 @@ export default function PickupOperations() {
 
     try {
       const { error } = await supabase
-        .from('pickups')
+        .from('orders')
         .update({ rider_id: riderId, status: 'scheduled' })
         .eq('id', pickupId);
 
@@ -181,8 +270,8 @@ export default function PickupOperations() {
     <div className="space-y-6 md:space-y-8 font-['Montserrat'] animate-fade-in pb-10">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-1">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Pickups</h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage all waste pickups and riders here</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Orders Registry</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Full operational log of all service requests and deployments</p>
         </div>
         <div className="flex items-center gap-3">
           <ExportButton 
@@ -243,13 +332,16 @@ export default function PickupOperations() {
                                 {p.status}
                              </span>
                           </div>
-                          <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate pr-2">{p.user_name}</h3>
-                       </div>
-                       <div className="text-right flex-shrink-0">
-                          <p className="text-[11px] font-bold text-emerald-600 uppercase mb-1">{p.waste_type}</p>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase">{p.waste_size}</p>
-                       </div>
-                    </div>
+                           <div className="flex items-center gap-3">
+                              <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate pr-2">{p.user_name}</h3>
+                              <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold tracking-tight">{p.user_phone}</span>
+                           </div>
+                        </div>
+                        <div className="text-right flex-shrink-0 flex flex-col items-end">
+                           <p className="text-[11px] font-bold text-emerald-600 uppercase mb-1.5">{p.waste_type}</p>
+                           <div className="px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 text-[9px] font-black text-emerald-600 uppercase tracking-widest">{p.waste_size}</div>
+                        </div>
+                     </div>
                     
                     <div className="flex items-center justify-between gap-4">
                        <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 flex-1 min-w-0">
@@ -303,7 +395,18 @@ export default function PickupOperations() {
               <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] md:rounded-[3rem] border border-slate-100 dark:border-slate-800/50 p-6 md:p-8 shadow-sm flex flex-col gap-6 animate-scale-up">
                  <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-800 pb-4">
                     <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Job Narrative</h2>
-                    <span className="text-[10px] font-bold text-emerald-500 uppercase">#{selectedPickup.id.slice(0,8)}</span>
+                    <div className="flex gap-2">
+                       {canDispatch && (
+                          <button 
+                            onClick={() => openEditModal(selectedPickup)}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all"
+                            title="Edit Dossier"
+                          >
+                             <i className="ri-edit-line"></i>
+                          </button>
+                       )}
+                       <span className="text-[10px] font-bold text-emerald-500 uppercase">#{selectedPickup.id.slice(0,8)}</span>
+                    </div>
                  </div>
                  
                  <div className="space-y-6">
@@ -312,37 +415,89 @@ export default function PickupOperations() {
                        <p className="text-[13px] md:text-sm font-bold text-slate-800 dark:text-white leading-relaxed">{selectedPickup.address}</p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 md:gap-4">
-                       <div className="p-4 bg-slate-50 dark:bg-black rounded-2xl border border-slate-100 dark:border-white/5">
-                          <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Waste Info</p>
-                          <p className="text-[11px] md:text-xs font-bold text-emerald-600 truncate">{selectedPickup.waste_type}</p>
-                       </div>
-                       <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800/50">
-                          <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Volume</p>
-                          <p className="text-[11px] md:text-xs font-bold text-slate-800 dark:text-white truncate">{selectedPickup.waste_size}</p>
-                       </div>
-                    </div>
+                     <div className="flex flex-col md:flex-row gap-6">
+                        <div className="flex-1 p-5 bg-slate-50 dark:bg-black rounded-3xl border border-slate-100 dark:border-white/5">
+                           <p className="text-[9px] font-bold text-slate-400 uppercase mb-2 tracking-widest">Waste Category</p>
+                           <p className="text-xs md:text-sm font-bold text-emerald-600">{selectedPickup.waste_type}</p>
+                        </div>
+                        <div className="flex-1 p-5 bg-slate-50 dark:bg-slate-950 rounded-3xl border border-slate-100 dark:border-slate-800/50">
+                           <p className="text-[9px] font-bold text-slate-400 uppercase mb-2 tracking-widest">Load Volume</p>
+                           <p className="text-xs md:text-sm font-bold text-slate-800 dark:text-white">{selectedPickup.waste_size}</p>
+                        </div>
+                     </div>
 
-                    {selectedPickup.rider_id ? (
-                        <div className="p-4 md:p-5 bg-emerald-50/50 dark:bg-emerald-500/5 rounded-[2rem] border border-emerald-100 dark:border-emerald-500/20 flex items-center gap-4">
-                           <div className="flex-shrink-0 w-11 md:w-12 h-11 md:h-12 rounded-2xl bg-emerald-500 flex items-center justify-center text-white text-lg font-bold">
-                              {selectedPickup.rider_name?.charAt(0)}
-                           </div>
-                           <div className="min-w-0">
-                              <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase">Deployed Rider</p>
-                              <p className="text-[13px] md:text-sm font-bold text-slate-900 dark:text-white mt-0.5 truncate">{selectedPickup.rider_name}</p>
+                     <div className="p-5 bg-slate-50 dark:bg-white/[0.02] rounded-3xl border border-slate-100 dark:border-white/5 space-y-4">
+                        <div>
+                           <p className="text-[9px] font-bold text-slate-400 uppercase mb-2 tracking-widest">Customer Direct Contact</p>
+                           <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                                 <i className="ri-phone-line text-lg"></i>
+                              </div>
+                              <p className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">{selectedPickup.user_phone || 'N/A'}</p>
                            </div>
                         </div>
-                    ) : (
-                        canDispatch && (
-                           <button 
-                             onClick={() => setShowAssignModal(true)}
-                             className="w-full py-4 bg-emerald-600 text-white rounded-[2rem] text-[11px] font-bold uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all active:scale-95"
-                           >
-                              Assign Personnel
-                           </button>
-                        )
-                    )}
+                     </div>
+
+                     <div className="pt-4 space-y-3">
+                        {selectedPickup.rider_id ? (
+                           <div className="flex flex-col gap-3">
+                              <div className="p-5 bg-emerald-50/50 dark:bg-emerald-500/5 rounded-[2rem] border border-emerald-100 dark:border-emerald-500/20 flex items-center justify-between group">
+                                 <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-2xl bg-emerald-500 flex items-center justify-center text-white text-lg font-bold">
+                                       {selectedPickup.rider_name?.charAt(0)}
+                                    </div>
+                                    <div className="min-w-0">
+                                       <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-tighter">Deployed Personnel</p>
+                                       <p className="text-[13px] md:text-sm font-bold text-slate-900 dark:text-white mt-0.5 truncate">{selectedPickup.rider_name}</p>
+                                    </div>
+                                 </div>
+                                 {canDispatch && selectedPickup.status !== 'completed' && (
+                                    <button 
+                                      onClick={() => setShowAssignModal(true)}
+                                      className="p-2.5 rounded-xl hover:bg-emerald-100 dark:hover:bg-white/5 text-emerald-600 transition-colors"
+                                      title="Change Rider"
+                                    >
+                                       <i className="ri-repeat-line text-lg"></i>
+                                    </button>
+                                 )}
+                              </div>
+                              
+                              {canDispatch && selectedPickup.status !== 'completed' && selectedPickup.status !== 'cancelled' && (
+                                 <div className="grid grid-cols-2 gap-3">
+                                    <button 
+                                      onClick={() => updatePickupStatus(selectedPickup.id, 'completed')}
+                                      className="py-4 bg-emerald-600 text-white rounded-[2rem] text-[11px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition-all"
+                                    >
+                                       Complete
+                                    </button>
+                                    <button 
+                                      onClick={() => updatePickupStatus(selectedPickup.id, 'cancelled')}
+                                      className="py-4 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-[2rem] text-[11px] font-black uppercase tracking-widest hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10 transition-all"
+                                    >
+                                       Abort
+                                    </button>
+                                 </div>
+                              )}
+                           </div>
+                        ) : (
+                           canDispatch && (
+                              <div className="flex flex-col gap-3">
+                                 <button 
+                                   onClick={() => setShowAssignModal(true)}
+                                   className="w-full py-5 bg-indigo-600 text-white rounded-[2.5rem] text-[12px] font-black uppercase tracking-[0.15em] shadow-2xl shadow-indigo-600/30 hover:bg-indigo-700 transition-all active:scale-95"
+                                 >
+                                    Initiate Deployment
+                                 </button>
+                                 <button 
+                                   onClick={() => updatePickupStatus(selectedPickup.id, 'cancelled')}
+                                   className="w-full py-4 text-slate-400 hover:text-rose-500 text-[10px] font-bold uppercase tracking-widest transition-colors"
+                                 >
+                                    Cancel Service Request
+                                 </button>
+                              </div>
+                           )
+                        )}
+                     </div>
                  </div>
               </div>
            ) : (
@@ -393,6 +548,78 @@ export default function PickupOperations() {
                     Cancel
                  </button>
               </div>
+           </div>
+        </div>
+      )}
+
+      {showEditModal && selectedPickup && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setShowEditModal(false)}></div>
+           <div className="relative w-full max-w-lg bg-white dark:bg-slate-950 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-2xl overflow-hidden animate-scale-up">
+              <div className="p-8 border-b border-slate-50 dark:border-slate-800 bg-slate-50/10">
+                 <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Modify Registry Entry</h2>
+                 <p className="text-xs font-medium text-slate-500 mt-1">Adjust logistical data for administrative record</p>
+              </div>
+              <form onSubmit={handleEditOrder} className="p-10 space-y-6">
+                 <div className="space-y-4">
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Service Address</label>
+                       <textarea 
+                         required
+                         value={editFormData.address}
+                         onChange={e => setEditFormData({...editFormData, address: e.target.value})}
+                         className="w-full px-5 py-4 bg-slate-50 dark:bg-black border border-slate-200/60 dark:border-white/5 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                         rows={3}
+                       />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                       <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Category</label>
+                          <input 
+                            type="text"
+                            required
+                            value={editFormData.waste_type}
+                            onChange={e => setEditFormData({...editFormData, waste_type: e.target.value})}
+                            className="w-full px-5 py-4 bg-slate-50 dark:bg-black border border-slate-200/60 dark:border-white/5 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                       </div>
+                       <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Volume</label>
+                          <select 
+                            value={editFormData.waste_size}
+                            onChange={e => setEditFormData({...editFormData, waste_size: e.target.value})}
+                            className="w-full px-5 py-4 bg-slate-50 dark:bg-black border border-slate-200/60 dark:border-white/5 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          >
+                             <option value="Standard">Standard</option>
+                             <option value="Large">Large</option>
+                             <option value="Bulk">Bulk / Industrial</option>
+                          </select>
+                       </div>
+                    </div>
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Current Protocol (Status)</label>
+                       <select 
+                         value={editFormData.status}
+                         onChange={e => setEditFormData({...editFormData, status: e.target.value as any})}
+                         className="w-full px-5 py-4 bg-slate-50 dark:bg-black border border-slate-200/60 dark:border-white/5 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                       >
+                          <option value="requested">Requested</option>
+                          <option value="scheduled">Scheduled (Rider Assigned)</option>
+                          <option value="in_progress">In Progress (Active)</option>
+                          <option value="completed">Completed</option>
+                          <option value="cancelled">Cancelled</option>
+                       </select>
+                    </div>
+                 </div>
+                 <div className="flex gap-4 pt-4">
+                    <button type="submit" className="flex-1 py-4 bg-emerald-600 text-white rounded-3xl text-xs font-bold uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all">
+                       Commit Changes
+                    </button>
+                    <button type="button" onClick={() => setShowEditModal(false)} className="px-8 py-4 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-3xl text-xs font-bold uppercase transition-all">
+                       Cancel
+                    </button>
+                 </div>
+              </form>
            </div>
         </div>
       )}

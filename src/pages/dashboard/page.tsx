@@ -123,7 +123,7 @@ export default function Dashboard() {
       users: ['super_admin', 'admin', 'operations_admin', 'manager', 'support_admin'],
       households: ['super_admin', 'admin', 'operations_admin', 'manager', 'support_admin'],
       pickups: ['super_admin', 'admin', 'operations_admin', 'manager', 'dispatcher'],
-      'live-tracking': ['super_admin', 'operations_admin', 'dispatcher'],
+      'live-tracking': ['super_admin', 'admin', 'manager', 'operations_admin', 'dispatcher'],
       'route-optimization': ['super_admin', 'operations_admin', 'dispatcher'],
       financials: ['super_admin', 'finance_admin', 'manager'],
       analytics: ['super_admin', 'finance_admin', 'manager'],

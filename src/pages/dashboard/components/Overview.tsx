@@ -25,14 +25,25 @@ export default function Overview({ onNavigate }: OverviewProps) {
     
   useEffect(() => {
     fetchDashboardData();
-    
-    const pickupsChannel = supabase.channel('public:pickups').on('postgres_changes', { event: '*', schema: 'public', table: 'pickups' }, () => fetchDashboardData()).subscribe();
-    const usersChannel = supabase.channel('public:users').on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => fetchDashboardData()).subscribe();
-    const ridersChannel = supabase.channel('public:riders').on('postgres_changes', { event: '*', schema: 'public', table: 'riders' }, () => fetchDashboardData()).subscribe();
+
+    // 1. Live Sync for Orders
+    const ordersChannel = supabase
+      .channel('live-dashboard-orders')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        fetchDashboardData(); // Re-fetch to update stats and recent list
+      })
+      .subscribe();
+
+    // 2. Live Sync for Riders
+    const ridersChannel = supabase
+      .channel('live-dashboard-riders')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'riders' }, () => {
+        fetchDashboardData();
+      })
+      .subscribe();
 
     return () => {
-      supabase.removeChannel(pickupsChannel);
-      supabase.removeChannel(usersChannel);
+      supabase.removeChannel(ordersChannel);
       supabase.removeChannel(ridersChannel);
     };
   }, []);
@@ -40,7 +51,7 @@ export default function Overview({ onNavigate }: OverviewProps) {
 
   const fetchDashboardData = async () => {
     try {
-      const { count: pickupCount } = await supabase.from('pickups').select('*', { count: 'exact', head: true });
+      const { count: pickupCount } = await supabase.from('orders').select('*', { count: 'exact', head: true });
       const { data: riders } = await supabase.from('riders').select('*').eq('status', 'active');
       const { data: payments } = await supabase.from('payments').select('amount').eq('status', 'paid');
       const { data: feedback } = await supabase.from('feedback').select('*');
@@ -52,7 +63,7 @@ export default function Overview({ onNavigate }: OverviewProps) {
       const smsDisplayToken = smsResult.success ? Number(smsResult.balance).toLocaleString() : 'N/A';
 
       const allStats = [
-        { id: 1, title: 'All Pickups', value: (pickupCount || 0).toLocaleString(), icon: 'ri-truck-line', color: 'emerald', trend: '+12%', label: 'Total Volume', roles: ['super_admin', 'manager', 'dispatcher'] },
+        { id: 1, title: 'All Orders', value: (pickupCount || 0).toLocaleString(), icon: 'ri-truck-line', color: 'emerald', trend: '+12%', label: 'Total Volume', roles: ['super_admin', 'manager', 'dispatcher'] },
         { id: 2, title: 'Riders Online', value: (riders?.length || 0).toLocaleString(), icon: 'ri-e-bike-2-line', color: 'slate', trend: 'Live', label: 'Field Staff', roles: ['super_admin', 'manager', 'dispatcher'] },
         { id: 3, title: 'SMS Left', value: smsDisplayToken, icon: 'ri-message-3-line', color: 'emerald', trend: 'Units', label: 'Broadcasts', roles: ['super_admin', 'manager', 'support_admin'] },
         { id: 4, title: 'Total Paid', value: `₵${(totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, icon: 'ri-wallet-3-line', color: 'amber', trend: '+8.4%', label: 'Revenue', roles: ['super_admin', 'manager', 'finance_admin'] },
@@ -62,7 +73,7 @@ export default function Overview({ onNavigate }: OverviewProps) {
       setStats(allStats.filter(s => isFullAdmin || s.roles.includes(roleKey)).slice(0, 4));
 
       const { data: pickups } = await supabase
-        .from('pickups')
+        .from('orders')
         .select('*, users(full_name)')
         .order('created_at', { ascending: false })
         .limit(6);
