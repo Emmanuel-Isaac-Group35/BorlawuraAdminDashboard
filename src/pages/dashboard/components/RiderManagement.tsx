@@ -42,12 +42,16 @@ export default function RiderManagement() {
   const canManage = role === 'super_admin' || role === 'manager' || role === 'dispatcher';
 
   useEffect(() => {
-    fetchRiders();
+    fetchRiders(true);
     
     const channel = supabase
       .channel('public:riders')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'riders' }, () => {
-        fetchRiders();
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'riders' 
+      }, (payload) => {
+        handleRealtimeUpdate(payload);
       })
       .subscribe();
 
@@ -56,9 +60,21 @@ export default function RiderManagement() {
     };
   }, []);
 
-  const fetchRiders = async () => {
+  const handleRealtimeUpdate = (payload: any) => {
+    if (payload.eventType === 'INSERT') {
+      setRiders(prev => [payload.new as Rider, ...prev]);
+    } else if (payload.eventType === 'UPDATE') {
+      setRiders(prev => prev.map(rider => 
+        rider.id === payload.new.id ? { ...rider, ...payload.new } : rider
+      ));
+    } else if (payload.eventType === 'DELETE') {
+      setRiders(prev => prev.filter(rider => rider.id !== payload.old.id));
+    }
+  };
+
+  const fetchRiders = async (showLoading = false) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const { data, error } = await supabase
         .from('riders')
         .select('*')
@@ -69,9 +85,10 @@ export default function RiderManagement() {
     } catch (error) {
       console.error('Error fetching riders:', error);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
+
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
