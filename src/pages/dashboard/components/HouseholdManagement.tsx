@@ -13,7 +13,7 @@ interface Household {
   avatar_url?: string;
 }
 
-export default function HouseholdManagement() {
+export default function HouseholdManagement({ adminInfo }: { adminInfo?: any }) {
   const [households, setHouseholds] = useState<Household[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');

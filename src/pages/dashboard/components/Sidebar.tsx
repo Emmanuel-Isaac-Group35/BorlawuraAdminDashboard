@@ -26,24 +26,17 @@ export default function Sidebar({ activeSection, setActiveSection, isOpen, onClo
       if (user) {
         const { data: adminData } = await supabase
           .from('admins')
-          .select('id, full_name, role, email')
+          .select('full_name, role, email')
           .eq('email', user.email)
           .maybeSingle();
-
-        let role = adminData?.role || 'Super Admin';
+        
+        const role = adminData?.role || 'Admin';
         
         setUserInfo({
-          fullName: adminData?.full_name || user.user_metadata?.full_name || 'Super Admin',
+          fullName: adminData?.full_name || 'Admin User',
           role: role,
           email: adminData?.email || user.email || 'admin@borlawura.gh'
         });
-
-        localStorage.setItem('user_profile', JSON.stringify({
-           id: adminData?.id || user.id, // Store the user/admin ID
-           fullName: adminData?.full_name || 'Super Admin',
-           role: role,
-           email: adminData?.email || user.email || 'admin@borlawura.gh'
-        }));
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -51,24 +44,26 @@ export default function Sidebar({ activeSection, setActiveSection, isOpen, onClo
   };
 
   const getMenuItems = () => {
-    const rawRole = userInfo.role || 'Admin';
-    const roleKey = rawRole.toLowerCase().replace(/\s+/g, '_');
+    // Normalize and fallback logic
+    const rawRole = userInfo?.role || 'Admin';
+    const roleKey = String(rawRole).toLowerCase().trim().replace(/\s+/g, '_');
     
     // Only Super Admin gets everything automatically
     const isSuperAdmin = roleKey === 'super_admin';
 
     const allItems = [
-      { id: 'overview', icon: 'ri-dashboard-3-line', label: 'Home', roles: ['super_admin', 'finance_admin', 'manager', 'dispatcher', 'support_admin'], color: 'emerald' },
-      { id: 'admins', icon: 'ri-shield-user-line', label: 'Staff', roles: ['super_admin', 'admin', 'manager'], color: 'slate' },
-      { id: 'riders', icon: 'ri-bike-line', label: 'Riders', roles: ['super_admin', 'manager', 'dispatcher'], color: 'emerald' },
+      { id: 'overview', icon: 'ri-dashboard-3-line', label: 'Home', roles: ['super_admin', 'admin', 'finance_admin', 'manager', 'dispatcher', 'support_admin'], color: 'emerald' },
+      { id: 'feedback', icon: 'ri-customer-service-2-line', label: 'Support Desk', roles: ['super_admin', 'admin', 'manager', 'support_admin'], color: 'emerald' },
+      { id: 'admins', icon: 'ri-shield-user-line', label: 'Personnel', roles: ['super_admin', 'admin', 'manager'], color: 'slate' },
+      { id: 'riders', icon: 'ri-bike-line', label: 'Riders', roles: ['super_admin', 'admin', 'manager', 'dispatcher'], color: 'emerald' },
       { id: 'users', icon: 'ri-group-line', label: 'Users', roles: ['super_admin', 'admin', 'manager', 'support_admin'], color: 'emerald' },
-      { id: 'pickups', icon: 'ri-calendar-check-line', label: 'Orders', roles: ['super_admin', 'manager', 'dispatcher'], color: 'emerald' },
-      { id: 'live-tracking', icon: 'ri-map-pin-user-line', label: 'Map', roles: ['super_admin', 'manager', 'dispatcher'], color: 'emerald' },
-      { id: 'financials', icon: 'ri-wallet-3-line', label: 'Money', roles: ['super_admin', 'finance_admin', 'manager'], color: 'amber' },
-      { id: 'analytics', icon: 'ri-bar-chart-box-line', label: 'Reports', roles: ['super_admin', 'finance_admin', 'manager'], color: 'orange' },
-      { id: 'feedback', icon: 'ri-star-smile-line', label: 'Feedback', roles: ['super_admin', 'manager', 'support_admin'], color: 'emerald' },
-      { id: 'audit', icon: 'ri-file-shield-2-line', label: 'History', roles: ['super_admin', 'admin', 'manager'], color: 'slate' },
-      { id: 'settings', icon: 'ri-settings-5-line', label: 'Settings', roles: ['super_admin', 'manager', 'admin'], color: 'gray' },
+      { id: 'pickups', icon: 'ri-calendar-check-line', label: 'Orders', roles: ['super_admin', 'admin', 'manager', 'dispatcher'], color: 'emerald' },
+      { id: 'sms', icon: 'ri-chat-voice-line', label: 'SMS', roles: ['super_admin', 'admin', 'operations_admin', 'manager', 'support_admin'], color: 'emerald' },
+      { id: 'live-tracking', icon: 'ri-map-pin-user-line', label: 'Map', roles: ['super_admin', 'admin', 'manager', 'dispatcher'], color: 'emerald' },
+      { id: 'financials', icon: 'ri-wallet-3-line', label: 'Finance', roles: ['super_admin', 'admin', 'finance_admin', 'manager'], color: 'amber' },
+      { id: 'analytics', icon: 'ri-bar-chart-box-line', label: 'Reports', roles: ['super_admin', 'admin', 'finance_admin', 'manager'], color: 'orange' },
+      { id: 'audit', icon: 'ri-file-shield-2-line', label: 'Audit Log', roles: ['super_admin', 'admin', 'manager'], color: 'slate' },
+      { id: 'settings', icon: 'ri-settings-5-line', label: 'Settings', roles: ['super_admin', 'admin', 'manager'], color: 'gray' },
     ];
 
     if (isSuperAdmin) return allItems;
@@ -122,14 +117,15 @@ export default function Sidebar({ activeSection, setActiveSection, isOpen, onClo
       <div className="flex flex-col h-full">
         
         {/* Brand Header */}
-        <div className="p-8 pb-6">
-          <div className="flex items-center gap-3 mb-10">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-xl shadow-emerald-500/30 flex items-center justify-center">
-              <i className="ri-leaf-line text-white text-2xl"></i>
-            </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white leading-none">BorlaWura</h1>
-              <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-[0.2em] block mt-1.5 opacity-80">Admin Area</span>
+        <div className="p-4 pb-2">
+          <div className="flex flex-col items-center justify-center mb-4 w-full">
+            <div className="w-full h-20 bg-white rounded-2xl overflow-hidden flex items-center justify-center p-2 border border-slate-100 shadow-sm transition-all duration-300">
+              <img 
+                src="/logo.png" 
+                alt="BorlaWura Logo" 
+                className="w-full h-full object-contain scale-110" 
+                onError={(e) => { (e.target as any).src = 'https://riicon.com/icons/delete-bin-7-line.svg' }} 
+              />
             </div>
           </div>
 

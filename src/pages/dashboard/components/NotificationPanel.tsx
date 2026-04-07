@@ -133,7 +133,7 @@ export default function NotificationPanel({ isOpen, onClose }: NotificationPanel
         <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 backdrop-blur-md">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-              System Signals
+              Notifications
               {unreadCount > 0 && (
                 <span className="ml-3 px-2.5 py-0.5 text-[9px] font-bold bg-indigo-600 text-white rounded-lg uppercase tracking-tight align-middle">
                   {unreadCount} New
@@ -157,7 +157,7 @@ export default function NotificationPanel({ isOpen, onClose }: NotificationPanel
                   : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
               }`}
             >
-              All Signals ({notifications.length})
+              All Notifications ({notifications.length})
             </button>
             <button
               onClick={() => setFilter('unread')}
@@ -187,7 +187,7 @@ export default function NotificationPanel({ isOpen, onClose }: NotificationPanel
                 <i className="ri-radar-line text-slate-300 dark:text-slate-600 text-4xl animate-pulse"></i>
               </div>
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center leading-relaxed">
-                {filter === 'unread' ? 'Unread sequence clear' : 'No active system signals identified'}
+                {filter === 'unread' ? 'Unread notifications clear' : 'No active system notifications identified'}
               </p>
             </div>
           ) : (
@@ -242,7 +242,7 @@ export default function NotificationPanel({ isOpen, onClose }: NotificationPanel
               onClick={clearAll}
               className="w-full py-4 text-[10px] font-bold text-rose-500 dark:text-rose-400 uppercase tracking-[0.2em] hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-2xl transition-all"
             >
-              Purge Signal History
+              Purge Notification History
             </button>
           </div>
         )}

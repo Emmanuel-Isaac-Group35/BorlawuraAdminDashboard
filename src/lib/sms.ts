@@ -5,7 +5,7 @@ export interface SendSMSParams {
   schedule_date?: string; // Format: YYYY-MM-DD HH:mm:ss
 }
 
-const ARKESEL_API_KEY = import.meta.env.VITE_ARKESEL_API_KEY;
+export const ARKESEL_API_KEY = import.meta.env.VITE_ARKESEL_API_KEY;
 
 export const sendSMS = async ({ recipients, message, sender = 'BorlaWura', schedule_date }: SendSMSParams) => {
   if (!ARKESEL_API_KEY) {
@@ -14,40 +14,29 @@ export const sendSMS = async ({ recipients, message, sender = 'BorlaWura', sched
   }
 
   try {
-    const payload: any = {
-      sender,
-      message,
-      recipients,
-    };
-
+    // Legacy API expects single recipient per request or comma separated
+    const phoneNumbers = recipients.join(',');
+    
+    let url = `/api/arkesel/sms/api?action=send-sms&api_key=${ARKESEL_API_KEY}&to=${phoneNumbers}&from=${sender}&sms=${encodeURIComponent(message)}`;
+    
     if (schedule_date) {
-      payload.scheduled_date = schedule_date;
+      url += `&schedule=${encodeURIComponent(schedule_date)}`;
     }
 
-    // Using the proxy defined in vite.config.ts to avoid CORS
-    // Proxy maps /api/arkesel to https://sms.arkesel.com/api/v2
-    const response = await fetch('/api/arkesel/sms/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'api-key': ARKESEL_API_KEY,
-      },
-      body: JSON.stringify(payload),
-    });
-
+    const response = await fetch(url);
     const data = await response.json();
-    console.log('Arkesel Response:', data);
-
-    if (data.status === 'success' || response.ok) {
+    
+    // Legacy API status checks (might return string or numbers)
+    if (data.status === 'ok' || data.code === 'ok' || data.status === 'success' || response.ok) {
       return { success: true, data };
     }
 
-    return { success: false, message: data.message || 'Unknown error' };
+    return { success: false, message: data.message || 'Transmission failed at Arkesel Gateway' };
   } catch (error: any) {
-    console.error('Error sending SMS via Arkesel:', error);
+    console.error('Arkesel Protocol Violation:', error);
     return {
       success: false,
-      message: error.message || 'Failed to connect to SMS gateway'
+      message: error.message || 'Failed to establish tunnel to SMS gateway'
     };
   }
 };
@@ -58,26 +47,23 @@ export const getSMSBalance = async () => {
   }
 
   try {
-    const response = await fetch('/api/arkesel/clients/balance', {
-      headers: {
-        'api-key': ARKESEL_API_KEY,
-      },
-    });
+    // Exact format from user documentation: &response=json (removed the space)
+    const url = `/api/arkesel/sms/api?action=check-balance&api_key=${ARKESEL_API_KEY}&response=json`;
+    const response = await fetch(url);
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+       throw new Error(`Arkesel Interface Protocol Status: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('Arkesel Balance Monitor Protocol:', data);
     
-    // Pick the most likely balance fields from both V1 and V2 APIs
-    const rawBalance = data.data?.sms_balance ?? data.balance ?? data.balance_sms ?? 0;
-    const balance = Number(rawBalance);
+    // Robust balance extraction from multiple potential legacy formats
+    const rawBalance = data.balance ?? data.data?.balance ?? data.sms_balance ?? data.units ?? 0;
+    const balance = parseFloat(String(rawBalance).replace(/[^0-9.]/g, ''));
     
     return { success: true, balance: isNaN(balance) ? 0 : balance };
   } catch (error: any) {
-    console.error('Error fetching SMS balance:', error);
+    console.error('Arkesel Balance Protocol Interrupted:', error);
     return { success: false, balance: 0, message: error.message };
   }
 };

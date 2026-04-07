@@ -5,7 +5,7 @@ import {
   Tooltip, ResponsiveContainer, BarChart, Bar, Cell
 } from 'recharts';
 
-export default function Analytics() {
+export default function Analytics({ adminInfo }: { adminInfo?: any }) {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({

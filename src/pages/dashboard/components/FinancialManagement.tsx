@@ -20,7 +20,11 @@ interface Rider {
   status: string;
 }
 
-export default function FinancialManagement() {
+interface FinancialManagementProps {
+  adminInfo?: any;
+}
+
+export default function FinancialManagement({ adminInfo }: FinancialManagementProps) {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [riders, setRiders] = useState<Rider[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,7 +103,7 @@ export default function FinancialManagement() {
     }
   };
 
-  const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
+  const userInfo = adminInfo || JSON.parse(localStorage.getItem('user_profile') || '{}');
   const rawRole = userInfo.role || 'Super Admin';
   const roleKey = rawRole.toLowerCase().replace(/\s+/g, '_');
   const isFinanceAdmin = roleKey === 'super_admin' || roleKey === 'manager' || roleKey === 'finance_admin';
@@ -159,7 +163,7 @@ export default function FinancialManagement() {
                <div className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></div>
             </div>
           </div>
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="bg-slate-50/50 dark:bg-white/[0.01] text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] border-b border-slate-50 dark:border-white/5">
@@ -198,6 +202,32 @@ export default function FinancialManagement() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Payments View */}
+          <div className="md:hidden divide-y divide-slate-50 dark:divide-white/5">
+            {payments.map((txn) => (
+              <div key={txn.id} className="p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
+                       {txn.users?.full_name?.charAt(0) || 'G'}
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-bold text-slate-900 dark:text-white">{txn.users?.full_name || 'Guest Participant'}</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase">{new Date(txn.created_at).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                  <span className={`px-3 py-1 rounded-xl text-[9px] font-bold uppercase border ${getStatusStyle(txn.status)}`}>
+                    {txn.status}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between pt-2">
+                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Transaction Amount</p>
+                   <p className="text-lg font-bold text-emerald-600">₵{txn.amount}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 

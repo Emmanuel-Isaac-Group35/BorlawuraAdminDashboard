@@ -81,7 +81,7 @@ export default defineConfig({
     host: "0.0.0.0",
     proxy: {
       '/api/arkesel': {
-        target: 'https://sms.arkesel.com/api/v2',
+        target: 'https://sms.arkesel.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/arkesel/, ''),
       },

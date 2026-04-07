@@ -61,7 +61,7 @@ interface Pickup {
   waste_type: string;
 }
 
-export default function LiveTracking() {
+export default function LiveTracking({ adminInfo }: { adminInfo?: any }) {
   const [riders, setRiders] = useState<Rider[]>([]);
   const [pickups, setPickups] = useState<Pickup[]>([]);
   const [selectedRider, setSelectedRider] = useState<Rider | null>(null);

@@ -15,11 +15,17 @@ interface Rider {
   rating: number;
   total_pickups: number;
   total_earnings: number;
+  zone: string;
+  address: string;
   created_at: string;
   avatar_url?: string;
 }
 
-export default function RiderManagement() {
+interface RiderManagementProps {
+  adminInfo?: any;
+}
+
+export default function RiderManagement({ adminInfo }: RiderManagementProps) {
   const [riders, setRiders] = useState<Rider[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -33,10 +39,12 @@ export default function RiderManagement() {
     email: '',
     vehicle_type: 'Motorbike',
     vehicle_number: '',
+    zone: '',
+    address: '',
     avatar_url: ''
   });
 
-  const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
+  const userInfo = adminInfo || JSON.parse(localStorage.getItem('user_profile') || '{}');
   const role = (userInfo.role || 'Super Admin').toLowerCase().replace(/\s+/g, '_');
   const canManage = role === 'super_admin' || role === 'manager' || role === 'dispatcher';
 
@@ -158,6 +166,8 @@ export default function RiderManagement() {
         email: rider.email || '',
         vehicle_type: rider.vehicle_type,
         vehicle_number: rider.vehicle_number,
+        zone: rider.zone || '',
+        address: rider.address || '',
         avatar_url: rider.avatar_url || ''
      });
      setIsEditing(true);
@@ -225,6 +235,8 @@ export default function RiderManagement() {
       email: '',
       vehicle_type: 'Motorbike',
       vehicle_number: '',
+      zone: '',
+      address: '',
       avatar_url: ''
     });
     setIsEditing(false);
@@ -253,6 +265,8 @@ export default function RiderManagement() {
               Phone: r.phone_number,
               Vehicle: r.vehicle_type,
               Number: r.vehicle_number,
+              Zone: r.zone,
+              Address: r.address,
               Status: r.status,
               Rating: r.rating,
               Pickups: r.total_pickups
@@ -359,6 +373,7 @@ export default function RiderManagement() {
                       <td className="px-8 py-6">
                         <p className="text-[13px] font-semibold text-slate-900 dark:text-white">{rider.vehicle_type}</p>
                         <p className="text-[10px] text-emerald-600 font-bold tracking-[0.15em] mt-1">{rider.vehicle_number}</p>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1.5">{rider.zone || 'No Zone'}</p>
                       </td>
                       <td className="px-8 py-6">
                         <div className="flex items-center gap-6">
@@ -453,8 +468,8 @@ export default function RiderManagement() {
 
                   <div className="grid grid-cols-2 gap-3 pt-2">
                     <div className="p-3 bg-white dark:bg-black/20 rounded-2xl border border-slate-100 dark:border-white/5">
-                      <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Vehicle</p>
-                      <p className="text-[11px] font-bold text-slate-800 dark:text-white truncate">{rider.vehicle_type}</p>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Vehicle & Area</p>
+                      <p className="text-[11px] font-bold text-slate-800 dark:text-white truncate">{rider.vehicle_type} - {rider.zone || 'No Zone'}</p>
                       <p className="text-[9px] text-emerald-600 font-bold">{rider.vehicle_number}</p>
                     </div>
                     <div className="p-3 bg-white dark:bg-black/20 rounded-2xl border border-slate-100 dark:border-white/5">
@@ -694,6 +709,26 @@ export default function RiderManagement() {
                     onChange={e => setNewRider({...newRider, vehicle_number: e.target.value})}
                     className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                     placeholder="GW-829-23"
+                  />
+                </div>
+                <div className="space-y-2">
+                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Operating Zone</label>
+                   <input 
+                    type="text"
+                    value={newRider.zone}
+                    onChange={e => setNewRider({...newRider, zone: e.target.value})}
+                    className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                    placeholder="Accra Central"
+                  />
+                </div>
+                <div className="space-y-2">
+                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Physical Address</label>
+                   <input 
+                    type="text"
+                    value={newRider.address}
+                    onChange={e => setNewRider({...newRider, address: e.target.value})}
+                    className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                    placeholder="House No 12..."
                   />
                 </div>
               </div>

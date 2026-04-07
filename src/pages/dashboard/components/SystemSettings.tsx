@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 
-export default function SystemSettings() {
-  const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
+interface SystemSettingsProps {
+  adminInfo?: any;
+}
+
+export default function SystemSettings({ adminInfo }: SystemSettingsProps) {
+  const userInfo = adminInfo || JSON.parse(localStorage.getItem('user_profile') || '{}');
   const [zones, setZones] = useState<string[]>(['Accra Central', 'Osu', 'Tema', 'Madina', 'Legon', 'Spintex']);
   const [categories, setCategories] = useState<any[]>([
     { name: 'General Waste', icon: 'ri-delete-bin-line', color: 'slate' },
@@ -186,8 +190,8 @@ export default function SystemSettings() {
            <div className="p-8 space-y-6 flex-1">
               {[
                 { label: 'SMS Notifications', key: 'sms', desc: 'Send messages to users' },
-                { label: 'App Push Signals', key: 'push', desc: 'Direct phone alerts' },
-                { label: 'Admin Security Alerts', key: 'adminAlerts', desc: 'System safety signals' },
+                { label: 'App Push Notifications', key: 'push', desc: 'Direct phone alerts' },
+                { label: 'Admin Security Notifications', key: 'adminAlerts', desc: 'System safety notifications' },
               ].map((notif) => (
                 <div key={notif.key} className="flex items-center justify-between group p-2 rounded-2xl hover:bg-slate-50/50 transition-colors">
                    <div className="min-w-0">
@@ -208,18 +212,14 @@ export default function SystemSettings() {
 
               <div className="pt-6 border-t border-slate-50 dark:border-white/5 space-y-3">
                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] pl-1 text-emerald-600">SMS Sender Name</label>
-                 <div className="relative group">
-                    <i className="ri-shield-user-line absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors"></i>
-                    <input 
-                      type="text"
-                      maxLength={11}
-                       value={notifications.senderId}
-                       onChange={(e) => setNotifications({...notifications, senderId: e.target.value.toUpperCase()})}
-                       className="w-full pl-12 pr-5 py-4 bg-slate-50 dark:bg-black border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all uppercase"
-                       placeholder="E.G. BORLAWURA"
-                     />
+                 <div className="w-full px-5 py-4 bg-slate-50/50 dark:bg-white/[0.02] border border-slate-200/60 dark:border-white/5 rounded-2xl flex items-center justify-between group">
+                    <span className="text-[13px] font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">BORLAWURA</span>
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/10">
+                       <i className="ri-lock-2-line text-emerald-500 text-[10px]"></i>
+                       <span className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest">System Record Locked</span>
+                    </div>
                  </div>
-                 <p className="text-[9px] text-slate-400 font-medium px-2 uppercase tracking-tighter">* Maximum 11 characters, no special symbols for phone compatibility</p>
+                 <p className="text-[9px] text-slate-400 font-medium px-2 uppercase tracking-tighter mt-1 opacity-70">The system identity is fixed to comply with Arkesel Gateway protocols and branding guidelines.</p>
               </div>
            </div>
         </div>

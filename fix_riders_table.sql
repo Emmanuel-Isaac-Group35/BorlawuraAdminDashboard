@@ -1,35 +1,37 @@
--- Enable UUID extension if not enabled
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- BorneoWura Database: Rider Fleet Standardization
+-- This script fixes inconsistencies in the riders table columns to match modern React logic.
 
--- 1. Create Riders Table if it doesn't exist
-CREATE TABLE IF NOT EXISTS public.riders (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    full_name TEXT NOT NULL,
-    phone TEXT NOT NULL,
-    email TEXT,
-    national_id TEXT,
-    tricycle_number TEXT,
-    zone TEXT,
-    address TEXT,
-    status TEXT DEFAULT 'offline' CHECK (status IN ('active', 'offline', 'suspended', 'busy')),
-    rating NUMERIC(3, 2) DEFAULT 5.00,
-    total_earnings NUMERIC(10, 2) DEFAULT 0.00,
-    total_pickups INTEGER DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now())
-);
+-- 1. Ensure columns exist before using them
+DO $$
+BEGIN
+    -- Add columns if missing
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'riders' AND column_name = 'phone') THEN
+        ALTER TABLE public.riders ADD COLUMN phone TEXT;
+    END IF;
 
--- 2. Add Location Columns (Safe to run if table exists)
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'riders' AND column_name = 'zone') THEN
+        ALTER TABLE public.riders ADD COLUMN zone TEXT;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'riders' AND column_name = 'address') THEN
+        ALTER TABLE public.riders ADD COLUMN address TEXT;
+    END IF;
+END $$;
+
+-- 2. Add Location Columns (Safely)
 ALTER TABLE public.riders ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;
 ALTER TABLE public.riders ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
 
--- 3. Enable RLS
+-- 3. Standardize RLS
 ALTER TABLE public.riders ENABLE ROW LEVEL SECURITY;
-
--- 4. Create Policy (Drop first to avoid errors if it exists)
 DROP POLICY IF EXISTS "Enable all for riders" ON public.riders;
 CREATE POLICY "Enable all for riders" ON public.riders FOR ALL USING (true);
 
--- 5. Seed with default data (optional, ensures at least one rider exists nearby)
+-- 4. Seed with default data (Ensures at least one rider exists for testing)
+-- Corrected column usage to ensure "insertion" works with existing table.
 INSERT INTO public.riders (full_name, phone, zone, address, status, latitude, longitude)
 SELECT 'Kwame Mensah', '0244123456', 'Accra Central', 'Circle', 'active', 5.6037, -0.1870
 WHERE NOT EXISTS (SELECT 1 FROM public.riders LIMIT 1);
+
+-- 5. Broadcast Schema Refresh
+NOTIFY pgrst, 'reload schema';

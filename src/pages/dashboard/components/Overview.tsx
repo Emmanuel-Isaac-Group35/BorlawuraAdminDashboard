@@ -4,9 +4,10 @@ import { getSMSBalance } from '../../../lib/sms';
 
 interface OverviewProps {
   onNavigate?: (section: string) => void;
+  adminInfo?: any;
 }
 
-export default function Overview({ onNavigate }: OverviewProps) {
+export default function Overview({ onNavigate, adminInfo }: OverviewProps) {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState([
     { id: 1, title: 'All Pickups', value: '0', icon: 'ri-truck-line', color: 'emerald', trend: '+12%', label: 'All pickups' },
@@ -18,9 +19,16 @@ export default function Overview({ onNavigate }: OverviewProps) {
   const [recentPickups, setRecentPickups] = useState<any[]>([]);
   const [topRiders, setTopRiders] = useState<any[]>([]);
 
-  const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
-  const rawRole = userInfo.role || 'Super Admin';
-  const roleKey = rawRole.toLowerCase().replace(/\s+/g, '_');
+  const getSessionProfile = () => {
+    try {
+      const stored = localStorage.getItem('user_profile');
+      return stored ? JSON.parse(stored) : {};
+    } catch { return {}; }
+  };
+
+  const userInfo = adminInfo || getSessionProfile();
+  const rawRole = userInfo?.role || 'Admin';
+  const roleKey = String(rawRole).toLowerCase().trim().replace(/\s+/g, '_');
   const isFullAdmin = roleKey === 'super_admin';
     
   useEffect(() => {
@@ -29,8 +37,8 @@ export default function Overview({ onNavigate }: OverviewProps) {
     // 1. Live Sync for Orders
     const ordersChannel = supabase
       .channel('live-dashboard-orders')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        fetchDashboardData(); // Re-fetch to update stats and recent list
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pickups' }, () => {
+        fetchDashboardData(); 
       })
       .subscribe();
 
@@ -42,48 +50,89 @@ export default function Overview({ onNavigate }: OverviewProps) {
       })
       .subscribe();
 
+    // 3. Real-time Background Polling (Every 10 Minutes for API Metrics)
+    const refreshInterval = setInterval(() => {
+      fetchDashboardData();
+    }, 600000);
+
     return () => {
       supabase.removeChannel(ordersChannel);
       supabase.removeChannel(ridersChannel);
+      clearInterval(refreshInterval);
     };
   }, []);
 
 
   const fetchDashboardData = async () => {
     try {
-      const { count: pickupCount } = await supabase.from('orders').select('*', { count: 'exact', head: true });
-      const { data: riders } = await supabase.from('riders').select('*').eq('status', 'active');
-      const { data: payments } = await supabase.from('payments').select('amount').eq('status', 'paid');
-      const { data: feedback } = await supabase.from('feedback').select('*');
+      // Concurrent Data Stream Extraction
+      const results = await Promise.all([
+        supabase.from('users').select('*', { count: 'exact', head: true }),
+        supabase.from('riders').select('*', { count: 'exact', head: true }),
+        supabase.from('payments').select('amount').eq('status', 'paid'),
+        supabase.from('feedback').select('*'),
+        getSMSBalance(),
+        supabase.from('pickups').select('*, users(full_name)').order('created_at', { ascending: false }).limit(6),
+        supabase.from('riders').select('*').order('total_pickups', { ascending: false }).limit(4)
+      ]);
+
+      const [
+        { count: userCount },
+        { count: riderCount },
+        { data: payments },
+        { data: feedback },
+        smsResult,
+        pickupsResult,
+        { data: topRiderData }
+      ] = results;
+
+      // Resilient Order & User Manifest Synchronization
+      let activeOrders = [];
+      try {
+        const { data: primaryOrders, error: primaryError } = await supabase
+          .from('pickups')
+          .select('*, users(full_name)')
+          .order('created_at', { ascending: false })
+          .limit(6);
+        
+        if (primaryError || !primaryOrders) {
+           // Fallback 1: Direct fetch if join fails
+           const { data: directOrders } = await supabase
+            .from('pickups')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(6);
+           activeOrders = directOrders || [];
+        } else {
+           activeOrders = primaryOrders;
+        }
+      } catch (e) {
+         console.warn('Primary order manifest interrupted:', e);
+         activeOrders = [];
+      }
 
       const totalRevenue = payments?.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0) || 0;
       const avgRating = feedback?.length ? (feedback.reduce((acc, curr) => acc + curr.rating, 0) / feedback.length).toFixed(1) : '5.0';
-
-      const smsResult = await getSMSBalance();
-      const smsDisplayToken = smsResult.success ? Number(smsResult.balance).toLocaleString() : 'N/A';
+      
+      // Robust Display Token for SMS
+      let smsDisplayToken = 'N/A';
+      if (smsResult?.success) {
+        smsDisplayToken = Number(smsResult.balance).toLocaleString();
+      }
 
       const allStats = [
-        { id: 1, title: 'All Orders', value: (pickupCount || 0).toLocaleString(), icon: 'ri-truck-line', color: 'emerald', trend: '+12%', label: 'Total Volume', roles: ['super_admin', 'manager', 'dispatcher'] },
-        { id: 2, title: 'Riders Online', value: (riders?.length || 0).toLocaleString(), icon: 'ri-e-bike-2-line', color: 'slate', trend: 'Live', label: 'Field Staff', roles: ['super_admin', 'manager', 'dispatcher'] },
-        { id: 3, title: 'SMS Left', value: smsDisplayToken, icon: 'ri-message-3-line', color: 'emerald', trend: 'Units', label: 'Broadcasts', roles: ['super_admin', 'manager', 'support_admin'] },
-        { id: 4, title: 'Total Paid', value: `₵${(totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, icon: 'ri-wallet-3-line', color: 'amber', trend: '+8.4%', label: 'Revenue', roles: ['super_admin', 'manager', 'finance_admin'] },
-        { id: 5, title: 'Satisfaction', value: avgRating, icon: 'ri-star-smile-line', color: 'emerald', trend: 'Avg', label: 'User Rating', roles: ['super_admin', 'manager', 'support_admin'] },
+        { id: 1, title: 'Total Users', value: (userCount || 0).toLocaleString(), icon: 'ri-user-heart-line', color: 'emerald', trend: 'Humans', label: 'Citizens', roles: ['super_admin', 'admin', 'manager', 'dispatcher'] },
+        { id: 2, title: 'Total Riders', value: (riderCount || 0).toLocaleString(), icon: 'ri-e-bike-2-line', color: 'slate', trend: 'Fleet', label: 'Field Staff', roles: ['super_admin', 'admin', 'manager', 'dispatcher'] },
+        { id: 3, title: 'SMS Balance', value: smsDisplayToken, icon: 'ri-message-3-line', color: 'emerald', trend: 'Units', label: 'Arkesel Ptr', roles: ['super_admin', 'admin', 'manager', 'support_admin'] },
+        { id: 4, title: 'Total Paid', value: `₵${(totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, icon: 'ri-wallet-3-line', color: 'amber', trend: 'Revenue', label: 'Financials', roles: ['super_admin', 'admin', 'manager', 'finance_admin'] },
+        { id: 5, title: 'Satisfaction', value: avgRating, icon: 'ri-star-smile-line', color: 'emerald', trend: 'Avg', label: 'User Rating', roles: ['super_admin', 'admin', 'manager', 'support_admin'] },
       ];
 
-      setStats(allStats.filter(s => isFullAdmin || s.roles.includes(roleKey)).slice(0, 4));
-
-      const { data: pickups } = await supabase
-        .from('orders')
-        .select('*, users(full_name)')
-        .order('created_at', { ascending: false })
-        .limit(6);
-      
-      if (pickups) setRecentPickups(pickups);
-
-      const { data: topRiderData } = await supabase.from('riders').select('*').order('total_pickups', { ascending: false }).limit(4);
+      setStats(allStats.filter(s => isFullAdmin || (s.roles && s.roles.includes(roleKey))).slice(0, 4));
+      setRecentPickups(activeOrders);
       if (topRiderData) setTopRiders(topRiderData);
     } catch (error) {
-      console.error('Dashboard data error:', error);
+      console.error('Dashboard synchronization protocol failure:', error);
     } finally {
       setLoading(false);
     }
@@ -94,7 +143,7 @@ export default function Overview({ onNavigate }: OverviewProps) {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Loading Dashboard...</p>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Loading Dashboard...</p>
         </div>
       </div>
     );
@@ -112,34 +161,34 @@ export default function Overview({ onNavigate }: OverviewProps) {
       case 'scheduled': return 'bg-blue-100 text-blue-600 border-blue-200';
       case 'in_progress': return 'bg-violet-100 text-violet-600 border-violet-200';
       case 'completed': return 'bg-emerald-100 text-emerald-600 border-emerald-200';
-      default: return 'bg-gray-100 text-gray-500 border-gray-200';
+      default: return 'bg-slate-100 text-slate-500 border-slate-200';
     }
   };
 
   const allShortcuts = [
-    { id: 'sms', icon: 'ri-chat-voice-line', label: 'Broadcast', color: 'emerald', roles: ['super_admin', 'support_admin', 'manager'] },
-    { id: 'pickups', icon: 'ri-map-pin-2-line', label: 'Dispatch', color: 'emerald', roles: ['super_admin', 'dispatcher', 'manager'] },
-    { id: 'users', icon: 'ri-user-follow-line', label: 'Manage Users', color: 'emerald', roles: ['super_admin', 'manager', 'support_admin'] },
-    { id: 'financials', icon: 'ri-line-chart-line', label: 'Ledger', color: 'amber', roles: ['super_admin', 'finance_admin', 'manager'] },
-    { id: 'riders', icon: 'ri-bike-line', label: 'Fleet', color: 'emerald', roles: ['super_admin', 'manager', 'dispatcher'] },
-    { id: 'feedback', icon: 'ri-star-line', label: 'Ratings', color: 'emerald', roles: ['super_admin', 'support_admin', 'manager'] },
+    { id: 'feedback', icon: 'ri-customer-service-2-line', label: 'Support Desk', color: 'emerald', roles: ['super_admin', 'support_admin', 'admin', 'manager'] },
+    { id: 'sms', icon: 'ri-chat-voice-line', label: 'SMS', color: 'emerald', roles: ['super_admin', 'support_admin', 'admin', 'manager'] },
+    { id: 'pickups', icon: 'ri-map-pin-2-line', label: 'Dispatch', color: 'emerald', roles: ['super_admin', 'dispatcher', 'manager', 'admin'] },
+    { id: 'users', icon: 'ri-user-follow-line', label: 'Manage Users', color: 'emerald', roles: ['super_admin', 'manager', 'support_admin', 'admin'] },
+    { id: 'financials', icon: 'ri-line-chart-line', label: 'Ledger', color: 'amber', roles: ['super_admin', 'finance_admin', 'manager', 'admin'] },
+    { id: 'riders', icon: 'ri-bike-line', label: 'Fleet', color: 'emerald', roles: ['super_admin', 'manager', 'dispatcher', 'admin'] },
   ];
 
   const shortcuts = allShortcuts.filter(s => isFullAdmin || s.roles.includes(roleKey)).slice(0, 4);
 
   return (
-    <div className="space-y-8 font-['Montserrat'] animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-10 font-['Montserrat'] animate-fade-in pb-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Home</h1>
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mt-1">What is happening today</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">Home</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Operational Summary & Real-time Manifest</p>
         </div>
-        <div className="flex items-center gap-2.5 px-4 py-2 bg-emerald-50 dark:bg-emerald-500/5 border border-emerald-100 dark:border-emerald-500/10 rounded-2xl shadow-sm">
+        <div className="flex items-center gap-2.5 px-5 py-2.5 bg-emerald-50 dark:bg-emerald-500/5 border border-emerald-100 dark:border-emerald-500/10 rounded-[1.5rem] shadow-sm shadow-emerald-500/5 transition-all hover:scale-105">
            <div className="flex h-2 w-2 relative">
               <div className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></div>
               <div className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></div>
            </div>
-           <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-widest">Live</span>
+           <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest pl-1">Live Database Connection</span>
         </div>
       </div>
 
@@ -155,8 +204,8 @@ export default function Overview({ onNavigate }: OverviewProps) {
                  <p className="text-[9px] font-bold opacity-60 uppercase tracking-tighter mt-1">{stat.label}</p>
                </div>
             </div>
-            <p className="text-[11px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-widest mb-1.5">{stat.title}</p>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tighter">{stat.value}</h3>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{stat.title}</p>
+            <h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tighter">{stat.value}</h3>
           </div>
         ))}
       </div>
@@ -165,22 +214,22 @@ export default function Overview({ onNavigate }: OverviewProps) {
         <div className="lg:col-span-2 space-y-8">
            <div className="bg-white dark:bg-gray-950 rounded-[2.5rem] border border-gray-100 dark:border-gray-800/60 shadow-sm overflow-hidden">
               <div className="px-8 py-6 border-b border-gray-50 dark:border-gray-800/40 flex justify-between items-center">
-                 <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest">Active Requests</h2>
+                  <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest">Active Orders</h2>
                  <button onClick={() => onNavigate?.('pickups')} className="text-[11px] font-bold text-emerald-500 hover:text-emerald-600 transition-colors">Manage All</button>
               </div>
-              <div className="divide-y divide-gray-50 dark:divide-gray-800/40">
+              <div className="divide-y divide-slate-50 dark:divide-white/5">
                  {recentPickups.map((pickup) => (
-                    <div key={pickup.id} className="px-8 py-5 flex items-center gap-4 hover:bg-gray-50/50 dark:hover:bg-white/[0.01] transition-colors group">
-                       <div className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 group-hover:bg-emerald-500/10 group-hover:text-emerald-500 transition-colors">
+                    <div key={pickup.id} className="px-8 py-5 flex items-center gap-4 hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-colors group">
+                       <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:bg-emerald-500/10 group-hover:text-emerald-500 transition-colors">
                           <i className="ri-truck-line text-lg"></i>
                        </div>
                        <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-semibold text-gray-800 dark:text-gray-200 truncate pr-4">{pickup.users?.full_name || 'Anonymous User'}</p>
-                          <p className="text-[10px] text-gray-500 font-medium mt-1 truncate">{pickup.address}</p>
+                          <p className="text-[13px] font-semibold text-slate-800 dark:text-slate-200 truncate pr-4">{pickup.users?.full_name || 'Anonymous User'}</p>
+                          <p className="text-[10px] text-slate-500 font-medium mt-1 truncate">{pickup.address}</p>
                        </div>
                        <div className="flex flex-col items-end gap-1.5">
                           <span className={`text-[9px] font-bold px-3 py-1 rounded-full border ${getStatusColor(pickup.status)} uppercase tracking-tighter`}>{pickup.status}</span>
-                          <span className="text-[9px] font-bold text-gray-400">{new Date(pickup.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span className="text-[9px] font-bold text-slate-400">{new Date(pickup.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                        </div>
                     </div>
                  ))}
@@ -190,10 +239,12 @@ export default function Overview({ onNavigate }: OverviewProps) {
               </div>
            </div>
 
-           <div className="bg-white dark:bg-gray-950 rounded-[2.5rem] border border-gray-100 dark:border-gray-800/60 shadow-sm overflow-hidden">
-              <div className="px-8 py-6 border-b border-gray-50 dark:border-gray-800/40 flex justify-between items-center">
-                 <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest">Top Riders</h2>
-                 <button onClick={() => onNavigate?.('riders')} className="text-[11px] font-bold text-emerald-500 hover:text-emerald-600 transition-colors">View All</button>
+           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden min-h-[400px]">
+              <div className="px-10 py-8 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
+                 <div>
+                    <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-[0.2em]">Top Riders</h2>
+                    <button onClick={() => onNavigate?.('riders')} className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 transition-colors">View All</button>
+                 </div>
               </div>
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                  {topRiders.map((rider) => (
@@ -217,8 +268,8 @@ export default function Overview({ onNavigate }: OverviewProps) {
         </div>
 
         <div className="space-y-8">
-           <div className="bg-white dark:bg-gray-950 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800/60 shadow-sm">
-              <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest mb-8">Shortcuts</h2>
+           <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm">
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest mb-8">Shortcuts</h2>
               <div className="grid grid-cols-2 gap-4">
                  {shortcuts.map((action) => (
                     <button 

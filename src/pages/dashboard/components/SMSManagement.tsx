@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { logActivity } from '../../../lib/audit';
 import ExportButton from './ExportButton';
-import { sendSMS } from '../../../lib/sms';
+import { sendSMS, ARKESEL_API_KEY } from '../../../lib/sms';
 
 interface SMSLog {
   id: string;
@@ -13,7 +13,11 @@ interface SMSLog {
   sender_name: string;
 }
 
-export default function SMSManagement() {
+interface SMSManagementProps {
+  adminInfo?: any;
+}
+
+export default function SMSManagement({ adminInfo }: SMSManagementProps) {
   const [smsHistory, setSmsHistory] = useState<SMSLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [showComposeModal, setShowComposeModal] = useState(false);
@@ -29,6 +33,7 @@ export default function SMSManagement() {
     message: '',
     sender_name: '',
     custom_recipient: '',
+    save_contact: false,
     sector: 'all'
   });
 
@@ -40,7 +45,7 @@ export default function SMSManagement() {
     setNewMessage(prev => ({ ...prev, sender_name: configuredSenderId }));
   }, [configuredSenderId]);
 
-  const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
+  const userInfo = adminInfo || JSON.parse(localStorage.getItem('user_profile') || '{}');
   const currentRole = (userInfo.role || 'Super Admin').toLowerCase().replace(/\s+/g, '_');
   const canSend = currentRole === 'super_admin' || currentRole === 'manager' || currentRole === 'support_admin' || currentRole === 'admin';
 
@@ -103,8 +108,17 @@ export default function SMSManagement() {
         if (!newMessage.custom_recipient) {
           throw new Error('Please specify a direct recipient phone number.');
         }
-        recipients = [newMessage.custom_recipient];
-        targetLabel = `Direct: ${newMessage.custom_recipient}`;
+        // Support comma-separated recipients
+        recipients = newMessage.custom_recipient.split(',').map(r => r.trim()).filter(r => r.length >= 10);
+        targetLabel = recipients.length > 1 ? `Manual (${recipients.length} Contacts)` : `Direct: ${recipients[0]}`;
+        
+        // Optional Contact Sync Protocol
+        if (newMessage.save_contact && recipients.length > 0) {
+           for (const phone of recipients) {
+             const syncUrl = `/api/arkesel/contacts/api?action=subscribe-us&api_key=${ARKESEL_API_KEY}&phone_book=AdminManualEntry&phone_number=${phone}`;
+             fetch(syncUrl).catch(e => console.warn('Manual contact sync failure:', e));
+           }
+        }
       } else if (newMessage.target === 'all_users' || newMessage.target === 'sector_users') {
         let query = supabase.from('users').select('phone_number, location');
         if (newMessage.target === 'sector_users' && newMessage.sector !== 'all') {
@@ -137,14 +151,16 @@ export default function SMSManagement() {
         recipient: targetLabel,
         message: newMessage.message,
         sender_name: newMessage.sender_name,
-        status: status
+        status: status,
+        sent_by: adminInfo?.fullName || 'System'
       }]);
 
       await logActivity(`Sent SMS to ${targetLabel}`, 'SMS', status, { 
         message: newMessage.message, 
         recipient_count: recipients.length,
-        gateway_status: status 
-      });
+        gateway_status: status,
+        sender: adminInfo?.fullName || 'Institutional SMS'
+      }, adminInfo);
 
       if (!result.success) {
         throw new Error(result.message || 'System transmission error via Arkesel Gateway');
@@ -152,7 +168,7 @@ export default function SMSManagement() {
 
       alert(`Campaign synchronized and deployed to ${recipients.length} recipients successfully.`);
       setShowComposeModal(false);
-      setNewMessage({ target: 'all_users', message: '', sender_name: configuredSenderId, custom_recipient: '', sector: 'all' });
+      setNewMessage({ target: 'all_users', message: '', sender_name: configuredSenderId, custom_recipient: '', save_contact: false, sector: 'all' });
       fetchSMSLogs();
     } catch (error: any) {
        console.error('Error sending SMS:', error);
@@ -175,6 +191,7 @@ export default function SMSManagement() {
               Recipient: l.recipient, 
               Content: l.message, 
               Status: l.status, 
+              Sent_By: (l as any).sent_by || 'System',
               Timestamp: new Date(l.created_at).toLocaleString() 
             }))}
             fileName="Communication_Audit_Trail"
@@ -229,59 +246,108 @@ export default function SMSManagement() {
             <p className="text-[11px] text-slate-400 mt-6 font-bold uppercase tracking-widest animate-pulse">Loading History...</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-slate-50/50 dark:bg-white/[0.02] text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] border-b border-slate-50 dark:border-white/5">
-                  <th className="px-10 py-5">Recipient</th>
-                  <th className="px-10 py-5">Message</th>
-                  <th className="px-10 py-5">Date Sent</th>
-                  <th className="px-10 py-5 text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-white/5">
-                {smsHistory.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all group">
-                    <td className="px-10 py-7">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-emerald-500 border border-slate-100 dark:border-white/5 shadow-sm group-hover:scale-110 transition-transform">
-                          <i className="ri-user-voice-line text-lg"></i>
+          <>
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-slate-50/50 dark:bg-white/[0.02] text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] border-b border-slate-50 dark:border-white/5">
+                    <th className="px-10 py-5">Recipient</th>
+                    <th className="px-10 py-5">Message</th>
+                    <th className="px-10 py-5">Sent By</th>
+                    <th className="px-10 py-5">Date Sent</th>
+                    <th className="px-10 py-5 text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50 dark:divide-white/5">
+                  {smsHistory.map((log) => (
+                    <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all group">
+                      <td className="px-10 py-7">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-emerald-500 border border-slate-100 dark:border-white/5 shadow-sm group-hover:scale-110 transition-transform">
+                            <i className="ri-user-voice-line text-lg"></i>
+                          </div>
+                          <div>
+                            <p className="text-[13px] font-bold text-slate-900 dark:text-white uppercase tracking-tight">{log.recipient}</p>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter mt-0.5">Sender: {log.sender_name}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-[13px] font-bold text-slate-900 dark:text-white uppercase tracking-tight">{log.recipient}</p>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter mt-0.5">Sender: {log.sender_name}</p>
-                        </div>
+                      </td>
+                      <td className="px-10 py-7">
+                        <p className="text-[13px] font-medium text-slate-600 dark:text-slate-400 leading-relaxed italic line-clamp-2 max-w-sm">"{log.message}"</p>
+                      </td>
+                      <td className="px-10 py-7 whitespace-nowrap">
+                         <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-lg bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900">
+                               <i className="ri-shield-user-line text-xs"></i>
+                            </div>
+                            <p className="text-[11px] font-bold text-slate-900 dark:text-white uppercase tracking-tight">{(log as any).sent_by || 'System'}</p>
+                         </div>
+                      </td>
+                      <td className="px-10 py-7 whitespace-nowrap">
+                        <p className="text-[11px] font-bold text-slate-900 dark:text-white uppercase tracking-tighter">{new Date(log.created_at).toLocaleDateString()}</p>
+                        <p className="text-[10px] text-slate-400 font-bold mt-1 opacity-70">{new Date(log.created_at).toLocaleTimeString()}</p>
+                      </td>
+                      <td className="px-10 py-7 text-right">
+                        <span className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-[0.15em] border ${
+                          log.status === 'sent' 
+                          ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400' 
+                          : 'bg-rose-50 text-rose-600 border-rose-100 dark:bg-rose-500/10 dark:text-rose-400'
+                        }`}>
+                          {log.status === 'sent' ? 'Sent' : 'Failed'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {smsHistory.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-32 text-center">
+                         <i className="ri-chat-off-line text-4xl text-slate-200 dark:text-slate-800 mb-4 inline-block"></i>
+                         <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">No communication history identified in terminal</p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile History View */}
+            <div className="md:hidden divide-y divide-slate-50 dark:divide-white/5">
+              {smsHistory.map((log) => (
+                <div key={log.id} className="p-6 space-y-4">
+                   <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Recipient</p>
+                        <p className="text-[13px] font-bold text-slate-900 dark:text-white">{log.recipient}</p>
                       </div>
-                    </td>
-                    <td className="px-10 py-7">
-                      <p className="text-[13px] font-medium text-slate-600 dark:text-slate-400 leading-relaxed italic line-clamp-2 max-w-xl">"{log.message}"</p>
-                    </td>
-                    <td className="px-10 py-7 whitespace-nowrap">
-                      <p className="text-[11px] font-bold text-slate-900 dark:text-white uppercase tracking-tighter">{new Date(log.created_at).toLocaleDateString()}</p>
-                      <p className="text-[10px] text-slate-400 font-bold mt-1 opacity-70">{new Date(log.created_at).toLocaleTimeString()}</p>
-                    </td>
-                    <td className="px-10 py-7 text-right">
-                      <span className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-[0.15em] border ${
-                        log.status === 'sent' 
-                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400' 
-                        : 'bg-rose-50 text-rose-600 border-rose-100 dark:bg-rose-500/10 dark:text-rose-400'
+                      <span className={`px-3 py-1 rounded-xl text-[9px] font-bold uppercase border ${
+                          log.status === 'sent' 
+                          ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400' 
+                          : 'bg-rose-50 text-rose-600 border-rose-100 dark:bg-rose-500/10 dark:text-rose-400'
                       }`}>
                         {log.status === 'sent' ? 'Sent' : 'Failed'}
                       </span>
-                    </td>
-                  </tr>
-                ))}
-                {smsHistory.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="py-32 text-center">
-                       <i className="ri-chat-off-line text-4xl text-slate-200 dark:text-slate-800 mb-4 inline-block"></i>
-                       <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">No communication history identified in terminal</p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                   </div>
+                   <div className="p-4 bg-slate-50 dark:bg-white/[0.02] rounded-2xl italic text-[12px] text-slate-600 dark:text-slate-400">
+                      "{log.message}"
+                   </div>
+                   <div className="flex items-center justify-between pt-2">
+                      <div className="flex items-center gap-2">
+                         <div className="w-6 h-6 rounded-lg bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900">
+                            <i className="ri-shield-user-line text-[10px]"></i>
+                         </div>
+                         <p className="text-[10px] font-bold text-slate-500 uppercase">{(log as any).sent_by || 'System'}</p>
+                      </div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">{new Date(log.created_at).toLocaleDateString()}</p>
+                   </div>
+                </div>
+              ))}
+              {smsHistory.length === 0 && (
+                <div className="py-20 text-center">
+                   <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">No communication identified</p>
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
 
@@ -291,7 +357,7 @@ export default function SMSManagement() {
           <div className="relative w-full max-w-xl bg-white dark:bg-slate-950 rounded-[3rem] shadow-2xl overflow-hidden animate-scale-up border border-slate-100 dark:border-white/10">
             <div className="px-10 py-8 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
               <div>
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Signal Configuration</h2>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Notification Setup</h2>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 px-1 border-l-2 border-emerald-500">Institutional Protocol 4.2</p>
               </div>
               <button 
@@ -314,7 +380,7 @@ export default function SMSManagement() {
                     <option value="all_users">All Users (Residents)</option>
                     <option value="sector_users">Geographical Sector (Area)</option>
                     <option value="all_riders">All Riders (Personnel)</option>
-                    <option value="custom">Direct Signal (Manual)</option>
+                    <option value="custom">Direct Notification (Manual)</option>
                   </select>
                 </div>
 
@@ -336,38 +402,52 @@ export default function SMSManagement() {
                 
                 <div className="space-y-3">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] pl-1">Originator ID</label>
-                  <input 
-                    type="text"
-                    value={newMessage.sender_name}
-                    onChange={e => setNewMessage({...newMessage, sender_name: e.target.value.slice(0, 11).toUpperCase()})}
-                    className="w-full px-5 py-4 bg-slate-50 dark:bg-black border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all uppercase"
-                    placeholder="BORLAWURA"
-                  />
+                  <div className="w-full px-5 py-4 bg-slate-50/50 dark:bg-white/[0.02] border border-slate-200/60 dark:border-white/5 rounded-2xl flex items-center justify-between group">
+                    <span className="text-[13px] font-black text-slate-900 dark:text-white uppercase tracking-[0.2em] transition-all group-hover:tracking-[0.3em]">BORLAWURA</span>
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/10">
+                       <i className="ri-shield-check-line text-emerald-500 text-[10px]"></i>
+                       <span className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest">Fixed ID</span>
+                    </div>
+                  </div>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest pl-1 mt-1 opacity-60">Authorized system identification protocol active</p>
                 </div>
               </div>
 
               {newMessage.target === 'custom' && (
-                <div className="space-y-3 animate-slide-down">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] pl-1">Direct Recipient Endpoint</label>
-                  <input 
-                    type="tel"
-                    required
-                    value={newMessage.custom_recipient}
-                    onChange={e => setNewMessage({...newMessage, custom_recipient: e.target.value})}
-                    className="w-full px-5 py-4 bg-slate-50 dark:bg-black border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                    placeholder="E.g. 0540000000"
-                  />
+                <div className="space-y-6 animate-slide-down">
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] pl-1">Direct Recipient Endpoint(s)</label>
+                    <input 
+                      type="tel"
+                      required
+                      value={newMessage.custom_recipient}
+                      onChange={e => setNewMessage({...newMessage, custom_recipient: e.target.value})}
+                      className="w-full px-5 py-4 bg-slate-50 dark:bg-black border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                      placeholder="Enter numbers separated by commas..."
+                    />
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest pl-1 mt-2">Example: 0540000000, 0240000000</p>
+                  </div>
+
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input 
+                      type="checkbox"
+                      checked={newMessage.save_contact}
+                      onChange={e => setNewMessage({...newMessage, save_contact: e.target.checked})}
+                      className="w-5 h-5 rounded-lg border-slate-200 dark:border-white/10 dark:bg-black text-emerald-500 focus:ring-emerald-500 transition-all cursor-pointer"
+                    />
+                    <span className="text-[11px] font-bold text-slate-500 group-hover:text-emerald-500 uppercase tracking-widest transition-colors">Register as new contact in Arkesel Database</span>
+                  </label>
                 </div>
               )}
 
               <div className="space-y-3">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] pl-1">Signal Payload</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] pl-1">Notification Content</label>
                 <textarea 
                   required
                   value={newMessage.message}
                   onChange={e => setNewMessage({...newMessage, message: e.target.value})}
                   className="w-full px-6 py-5 bg-slate-50 dark:bg-black border border-slate-200/60 dark:border-white/10 rounded-[2rem] text-[14px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all min-h-[160px] resize-none scrollbar-hide"
-                  placeholder="Compose institutional signal..."
+                  placeholder="Compose institutional notification..."
                 ></textarea>
                 <div className="flex justify-between px-2 items-center">
                   <div className="flex items-center gap-3">

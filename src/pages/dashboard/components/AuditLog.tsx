@@ -14,7 +14,7 @@ interface AuditLogEntry {
   created_at: string;
 }
 
-export default function AuditLog() {
+export default function AuditLog({ adminInfo }: { adminInfo?: any }) {
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -257,7 +257,7 @@ export default function AuditLog() {
                </div>
 
                <div className="space-y-3">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Raw System Signal</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Raw Notification Payload</p>
                   <div className="p-6 bg-slate-950 rounded-[2rem] border border-white/5 max-h-40 overflow-y-auto scrollbar-hide">
                      <pre className="text-[11px] font-mono text-emerald-400/80 leading-relaxed">
                         {JSON.stringify(selectedLog.details, null, 2)}

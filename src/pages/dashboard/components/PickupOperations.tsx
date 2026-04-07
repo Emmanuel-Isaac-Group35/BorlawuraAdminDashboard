@@ -29,7 +29,11 @@ interface PickupRequest {
   waste_size: string;
 }
 
-export default function PickupOperations() {
+interface PickupOperationsProps {
+  adminInfo?: any;
+}
+
+export default function PickupOperations({ adminInfo }: PickupOperationsProps) {
   const [pickups, setPickups] = useState<PickupRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,7 +50,7 @@ export default function PickupOperations() {
      status: ''
   });
 
-  const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
+  const userInfo = adminInfo || JSON.parse(localStorage.getItem('user_profile') || '{}');
   const role = (userInfo.role || 'Super Admin').toLowerCase().replace(/\s+/g, '_');
   const canDispatch = role === 'super_admin' || role === 'manager' || role === 'dispatcher' || role === 'admin';
 
@@ -54,8 +58,8 @@ export default function PickupOperations() {
     loadData();
 
     const channel = supabase
-      .channel('public:orders_registry_sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+      .channel('public:pickups_registry_sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pickups' }, () => {
         fetchPickups();
       })
       .subscribe();
@@ -76,7 +80,7 @@ export default function PickupOperations() {
     try {
       // Fetch from 'orders' table instead of 'pickups'
       const { data, error } = await supabase
-        .from('orders')
+        .from('pickups')
         .select(`*, users(full_name, phone_number), riders(full_name)`)
         .order('created_at', { ascending: false });
 
@@ -84,7 +88,7 @@ export default function PickupOperations() {
         console.error('Initial Orders Query Error:', error);
         // Fallback to basic query
         const { data: fallbackData, error: fallbackError } = await supabase
-          .from('orders')
+          .from('pickups')
           .select('*')
           .order('created_at', { ascending: false });
         
@@ -105,7 +109,7 @@ export default function PickupOperations() {
           user_name: p.users?.full_name || 'Anonymous User',
           user_phone: p.users?.phone_number || 'N/A',
           rider_name: p.riders?.full_name || null,
-          waste_type: p.service_type || p.waste_type || 'General Waste',
+          waste_type: p.waste_type || 'General Waste',
           waste_size: p.waste_size || 'Standard',
           location: validateLocation(p.location)
         })));
@@ -147,7 +151,7 @@ export default function PickupOperations() {
 
     try {
       const { error } = await supabase
-        .from('orders')
+        .from('pickups')
         .update({ 
           status: newStatus,
           completed_at: newStatus === 'completed' ? new Date().toISOString() : null
@@ -174,10 +178,10 @@ export default function PickupOperations() {
 
     try {
       const { error } = await supabase
-        .from('orders')
+        .from('pickups')
         .update({
           address: editFormData.address,
-          service_type: editFormData.waste_type, // Map waste_type to service_type
+          waste_type: editFormData.waste_type, 
           waste_size: editFormData.waste_size,
           status: editFormData.status
         })
@@ -217,7 +221,7 @@ export default function PickupOperations() {
 
     try {
       const { error } = await supabase
-        .from('orders')
+        .from('pickups')
         .update({ rider_id: riderId, status: 'scheduled' })
         .eq('id', pickupId);
 

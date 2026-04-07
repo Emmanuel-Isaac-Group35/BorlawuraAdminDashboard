@@ -19,7 +19,11 @@ interface User {
   avatar_url?: string;
 }
 
-export default function UserManagement() {
+interface UserManagementProps {
+  adminInfo?: any;
+}
+
+export default function UserManagement({ adminInfo }: UserManagementProps) {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,7 +50,7 @@ export default function UserManagement() {
   const settings = JSON.parse(localStorage.getItem('borlawura_settings') || '{}');
   const availableZones = settings.zones || ['Accra Central', 'Osu', 'Tema', 'Madina', 'Legon', 'Spintex'];
 
-  const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
+  const userInfo = adminInfo || JSON.parse(localStorage.getItem('user_profile') || '{}');
   const rawRole = userInfo.role || 'Super Admin';
   const roleKey = rawRole.toLowerCase().replace(/\s+/g, '_');
   const isAdmin = roleKey === 'super_admin' || roleKey === 'admin' || roleKey === 'manager'; 
@@ -79,7 +83,7 @@ export default function UserManagement() {
     setLoadingPickups(true);
     try {
       const { data, error } = await supabase
-        .from('orders')
+        .from('pickups')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
@@ -164,6 +168,7 @@ export default function UserManagement() {
       const adminRoles = ['super_admin', 'finance_admin', 'manager', 'dispatcher', 'support_admin'];
       if (adminRoles.includes(formData.role)) {
          await supabase.from('admins').upsert([{
+            id: selectedUser.id,
             email: formData.email,
             full_name: formData.full_name,
             role: formData.role,
@@ -172,12 +177,13 @@ export default function UserManagement() {
          }], { onConflict: 'email' });
       } else if (formData.role === 'rider') {
          await supabase.from('riders').upsert([{
+            id: selectedUser.id,
             full_name: formData.full_name,
             phone_number: formData.phone_number,
             email: formData.email,
             status: 'active',
             avatar_url: formData.avatar_url
-         }]);
+         }], { onConflict: 'id' });
       }
 
       await logActivity('Admin: Customer Profile Updated', 'users', selectedUser.id, { 
@@ -793,31 +799,31 @@ export default function UserManagement() {
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Full Name</label>
                   <input 
-                    type="text" required
+                    type="text"
                     value={formData.full_name}
                     onChange={e => setFormData({...formData, full_name: e.target.value})}
                     className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="John Doe"
+                    placeholder="Full Name"
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Phone Number</label>
                   <input 
-                    type="text" required
+                    type="text"
                     value={formData.phone_number}
                     onChange={e => setFormData({...formData, phone_number: e.target.value})}
                     className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="+233..."
+                    placeholder="0540000000"
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Email Address</label>
                   <input 
-                    type="email" required
+                    type="email"
                     value={formData.email}
                     onChange={e => setFormData({...formData, email: e.target.value})}
                     className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="user@borlawura.gh"
+                    placeholder="email@example.com"
                   />
                 </div>
                 <div className="space-y-2">
@@ -835,21 +841,21 @@ export default function UserManagement() {
                 <div className="col-span-2 space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Home Address</label>
                   <input 
-                    type="text" required
+                    type="text"
                     value={formData.address}
                     onChange={e => setFormData({...formData, address: e.target.value})}
                     className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="123 Street Name, Accra"
+                    placeholder="Residential Address"
                   />
                 </div>
                  <div className="space-y-2">
                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Wallet Funds (₵)</label>
-                   <input 
-                     type="number" required
-                     value={formData.balance}
-                     onChange={e => setFormData({...formData, balance: Number(e.target.value)})}
-                     className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 text-emerald-600"
-                   />
+                  <input 
+                    type="number"
+                    value={formData.balance}
+                    onChange={e => setFormData({...formData, balance: Number(e.target.value)})}
+                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 text-emerald-600"
+                  />
                  </div>
                  <div className="space-y-2">
                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Service Tier</label>

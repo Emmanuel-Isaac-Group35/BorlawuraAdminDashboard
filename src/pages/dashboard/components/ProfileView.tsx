@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { logActivity } from '../../../lib/audit';
 
-export default function ProfileView() {
+export default function ProfileView({ adminInfo }: { adminInfo?: any }) {
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [userInfo, setUserInfo] = useState({
     id: '',
     fullName: '',
@@ -13,10 +13,16 @@ export default function ProfileView() {
     joined: '',
     avatarUrl: ''
   });
-  const [isEditing, setIsEditing] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  
+  const [editForm, setEditForm] = useState({
+    fullName: '',
+    phone: ''
+  });
+
+  const [passwordForm, setPasswordForm] = useState({
+    new: '',
+    confirm: ''
+  });
 
   useEffect(() => {
     fetchProfile();
@@ -25,25 +31,27 @@ export default function ProfileView() {
   const fetchProfile = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const savedProfileStr = localStorage.getItem('user_profile');
-      const savedProfile = savedProfileStr ? JSON.parse(savedProfileStr) : null;
-
       if (user) {
-        // Fetch matching admin record for more details if needed
         const { data: adminData } = await supabase
           .from('admins')
           .select('*')
           .eq('email', user.email)
           .maybeSingle();
 
-        setUserInfo({
+        const profileData = {
           id: adminData?.id || user.id,
-          fullName: savedProfile?.fullName || adminData?.full_name || 'Admin User',
-          role: savedProfile?.role || adminData?.role || 'Admin',
+          fullName: adminData?.full_name || user.user_metadata?.full_name || 'Admin User',
+          role: adminData?.role || 'Admin',
           email: user.email || '',
-          phone: adminData?.phone_number || 'Not Set',
+          phone: adminData?.phone_number || '',
           joined: adminData?.created_at || user.created_at || '',
           avatarUrl: adminData?.avatar_url || ''
+        };
+
+        setUserInfo(profileData);
+        setEditForm({
+          fullName: profileData.fullName,
+          phone: profileData.phone
         });
       }
     } catch (error) {
@@ -55,222 +63,205 @@ export default function ProfileView() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setUploading(true);
     try {
-      setUploading(true);
       const fileExt = file.name.split('.').pop();
       const fileName = `${userInfo.id}-${Math.random()}.${fileExt}`;
       const filePath = `avatars/${fileName}`;
 
-      // 1. Upload to storage
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file);
+      await supabase.storage.from('avatars').upload(filePath, file);
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
 
-      if (uploadError) throw uploadError;
-
-      // 2. Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      // 3. Update database
-      const { error: updateError } = await supabase
-        .from('admins')
-        .update({ avatar_url: publicUrl })
-        .eq('id', userInfo.id);
-
-      if (updateError) throw updateError;
-
-      await logActivity('Update Profile Photo', 'admins', userInfo.id, { 
-        message: 'Admin updated their own profile picture'
+      await supabase.from('admins').update({ avatar_url: publicUrl }).eq('id', userInfo.id);
+      
+      // Sync to auth meta for persistent mobile session
+      await supabase.auth.updateUser({
+         data: { avatar_url: publicUrl }
       });
-
-      // 4. Update state
+      
       setUserInfo(prev => ({ ...prev, avatarUrl: publicUrl }));
+      const stored = JSON.parse(localStorage.getItem('user_profile') || '{}');
+      localStorage.setItem('user_profile', JSON.stringify({ ...stored, avatar_url: publicUrl }));
+
+      alert('👍 Profile picture updated successfully!');
     } catch (error: any) {
-      console.error('Error uploading image:', error);
-      alert(`Upload Failed: ${error.message}`);
+      alert(`Error: ${error.message}`);
     } finally {
       setUploading(false);
     }
   };
 
+  const handleUpdateDetails = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('admins')
+        .update({
+          full_name: editForm.fullName,
+          phone_number: editForm.phone
+        })
+        .eq('id', userInfo.id);
+
+      if (error) throw error;
+
+      // Ensure sync with Auth metadata for mobile/app consistency
+      await supabase.auth.updateUser({
+         data: { full_name: editForm.fullName }
+      });
+
+      setUserInfo(prev => ({ ...prev, fullName: editForm.fullName, phone: editForm.phone }));
+      
+      const stored = JSON.parse(localStorage.getItem('user_profile') || '{}');
+      localStorage.setItem('user_profile', JSON.stringify({ ...stored, fullName: editForm.fullName }));
+
+      alert('✅ Profile details saved!');
+    } catch (error: any) {
+      alert(`Error: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPassword !== confirmPassword) {
-      return alert('Passwords do not match');
+    if (passwordForm.new !== passwordForm.confirm) {
+       return alert('Passwords do not match');
     }
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-
+      const { error } = await supabase.auth.updateUser({ password: passwordForm.new });
       if (error) throw error;
-      
-      await logActivity('Update Security Key', 'admins', userInfo.id, { 
-        message: 'Admin successfully updated their local sign-in password'
-      });
-
-      alert('Security protocol updated: Password changed successfully.');
-      setNewPassword('');
-      setConfirmPassword('');
-      setIsEditing(false);
+      alert('🔐 Password updated!');
+      setPasswordForm({ new: '', confirm: '' });
     } catch (error: any) {
-      alert(`Update Failed: ${error.message}`);
+      alert(`Error: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 font-['Montserrat'] animate-fade-in pb-20">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Your Profile</h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-2">Manage your account information and security</p>
-        </div>
-        <div className="flex items-center gap-3">
-           <div className={`px-4 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-100/50 dark:border-emerald-500/20 shadow-sm`}>
-              Clearance Level: {userInfo.role.replace('_', ' ')}
-           </div>
-        </div>
+    <div className="max-w-[800px] mx-auto space-y-8 font-['Montserrat'] animate-fade-in pb-20 pt-4">
+      
+      {/* 1. Header Card - Visual Identity */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-white/5 shadow-sm p-8 flex items-center gap-8 group">
+         <div className="relative">
+            <div className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden border-2 border-slate-50 dark:border-white/10 shadow-lg">
+                {userInfo.avatarUrl ? (
+                   <img src={userInfo.avatarUrl} alt="Me" className="w-full h-full object-cover" />
+                ) : (
+                   <span className="text-3xl font-bold text-slate-400 dark:text-slate-500">{userInfo.fullName.charAt(0)}</span>
+                )}
+            </div>
+            <label className="absolute -bottom-1 -right-1 w-9 h-9 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg cursor-pointer transition-transform hover:scale-110 active:scale-90 ring-4 ring-white dark:ring-slate-900">
+               <i className={`ri-pencil-fill text-sm ${uploading ? 'animate-spin' : ''}`}></i>
+               <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploading} />
+            </label>
+         </div>
+         <div className="flex-1">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">{userInfo.fullName}</h1>
+            <div className="flex items-center gap-3">
+               <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest border border-slate-200/50 dark:border-white/5 shadow-sm">
+                  {userInfo.role.replace('_', ' ')}
+               </span>
+               <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                  <i className="ri-calendar-line"></i>
+                  Joined {new Date(userInfo.joined).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+               </p>
+            </div>
+         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* Left Column - Avatar and Basics */}
-        <div className="md:col-span-1 space-y-6">
-           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm p-10 flex flex-col items-center text-center">
-              <div className="w-32 h-32 rounded-[2.5rem] bg-gradient-to-tr from-emerald-500 to-emerald-700 flex items-center justify-center text-white text-5xl font-bold shadow-2xl shadow-emerald-500/30 mb-8 relative group overflow-hidden">
-                  {userInfo.avatarUrl ? (
-                    <img src={userInfo.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="relative z-10">{userInfo.fullName.charAt(0)}</span>
-                  )}
-                  <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center cursor-pointer text-white">
-                     <i className={`ri-camera-line text-2xl ${uploading ? 'animate-bounce' : ''}`}></i>
-                     <span className="text-[8px] font-bold uppercase tracking-widest mt-1">
-                       {uploading ? 'Syncing...' : 'Update'}
-                     </span>
+      <div className="grid grid-cols-1 gap-8">
+         
+         {/* 2. Personal Information Card */}
+         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden animate-slide-up">
+            <div className="px-8 py-5 border-b border-slate-50 dark:border-white/5 bg-slate-50/50 dark:bg-slate-900/50">
+               <h3 className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                  <i className="ri-profile-line"></i>
+                  Personal Information
+               </h3>
+            </div>
+            <form onSubmit={handleUpdateDetails} className="p-8 space-y-6">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                     <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Full Name</label>
                      <input 
-                       type="file" 
-                       className="hidden" 
-                       accept="image/*" 
-                       onChange={handleImageUpload}
-                       disabled={uploading}
+                        type="text" required value={editForm.fullName}
+                        onChange={e => setEditForm(prev => ({ ...prev, fullName: e.target.value }))}
+                        className="w-full px-5 py-3.5 bg-slate-50 dark:bg-black/40 border border-slate-200/60 dark:border-white/10 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                        placeholder="John Doe"
                      />
-                  </label>
+                  </div>
+                  <div className="space-y-2 opacity-60">
+                     <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Email Address (Read-only)</label>
+                     <div className="w-full px-5 py-3.5 bg-slate-200/30 dark:bg-black/20 border border-slate-200/40 dark:border-white/5 rounded-xl text-sm font-bold text-slate-500 dark:text-slate-400 cursor-not-allowed">
+                        {userInfo.email}
+                     </div>
+                  </div>
+                  <div className="space-y-2">
+                     <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Contact Phone</label>
+                     <input 
+                        type="text" required value={editForm.phone}
+                        onChange={e => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                        className="w-full px-5 py-3.5 bg-slate-50 dark:bg-black/40 border border-slate-200/60 dark:border-white/10 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                        placeholder="024 000 0000"
+                     />
+                  </div>
                </div>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white uppercase tracking-tight mb-2">{userInfo.fullName}</h2>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-8">{userInfo.role.replace('_', ' ')}</p>
-              
-              <div className="w-full space-y-4 pt-8 border-t border-slate-50 dark:border-white/5">
-                 <div className="flex flex-col items-center gap-1">
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Email Address</p>
-                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate w-full">{userInfo.email}</p>
-                 </div>
-                 <div className="flex flex-col items-center gap-1">
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Phone Number</p>
-                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{userInfo.phone}</p>
-                 </div>
-              </div>
-           </div>
-        </div>
+               <div className="flex justify-end pt-4">
+                  <button 
+                     type="submit" disabled={loading}
+                     className="px-10 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+                  >
+                     {loading ? 'Saving...' : 'Save Changes'}
+                  </button>
+               </div>
+            </form>
+         </div>
 
-        {/* Right Column - Detailed Settings */}
-        <div className="md:col-span-2 space-y-6">
-           {/* General Settings */}
-           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden">
-              <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
-                 <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Account Overview</h3>
-                 <i className="ri-user-3-line text-slate-300 text-xl"></i>
-              </div>
-              <div className="p-10 space-y-8">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-2">
-                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Full Identity</p>
-                       <div className="px-6 py-4 bg-slate-50 dark:bg-black/40 border border-slate-200/60 dark:border-white/5 rounded-2xl text-[13px] font-bold text-slate-900 dark:text-white">
-                          {userInfo.fullName}
-                       </div>
-                    </div>
-                    <div className="space-y-2">
-                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Staff Role</p>
-                       <div className="px-6 py-4 bg-slate-50 dark:bg-black/40 border border-slate-200/60 dark:border-white/5 rounded-2xl text-[13px] font-bold text-slate-900 dark:text-white uppercase">
-                          {userInfo.role.replace('_', ' ')}
-                       </div>
-                    </div>
-                    <div className="col-span-1 md:col-span-2 space-y-2">
-                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Member Since</p>
-                       <div className="px-6 py-4 bg-slate-50 dark:bg-black/40 border border-slate-200/60 dark:border-white/5 rounded-2xl text-[13px] font-bold text-slate-500 dark:text-slate-400">
-                          {new Date(userInfo.joined).toLocaleDateString(undefined, { dateStyle: 'long' })}
-                       </div>
-                    </div>
-                 </div>
-              </div>
-           </div>
+         {/* 3. Security & Password Card */}
+         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden animate-slide-up" style={{ animationDelay: '0.1s' }}>
+            <div className="px-8 py-5 border-b border-slate-50 dark:border-white/5 bg-slate-50/50 dark:bg-slate-900/50">
+               <h3 className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                  <i className="ri-shield-keyhole-line"></i>
+                  Password & Security
+               </h3>
+            </div>
+            <form onSubmit={handleUpdatePassword} className="p-8 space-y-6">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                     <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">New Password</label>
+                     <input 
+                        type="password" required value={passwordForm.new}
+                        onChange={e => setPasswordForm(prev => ({ ...prev, new: e.target.value }))}
+                        className="w-full px-5 py-3.5 bg-slate-50 dark:bg-black/40 border border-slate-200/60 dark:border-white/10 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                        placeholder="••••••••"
+                     />
+                  </div>
+                  <div className="space-y-2">
+                     <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Confirm New Password</label>
+                     <input 
+                        type="password" required value={passwordForm.confirm}
+                        onChange={e => setPasswordForm(prev => ({ ...prev, confirm: e.target.value }))}
+                        className="w-full px-5 py-3.5 bg-slate-50 dark:bg-black/40 border border-slate-200/60 dark:border-white/10 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                        placeholder="••••••••"
+                     />
+                  </div>
+               </div>
+               <div className="flex justify-end pt-4">
+                  <button 
+                     type="submit" disabled={loading}
+                     className="px-10 py-3.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-[11px] font-black uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+                  >
+                     {loading ? 'Processing...' : 'Change Password'}
+                  </button>
+               </div>
+            </form>
+         </div>
 
-           {/* Security Settings */}
-           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden">
-              <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
-                 <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Sign-In & Security</h3>
-                 <i className="ri-shield-keyhole-line text-slate-300 text-xl"></i>
-              </div>
-              <div className="p-10">
-                 {!isEditing ? (
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-8 bg-slate-50 dark:bg-black/20 rounded-[2rem] border border-slate-100 dark:border-white/5">
-                       <div>
-                          <p className="text-[13px] font-bold text-slate-900 dark:text-white mb-1">Key Authorization</p>
-                          <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Update your access key to maintain system integrity</p>
-                       </div>
-                       <button 
-                         onClick={() => setIsEditing(true)}
-                         className="px-8 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-all shadow-lg"
-                       >
-                          Update Key
-                       </button>
-                    </div>
-                 ) : (
-                    <form onSubmit={handleUpdatePassword} className="space-y-6 animate-scale-up">
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="space-y-2">
-                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">New Key (Password)</label>
-                             <input 
-                               type="password" required value={newPassword}
-                               onChange={e => setNewPassword(e.target.value)}
-                               placeholder="Min 6 characters"
-                               className="w-full px-6 py-4 bg-slate-50 dark:bg-black/40 border border-slate-200/60 dark:border-white/5 rounded-2xl text-[13px] font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                             />
-                          </div>
-                          <div className="space-y-2">
-                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Confirm New Key</label>
-                             <input 
-                               type="password" required value={confirmPassword}
-                               onChange={e => setConfirmPassword(e.target.value)}
-                               placeholder="Match the key above"
-                               className="w-full px-6 py-4 bg-slate-50 dark:bg-black/40 border border-slate-200/60 dark:border-white/5 rounded-2xl text-[13px] font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                             />
-                          </div>
-                       </div>
-                       <div className="flex gap-4 pt-4">
-                          <button 
-                            type="submit" disabled={loading}
-                            className="flex-1 py-4 bg-emerald-600 text-white rounded-[2rem] text-xs font-bold uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all disabled:opacity-50"
-                          >
-                             {loading ? 'Processing...' : 'Sync New Security Key'}
-                          </button>
-                          <button 
-                            type="button" onClick={() => setIsEditing(false)}
-                            className="px-10 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-[2rem] text-xs font-bold uppercase tracking-widest hover:bg-slate-200 transition-all"
-                          >
-                             Cancel
-                          </button>
-                       </div>
-                    </form>
-                 )}
-              </div>
-           </div>
-        </div>
       </div>
     </div>
   );

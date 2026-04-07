@@ -14,7 +14,7 @@ import AuditLog from './components/AuditLog';
 import SMSManagement from './components/SMSManagement';
 import LiveTracking from './components/LiveTracking';
 import RouteOptimization from './components/RouteOptimization';
-import FeedbackRatings from './components/FeedbackRatings';
+import FeedbackRatings from './components/SupportDesk';
 import LogoutDialog from './components/LogoutDialog';
 import FinancialManagement from './components/FinancialManagement';
 import ProfileView from './components/ProfileView';
@@ -29,23 +29,48 @@ interface Toast {
 export default function Dashboard() {
   const [activeSection, setActiveSection] = useState('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [userRole, setUserRole] = useState('Super Admin');
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [adminProfile, setAdminProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Listen for new Pickups
+    // 1. Listen for Pickups (New & Status Updates)
     const pickupSub = supabase
       .channel('live_pickups')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pickups' }, () => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pickups' }, async () => {
         addToast(`New service request incoming`, 'info', 'ri-truck-line');
+        await supabase.from('notifications').insert([{
+           type: 'pickup',
+           title: 'New Service Request',
+           message: 'A resident has requested a waste collection pickup.',
+           priority: 'high'
+        }]);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pickups' }, (payload) => {
+        const status = payload.new.status;
+        addToast(`Job status updated to ${status.replace('_', ' ')}`, 'info', 'ri-refresh-line');
       })
       .subscribe();
 
-    // 2. Listen for Audit Logs (Security & System Signals)
+    // 2. Listen for User Registrations
+    const userSub = supabase
+      .channel('live_users')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'users' }, async (payload) => {
+        addToast(`New Customer Registered: ${payload.new.full_name}`, 'success', 'ri-user-add-line');
+        await supabase.from('notifications').insert([{
+           type: 'system',
+           title: 'New User Registered',
+           message: `A new resident (${payload.new.full_name}) has joined the platform.`,
+           priority: 'medium'
+        }]);
+      })
+      .subscribe();
+
+    // 2. Listen for Audit Logs (Security & Notifications)
     const auditSub = supabase
       .channel('live_audit')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, async (payload) => {
         const action = payload.new.action || 'System Event';
         const lowerAction = action.toLowerCase();
         const details = payload.new.details?.message || action;
@@ -56,6 +81,12 @@ export default function Dashboard() {
            addToast(details, 'info', 'ri-shield-user-line');
         } else if (lowerAction.includes('delete') || lowerAction.includes('suspend') || lowerAction.includes('remove')) {
            addToast(`Security Alert: ${details}`, 'warning', 'ri-error-warning-line');
+           await supabase.from('notifications').insert([{
+              type: 'alert',
+              title: 'Security Protocol Violation',
+              message: details,
+              priority: 'high'
+           }]);
         } else {
            addToast(details, 'info', 'ri-notification-3-line');
         }
@@ -94,8 +125,39 @@ export default function Dashboard() {
       adminChannel = channel;
     });
 
+    const fetchIdentity = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        
+        const { data: admin } = await supabase
+          .from('admins')
+          .select('*')
+          .eq('email', user.email)
+          .maybeSingle();
+        
+        const identity = {
+          id: admin?.id || user.id,
+          fullName: admin?.full_name || 'Admin User',
+          role: admin?.role || 'Admin',
+          email: admin?.email || user.email
+        };
+        
+        setAdminProfile(identity);
+        // Sync storage only for legacy fallbacks
+        localStorage.setItem('user_profile', JSON.stringify(identity));
+      } catch (err) {
+        console.error('Session init error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchIdentity();
+
     return () => {
       supabase.removeChannel(pickupSub);
+      supabase.removeChannel(userSub);
       supabase.removeChannel(auditSub);
       if (adminChannel) supabase.removeChannel(adminChannel);
     };
@@ -110,53 +172,94 @@ export default function Dashboard() {
   };
 
   const renderContent = () => {
-    const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
-    const rawRole = userInfo.role || 'Admin';
-    const roleKey = rawRole.toLowerCase().replace(/\s+/g, '_');
-    const isSuperAdmin = roleKey === 'super_admin';
+    if (loading) return (
+      <div className="flex-1 flex flex-col items-center justify-center py-20 bg-slate-50/50 dark:bg-black/20 rounded-[3rem] border border-slate-100 dark:border-white/5 mx-auto max-w-2xl mt-12">
+        <div className="w-14 h-14 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin shadow-lg shadow-emerald-500/20"></div>
+        <div className="mt-8 text-center">
+           <p className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-[0.3em]">BorlaWura Protocol</p>
+           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Synchronizing Global Database...</p>
+        </div>
+      </div>
+    );
+    
+    try {
+      // Priority 1: Real-time Parent Identity. Priority 2: Safe Recovery Fallback
+      const activeAdmin = adminProfile || JSON.parse(localStorage.getItem('user_profile') || '{}');
+      const rawRole = activeAdmin.role || 'Admin';
+      const roleKey = String(rawRole).toLowerCase().trim().replace(/\s+/g, '_');
+      const isSuperAdmin = roleKey === 'super_admin';
+      
+      const permissions: Record<string, string[]> = {
+        overview: ['super_admin', 'admin', 'finance_admin', 'operations_admin', 'manager', 'dispatcher', 'support_admin'],
+        admins: ['super_admin', 'admin', 'manager'],
+        users: ['super_admin', 'admin', 'operations_admin', 'manager', 'support_admin'],
+        households: ['super_admin', 'admin', 'operations_admin', 'manager', 'support_admin'],
+        riders: ['super_admin', 'admin', 'manager', 'dispatcher'],
+        pickups: ['super_admin', 'admin', 'manager', 'dispatcher'],
+        'live-tracking': ['super_admin', 'admin', 'manager', 'operations_admin', 'dispatcher'],
+        'route-optimization': ['super_admin', 'admin', 'operations_admin', 'dispatcher'],
+        financials: ['super_admin', 'admin', 'finance_admin', 'manager'],
+        analytics: ['super_admin', 'admin', 'finance_admin', 'manager'],
+        sms: ['super_admin', 'admin', 'operations_admin', 'manager', 'support_admin'],
+        feedback: ['super_admin', 'admin', 'manager', 'support_admin'],
+        settings: ['super_admin', 'admin', 'manager'],
+        audit: ['super_admin', 'admin', 'manager'],
+        profile: ['super_admin', 'admin', 'finance_admin', 'operations_admin', 'manager', 'dispatcher', 'support_admin']
+      };
 
-    // Permissions Map (Standardized for Hierarchy)
-    const permissions: Record<string, string[]> = {
-      overview: ['super_admin', 'admin', 'finance_admin', 'operations_admin', 'manager', 'dispatcher', 'support_admin'],
-      admins: ['super_admin', 'admin', 'manager'], // Expanded for Full Control
-      riders: ['super_admin', 'admin', 'operations_admin', 'manager', 'dispatcher'],
-      users: ['super_admin', 'admin', 'operations_admin', 'manager', 'support_admin'],
-      households: ['super_admin', 'admin', 'operations_admin', 'manager', 'support_admin'],
-      pickups: ['super_admin', 'admin', 'operations_admin', 'manager', 'dispatcher'],
-      'live-tracking': ['super_admin', 'admin', 'manager', 'operations_admin', 'dispatcher'],
-      'route-optimization': ['super_admin', 'operations_admin', 'dispatcher'],
-      financials: ['super_admin', 'finance_admin', 'manager'],
-      analytics: ['super_admin', 'finance_admin', 'manager'],
-      sms: ['super_admin', 'operations_admin', 'manager', 'support_admin'],
-      feedback: ['super_admin', 'admin', 'manager', 'support_admin'],
-      settings: ['super_admin', 'manager', 'admin'],
-      audit: ['super_admin', 'admin', 'manager'], // Expanded for Full Control
-      profile: ['super_admin', 'admin', 'finance_admin', 'operations_admin', 'manager', 'dispatcher', 'support_admin'],
-    };
+      const hasPermission = isSuperAdmin || (permissions[activeSection] && permissions[activeSection].includes(roleKey));
 
-    const isPermitted = isSuperAdmin || (permissions[activeSection] && permissions[activeSection].includes(roleKey));
+      if (!hasPermission) {
+        return (
+          <div className="flex flex-col items-center justify-center p-20 text-center bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-xl animate-fade-in mt-10">
+             <div className="w-20 h-20 rounded-3xl bg-rose-500/10 text-rose-500 flex items-center justify-center mb-8">
+                <i className="ri-shield-keyhole-line text-4xl"></i>
+             </div>
+             <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Access Restricted</h3>
+             <p className="max-w-md text-sm font-medium text-slate-500 dark:text-slate-400 mb-8 leading-relaxed mt-3 uppercase tracking-tighter">Clearance Level ({roleKey.replace('_', ' ')}) Insufficient</p>
+             <button onClick={() => setActiveSection('overview')} className="px-10 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-[2rem] text-xs font-bold uppercase tracking-widest hover:scale-105 transition-all">Emergency Home Override</button>
+          </div>
+        );
+      }
 
-    if (!isPermitted) {
-      return <Overview onNavigate={setActiveSection} />;
-    }
-
-    switch (activeSection) {
-      case 'overview': return <Overview onNavigate={setActiveSection} />;
-      case 'admins': return <AdminManagement />;
-      case 'riders': return <RiderManagement />;
-      case 'users': return <UserManagement />;
-      case 'households': return <HouseholdManagement />;
-      case 'pickups': return <PickupOperations />;
-      case 'live-tracking': return <LiveTracking />;
-      case 'route-optimization': return <RouteOptimization />;
-      case 'financials': return <FinancialManagement />;
-      case 'analytics': return <Analytics />;
-      case 'sms': return <SMSManagement />;
-      case 'feedback': return <FeedbackRatings />;
-      case 'settings': return <SystemSettings />;
-      case 'audit': return <AuditLog />;
-      case 'profile': return <ProfileView />;
-      default: return <Overview onNavigate={setActiveSection} />;
+      switch (activeSection) {
+        case 'overview': return <Overview onNavigate={setActiveSection} adminInfo={activeAdmin} />;
+        case 'admins': return <AdminManagement adminInfo={activeAdmin} />;
+        case 'riders': return <RiderManagement adminInfo={activeAdmin} />;
+        case 'users': return <UserManagement adminInfo={activeAdmin} />;
+        case 'households': return <HouseholdManagement adminInfo={activeAdmin} />;
+        case 'pickups': return <PickupOperations adminInfo={activeAdmin} />;
+        case 'live-tracking': return <LiveTracking adminInfo={activeAdmin} />;
+        case 'route-optimization': return <RouteOptimization adminInfo={activeAdmin} />;
+        case 'financials': return <FinancialManagement adminInfo={activeAdmin} />;
+        case 'analytics': return <Analytics adminInfo={activeAdmin} />;
+        case 'sms': return <SMSManagement adminInfo={activeAdmin} />;
+        case 'feedback': return <FeedbackRatings adminInfo={activeAdmin} />;
+        case 'settings': return <SystemSettings adminInfo={activeAdmin} />;
+        case 'audit': return <AuditLog adminInfo={activeAdmin} />;
+        case 'profile': return <ProfileView adminInfo={activeAdmin} />;
+        default: return <Overview onNavigate={setActiveSection} adminInfo={activeAdmin} />;
+      }
+    } catch (error) {
+       return (
+          <div className="flex flex-col items-center justify-center p-20 text-center bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-xl animate-fade-in mt-10">
+             <div className="w-20 h-20 rounded-3xl bg-amber-500/10 text-amber-500 flex items-center justify-center mb-8 animate-pulse">
+                <i className="ri-error-warning-line text-4xl"></i>
+             </div>
+             <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-3">System Protocol Interrupted</h3>
+             <p className="max-w-md text-sm font-medium text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
+                A localized identity mismatch occurred while initializing this section. This usually happens when administrative permissions are updated mid-session.
+             </p>
+             <div className="flex gap-4">
+                <button 
+                  onClick={() => { localStorage.clear(); window.location.reload(); }}
+                  className="px-10 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-[2rem] text-xs font-bold uppercase tracking-widest hover:scale-105 transition-all"
+                >
+                   Repair & Reset Session
+                </button>
+             </div>
+          </div>
+       );
     }
   };
 

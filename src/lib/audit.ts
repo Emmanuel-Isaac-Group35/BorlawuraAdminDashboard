@@ -4,10 +4,11 @@ export const logActivity = async (
   action: string,
   targetType: string,
   targetId: string,
-  details: any
+  details: any,
+  adminInfo?: any
 ) => {
   try {
-    const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
+    const userInfo = adminInfo || JSON.parse(localStorage.getItem('user_profile') || '{}');
     let adminId = userInfo.id || null;
 
     // Ensure adminId is a valid UUID or null to prevent database errors

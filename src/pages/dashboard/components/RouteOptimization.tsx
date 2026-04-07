@@ -28,7 +28,7 @@ interface OptimizedRoute {
   stops: RouteStop[];
 }
 
-export default function RouteOptimization() {
+export default function RouteOptimization({ adminInfo }: { adminInfo?: any }) {
   const [selectedRoute, setSelectedRoute] = useState<OptimizedRoute | null>(null);
   const [optimizing, setOptimizing] = useState(false);
   const [routes, setRoutes] = useState<OptimizedRoute[]>([]);

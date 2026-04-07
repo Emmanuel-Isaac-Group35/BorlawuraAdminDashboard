@@ -78,8 +78,8 @@ export default function Header({ onLogout, onMenuClick, onNavigate }: HeaderProp
           .maybeSingle();
 
         setUserInfo({
-          fullName: savedProfile?.fullName || adminData?.full_name || 'Admin User',
-          role: savedProfile?.role || adminData?.role || 'Admin',
+          fullName: adminData?.full_name || 'Admin User',
+          role: adminData?.role || 'Admin',
           email: user.email || ''
         });
       }
@@ -122,24 +122,6 @@ export default function Header({ onLogout, onMenuClick, onNavigate }: HeaderProp
 
         {/* Global Action Grid */}
         <div className="flex items-center gap-2">
-            <div 
-              onClick={fetchBalance}
-              className={`hidden md:flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-white/5 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-all group overflow-hidden relative ${loadingBalance ? 'opacity-70' : ''}`}
-              title="Click to refresh SMS balance"
-            >
-              <div className="flex flex-col">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">SMS Units</p>
-                <div className="flex items-center gap-1.5">
-                   <p className={`text-[13px] font-black ${smsBalance === null ? 'text-slate-400' : (smsBalance < 5 ? 'text-rose-500' : 'text-emerald-500')} tracking-tighter`}>
-                      {smsBalance === null ? 'Units (N/A)' : smsBalance.toLocaleString()}
-                   </p>
-                   {loadingBalance && <i className="ri-loader-4-line animate-spin text-slate-400 text-xs"></i>}
-                </div>
-              </div>
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${smsBalance === null ? 'bg-slate-100 text-slate-300' : (smsBalance < 5 ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-500')} group-hover:rotate-12 transition-transform`}>
-                <i className="ri-message-3-line text-lg"></i>
-              </div>
-            </div>
 
           <button
             onClick={toggleDarkMode}
