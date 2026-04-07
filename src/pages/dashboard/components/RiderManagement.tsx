@@ -12,6 +12,7 @@ interface Rider {
   vehicle_type: string;
   vehicle_number: string;
   status: 'active' | 'suspended';
+  registration_status?: 'pending' | 'approved' | 'rejected' | null;
   rating: number;
   total_pickups: number;
   total_earnings: number;
@@ -49,12 +50,16 @@ export default function RiderManagement({ adminInfo }: RiderManagementProps) {
   const canManage = role === 'super_admin' || role === 'manager' || role === 'dispatcher';
 
   useEffect(() => {
-    fetchRiders();
+    fetchRiders(true);
     
     const channel = supabase
       .channel('public:riders')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'riders' }, () => {
-        fetchRiders();
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'riders' 
+      }, (payload) => {
+        handleRealtimeUpdate(payload);
       })
       .subscribe();
 
@@ -63,9 +68,21 @@ export default function RiderManagement({ adminInfo }: RiderManagementProps) {
     };
   }, []);
 
-  const fetchRiders = async () => {
+  const handleRealtimeUpdate = (payload: any) => {
+    if (payload.eventType === 'INSERT') {
+      setRiders(prev => [payload.new as Rider, ...prev]);
+    } else if (payload.eventType === 'UPDATE') {
+      setRiders(prev => prev.map(rider => 
+        rider.id === payload.new.id ? { ...rider, ...payload.new } : rider
+      ));
+    } else if (payload.eventType === 'DELETE') {
+      setRiders(prev => prev.filter(rider => rider.id !== payload.old.id));
+    }
+  };
+
+  const fetchRiders = async (showLoading = false) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const { data, error } = await supabase
         .from('riders')
         .select('*')
@@ -76,9 +93,10 @@ export default function RiderManagement({ adminInfo }: RiderManagementProps) {
     } catch (error) {
       console.error('Error fetching riders:', error);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
+
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,27 +220,44 @@ export default function RiderManagement({ adminInfo }: RiderManagementProps) {
     }
 
     try {
-      const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
+      const status = (currentStatus || '').toLowerCase().trim();
+      const newStatus = status === 'active' ? 'suspended' : 'active';
+      const newRegStatus = newStatus === 'active' ? 'approved' : (selectedRider?.registration_status || 'approved');
+      
+      // 1. Update Rider table
       const { error } = await supabase
         .from('riders')
-        .update({ status: newStatus })
+        .update({ 
+          status: newStatus,
+          registration_status: newRegStatus
+        })
         .eq('id', id);
 
       if (error) throw error;
+
+      // 2. Mirror status to user table
+      await supabase
+        .from('users')
+        .update({ 
+          status: newStatus,
+          registration_status: newRegStatus
+        })
+        .eq('id', id);
+
       
-      const actionLabel = currentStatus === 'active' ? 'Suspended' : 'Activated';
+      const actionLabel = newStatus === 'suspended' ? 'Suspended' : 'Activated';
       await logActivity(`${actionLabel} Rider`, 'riders', id, { 
         status: newStatus,
         message: `${actionLabel} rider #${id.substring(0,8)}`
       });
 
-      await logActivity('Rider Status Update', 'riders', id, { 
-        status: newStatus,
-        message: `Rider ID ${id.slice(0,5)} status set to ${newStatus}`
-      });
-
       alert(`Personnel ${actionLabel} successfully.`);
       fetchRiders();
+
+      // Update local state if modal is open
+      if (selectedRider && selectedRider.id === id) {
+        setSelectedRider({ ...selectedRider, status: newStatus as any });
+      }
     } catch (err: any) {
       alert(`Status Update Failed: ${err.message}`);
     }

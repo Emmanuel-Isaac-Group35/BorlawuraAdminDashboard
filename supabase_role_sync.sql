@@ -9,10 +9,11 @@ RETURNS TRIGGER AS $$
 BEGIN
     -- If promoted to an Admin/Staff role
     IF NEW.role IN ('super_admin', 'manager', 'finance_admin', 'dispatcher', 'support_admin', 'admin') THEN
-        INSERT INTO public.admins (email, full_name, role, status, phone_number)
-        VALUES (NEW.email, NEW.full_name, NEW.role, 'active', NEW.phone_number)
-        ON CONFLICT (email) 
+        INSERT INTO public.admins (id, email, full_name, role, status, phone_number)
+        VALUES (NEW.id, NEW.email, NEW.full_name, NEW.role, 'active', NEW.phone_number)
+        ON CONFLICT (id) 
         DO UPDATE SET 
+            email = EXCLUDED.email,
             role = EXCLUDED.role,
             full_name = EXCLUDED.full_name,
             phone_number = EXCLUDED.phone_number,
@@ -20,10 +21,11 @@ BEGIN
             
     -- If promoted to a Rider role
     ELSIF NEW.role = 'rider' THEN
-        INSERT INTO public.riders (email, full_name, phone_number, status)
-        VALUES (NEW.email, NEW.full_name, NEW.phone_number, 'active')
-        ON CONFLICT (email) 
+        INSERT INTO public.riders (id, email, full_name, phone_number, status)
+        VALUES (NEW.id, NEW.email, NEW.full_name, NEW.phone_number, 'active')
+        ON CONFLICT (id) 
         DO UPDATE SET 
+            email = EXCLUDED.email,
             full_name = EXCLUDED.full_name,
             phone_number = EXCLUDED.phone_number,
             status = 'active';

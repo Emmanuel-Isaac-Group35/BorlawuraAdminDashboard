@@ -73,6 +73,7 @@ export default function LiveTracking({ adminInfo }: { adminInfo?: any }) {
   const BASE_LNG = -0.1870;
 
   useEffect(() => {
+<<<<<<< HEAD
     fetchRiders();
     fetchPickups();
 
@@ -80,6 +81,18 @@ export default function LiveTracking({ adminInfo }: { adminInfo?: any }) {
       .channel('public:riders_live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'riders' }, () => {
         fetchRiders();
+=======
+    fetchRiders(true);
+
+    const channel = supabase
+      .channel('public:riders')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'riders' 
+      }, (payload) => {
+        handleRealtimeUpdate(payload);
+>>>>>>> 2a01413fc21621ea9ae6a977f6747fa97659b41c
       })
       .subscribe();
 
@@ -96,6 +109,7 @@ export default function LiveTracking({ adminInfo }: { adminInfo?: any }) {
     };
   }, []);
 
+<<<<<<< HEAD
    const fetchPickups = async () => {
       try {
          const { data } = await supabase
@@ -122,33 +136,53 @@ export default function LiveTracking({ adminInfo }: { adminInfo?: any }) {
   };
 
   const fetchRiders = async () => {
+=======
+  const handleRealtimeUpdate = (payload: any) => {
+    if (payload.eventType === 'INSERT') {
+      const newRider = mapRiderData(payload.new);
+      setRiders(prev => [newRider, ...prev]);
+    } else if (payload.eventType === 'UPDATE') {
+      const updatedRider = mapRiderData(payload.new);
+      setRiders(prev => prev.map(rider => 
+        rider.id === updatedRider.id ? { ...rider, ...updatedRider } : rider
+      ));
+    } else if (payload.eventType === 'DELETE') {
+      setRiders(prev => prev.filter(rider => rider.id !== payload.old.id));
+    }
+  };
+
+  const mapRiderData = (r: any): Rider => ({
+    id: r.id,
+    name: r.full_name,
+    phone: r.phone_number || r.phone || 'N/A',
+    zone: r.zone || 'Central',
+    status: r.status === 'active' ? 'online' : (r.status === 'busy' ? 'busy' : 'offline'),
+    location: {
+      lat: r.latitude || BASE_LAT + (Math.random() - 0.5) * 0.05,
+      lng: r.longitude || BASE_LNG + (Math.random() - 0.5) * 0.05,
+      address: r.address || 'Service Area'
+    },
+    lastUpdate: new Date().toLocaleTimeString(),
+    speed: r.status === 'busy' ? Math.floor(Math.random() * 20) + 10 : 0
+  });
+
+  const fetchRiders = async (showLoading = false) => {
+>>>>>>> 2a01413fc21621ea9ae6a977f6747fa97659b41c
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const { data, error } = await supabase.from('riders').select('*');
       if (error) throw error;
 
       if (data) {
-        setRiders(data.map(r => ({
-          id: r.id,
-          name: r.full_name,
-          phone: r.phone_number || r.phone || 'N/A',
-          zone: r.zone || 'Central',
-          status: r.status === 'active' ? 'online' : (r.status === 'busy' ? 'busy' : 'offline'),
-          location: {
-            lat: r.latitude || BASE_LAT + (Math.random() - 0.5) * 0.05,
-            lng: r.longitude || BASE_LNG + (Math.random() - 0.5) * 0.05,
-            address: r.address || 'Service Area'
-          },
-          lastUpdate: new Date().toLocaleTimeString(),
-          speed: r.status === 'busy' ? Math.floor(Math.random() * 20) + 10 : 0
-        })));
+        setRiders(data.map(mapRiderData));
       }
     } catch (error) {
       console.error('Error fetching riders:', error);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
+
 
   const filteredRiders = riders.filter(r => {
     const matchesStatus = filterStatus === 'all' || r.status === filterStatus;
