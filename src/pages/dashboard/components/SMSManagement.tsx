@@ -46,8 +46,18 @@ export default function SMSManagement({ adminInfo }: SMSManagementProps) {
   }, [configuredSenderId]);
 
   const userInfo = adminInfo || JSON.parse(localStorage.getItem('user_profile') || '{}');
-  const currentRole = (userInfo.role || 'Super Admin').toLowerCase().replace(/\s+/g, '_');
-  const canSend = currentRole === 'super_admin' || currentRole === 'manager' || currentRole === 'support_admin' || currentRole === 'admin';
+  const currentRole = (userInfo.role || 'Admin').toLowerCase().replace(/\s+/g, '_');
+  const canSend = currentRole === 'admin' || currentRole === 'manager' || currentRole === 'support_admin';
+
+  if (!canSend) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-sm">
+        <i className="ri-chat-voice-line text-6xl text-slate-200 mb-6 font-thin"></i>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Communication Lock</h2>
+        <p className="text-sm text-slate-500 max-w-sm text-center">Your role does not have authorization to broadcast SMS notifications.</p>
+      </div>
+    );
+  }
 
   useEffect(() => {
     fetchSMSLogs();

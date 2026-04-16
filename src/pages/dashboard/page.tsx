@@ -14,10 +14,12 @@ import AuditLog from './components/AuditLog';
 import SMSManagement from './components/SMSManagement';
 import LiveTracking from './components/LiveTracking';
 import RouteOptimization from './components/RouteOptimization';
-import FeedbackRatings from './components/SupportDesk';
 import LogoutDialog from './components/LogoutDialog';
 import FinancialManagement from './components/FinancialManagement';
 import ProfileView from './components/ProfileView';
+import CMSManagement from './components/CMSManagement';
+import SupportDesk from './components/SupportDesk';
+import { useAdminAuth } from '../../hooks/useAdminAuth';
 
 interface Toast {
   id: number;
@@ -32,13 +34,18 @@ export default function Dashboard() {
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [adminProfile, setAdminProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  
+  const { profile, loading } = useAdminAuth();
 
   useEffect(() => {
-    // 1. Listen for Pickups (New & Status Updates)
+    if (profile) setAdminProfile(profile);
+  }, [profile]);
+
+  useEffect(() => {
+    // 1. Listen for Orders (New & Status Updates)
     const pickupSub = supabase
-      .channel('live_pickups')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pickups' }, async () => {
+      .channel('live_orders')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, async () => {
         addToast(`New service request incoming`, 'info', 'ri-truck-line');
         await supabase.from('notifications').insert([{
            type: 'pickup',
@@ -47,7 +54,7 @@ export default function Dashboard() {
            priority: 'high'
         }]);
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pickups' }, (payload) => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, (payload) => {
         const status = payload.new.status;
         addToast(`Job status updated to ${status.replace('_', ' ')}`, 'info', 'ri-refresh-line');
       })
@@ -103,7 +110,7 @@ export default function Dashboard() {
               event: 'UPDATE', 
               schema: 'public', 
               table: 'admins',
-              filter: `email=eq.${authUser.email}`
+              filter: `id=eq.${authUser.id}`
             }, (payload) => {
               const status = payload.new.status || 'active';
               if (status === 'inactive' || status === 'suspended') {
@@ -124,36 +131,6 @@ export default function Dashboard() {
     setupAdminListener().then(channel => {
       adminChannel = channel;
     });
-
-    const fetchIdentity = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        
-        const { data: admin } = await supabase
-          .from('admins')
-          .select('*')
-          .eq('email', user.email)
-          .maybeSingle();
-        
-        const identity = {
-          id: admin?.id || user.id,
-          fullName: admin?.full_name || 'Admin User',
-          role: admin?.role || 'Admin',
-          email: admin?.email || user.email
-        };
-        
-        setAdminProfile(identity);
-        // Sync storage only for legacy fallbacks
-        localStorage.setItem('user_profile', JSON.stringify(identity));
-      } catch (err) {
-        console.error('Session init error:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchIdentity();
 
     return () => {
       supabase.removeChannel(pickupSub);
@@ -187,27 +164,28 @@ export default function Dashboard() {
       const activeAdmin = adminProfile || JSON.parse(localStorage.getItem('user_profile') || '{}');
       const rawRole = activeAdmin.role || 'Admin';
       const roleKey = String(rawRole).toLowerCase().trim().replace(/\s+/g, '_');
-      const isSuperAdmin = roleKey === 'super_admin';
+      const isAdminRole = roleKey === 'admin';
       
       const permissions: Record<string, string[]> = {
-        overview: ['super_admin', 'admin', 'finance_admin', 'operations_admin', 'manager', 'dispatcher', 'support_admin'],
-        admins: ['super_admin', 'admin', 'manager'],
-        users: ['super_admin', 'admin', 'operations_admin', 'manager', 'support_admin'],
-        households: ['super_admin', 'admin', 'operations_admin', 'manager', 'support_admin'],
-        riders: ['super_admin', 'admin', 'manager', 'dispatcher'],
-        pickups: ['super_admin', 'admin', 'manager', 'dispatcher'],
-        'live-tracking': ['super_admin', 'admin', 'manager', 'operations_admin', 'dispatcher'],
-        'route-optimization': ['super_admin', 'admin', 'operations_admin', 'dispatcher'],
-        financials: ['super_admin', 'admin', 'finance_admin', 'manager'],
-        analytics: ['super_admin', 'admin', 'finance_admin', 'manager'],
-        sms: ['super_admin', 'admin', 'operations_admin', 'manager', 'support_admin'],
-        feedback: ['super_admin', 'admin', 'manager', 'support_admin'],
-        settings: ['super_admin', 'admin', 'manager'],
-        audit: ['super_admin', 'admin', 'manager'],
-        profile: ['super_admin', 'admin', 'finance_admin', 'operations_admin', 'manager', 'dispatcher', 'support_admin']
+        overview: ['admin', 'manager', 'dispatcher', 'finance_admin', 'support_admin'],
+        admins: ['admin'],
+        users: ['admin', 'manager', 'support_admin'],
+        households: ['admin', 'manager', 'support_admin'],
+        riders: ['admin', 'manager', 'dispatcher'],
+        pickups: ['admin', 'manager', 'dispatcher'],
+        'live-tracking': ['admin', 'manager', 'dispatcher'],
+        'route-optimization': ['admin', 'dispatcher'],
+        financials: ['admin', 'finance_admin', 'manager'],
+        analytics: ['admin', 'finance_admin', 'manager'],
+        sms: ['admin', 'manager', 'support_admin'],
+        feedback: ['admin', 'manager', 'support_admin'],
+        settings: ['admin'],
+        cms: ['admin', 'manager'],
+        audit: ['admin'],
+        profile: ['admin', 'finance_admin', 'manager', 'dispatcher', 'support_admin']
       };
 
-      const hasPermission = isSuperAdmin || (permissions[activeSection] && permissions[activeSection].includes(roleKey));
+      const hasPermission = isAdminRole || (permissions[activeSection] && permissions[activeSection].includes(roleKey));
 
       if (!hasPermission) {
         return (
@@ -234,7 +212,8 @@ export default function Dashboard() {
         case 'financials': return <FinancialManagement adminInfo={activeAdmin} />;
         case 'analytics': return <Analytics adminInfo={activeAdmin} />;
         case 'sms': return <SMSManagement adminInfo={activeAdmin} />;
-        case 'feedback': return <FeedbackRatings adminInfo={activeAdmin} />;
+        case 'feedback': return <SupportDesk adminInfo={activeAdmin} />;
+        case 'cms': return <CMSManagement adminInfo={activeAdmin} />;
         case 'settings': return <SystemSettings adminInfo={activeAdmin} />;
         case 'audit': return <AuditLog adminInfo={activeAdmin} />;
         case 'profile': return <ProfileView adminInfo={activeAdmin} />;
@@ -266,6 +245,7 @@ export default function Dashboard() {
   return (
     <div className="h-screen overflow-hidden bg-slate-50 dark:bg-[#0a0a0c] flex font-['Montserrat']">
       <Sidebar
+        adminInfo={adminProfile}
         activeSection={activeSection}
         setActiveSection={(section) => {
           setActiveSection(section);
@@ -285,6 +265,7 @@ export default function Dashboard() {
 
       <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
         <Header
+          adminInfo={adminProfile}
           onLogout={() => setShowLogoutDialog(true)}
           onMenuClick={() => setIsSidebarOpen(true)}
           onNavigate={setActiveSection}

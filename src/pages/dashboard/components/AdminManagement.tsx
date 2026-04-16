@@ -8,7 +8,7 @@ interface AdminMember {
   id: string;
   full_name: string;
   email: string;
-  role: 'Admin' | 'admin' | 'super_admin' | 'manager' | 'dispatcher' | 'support';
+  role: 'admin' | 'manager' | 'dispatcher' | 'finance_admin' | 'support_admin';
   status: 'active' | 'inactive';
   created_at: string;
   last_login: string | null;
@@ -35,7 +35,20 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
 
   const userInfo = adminInfo || JSON.parse(localStorage.getItem('user_profile') || '{}');
   const roleKey = (userInfo.role || 'Admin').toLowerCase().replace(/\s+/g, '_');
-  const canManage = roleKey === 'super_admin' || roleKey === 'admin' || roleKey === 'manager'; 
+  
+  // Personnel management is restricted strictly to the Admin role
+  const canManagePersonnel = roleKey === 'admin';
+  const canView = roleKey === 'admin' || roleKey === 'manager'; 
+
+  if (!canView) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-sm">
+        <i className="ri-shield-keyhole-line text-6xl text-slate-200 mb-6 font-thin"></i>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Access Restricted</h2>
+        <p className="text-sm text-slate-500 max-w-sm text-center">Your personnel clearance does not allow entry to the Staff Manifest.</p>
+      </div>
+    );
+  }
 
   useEffect(() => {
     fetchAdmins();
@@ -61,7 +74,11 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setAdmins(data || []);
+      const normalizedAdmins = (data || []).map(a => ({
+        ...a,
+        role: String(a.role).toLowerCase().includes('super') ? 'admin' : a.role
+      }));
+      setAdmins(normalizedAdmins);
     } catch (error) {
       console.error('Error fetching admins:', error);
     } finally {
@@ -71,25 +88,45 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
 
   const handleSaveAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canManage) return;
+    if (!canManagePersonnel) return;
 
     try {
       if (isEditing && selectedAdmin) {
-        const { error } = await supabase
-          .from('admins')
-          .update({
-            full_name: newAdmin.full_name,
-            role: newAdmin.role,
-            avatar_url: newAdmin.avatar_url
-          })
-          .eq('id', selectedAdmin.id);
-        if (error) throw error;
+        // 1. Update Admins Table (Try ID then Email)
+        const updatePayload = {
+          full_name: newAdmin.full_name,
+          role: newAdmin.role,
+          avatar_url: newAdmin.avatar_url
+        };
 
+        const { error: adminError, count } = await supabase
+          .from('admins')
+          .update(updatePayload)
+          .eq('id', selectedAdmin.id)
+          .select();
+
+        // Fallback: If no rows updated by ID, try email
+        if (!count || count === 0) {
+           console.log("No record found by ID, attempting email-based update for", newAdmin.email);
+           await supabase
+             .from('admins')
+             .update(updatePayload)
+             .eq('email', newAdmin.email);
+        }
+
+        // 2. Synchronize to Users Table
+        await supabase
+          .from('users')
+          .update(updatePayload)
+          .eq('email', newAdmin.email);
+        
         await logActivity('Staff Role Re-assigned', 'admins', selectedAdmin.id, { 
           staff: newAdmin.full_name, 
           role: newAdmin.role,
           message: `${newAdmin.full_name} repositioned to ${newAdmin.role}`
         });
+
+        alert(`Personnel profile for ${newAdmin.full_name} has been synchronized across all systems.`);
 
         // Send Alert
         await sendSMS({
@@ -152,10 +189,13 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
 
   const openEdit = (admin: AdminMember) => {
     setSelectedAdmin(admin);
+    const currentRole = admin.role;
+    const normalizedRole = String(currentRole).toLowerCase().includes('super') ? 'admin' : currentRole;
+    
     setNewAdmin({
       full_name: admin.full_name,
       email: admin.email,
-      role: admin.role as any,
+      role: normalizedRole as any,
       password: 'KEEP_EXISTING',
       avatar_url: admin.avatar_url || ''
     });
@@ -164,7 +204,7 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
   };
 
   const toggleStatus = async (id: string, currentStatus: string) => {
-    if (!canManage) return;
+    if (!canManagePersonnel) return;
     try {
       const status = (currentStatus || '').toLowerCase().trim();
       const newStatus = status === 'active' ? 'inactive' : 'active';
@@ -190,7 +230,7 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
   };
 
   const handleDeleteAdmin = async (id: string, email: string) => {
-    if (!canManage) return;
+    if (!canManagePersonnel) return;
     if (userInfo.id === id) {
       alert("Self-Termination Aborted: You cannot delete your own account from this session.");
       return;
@@ -236,7 +276,7 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
             fileName="Staff_list_report"
             title="Office Team List"
           />
-          {canManage && (
+          {canManagePersonnel && (
             <button 
               onClick={() => { resetForm(); setShowAddModal(true); }}
               className="px-8 py-3.5 bg-emerald-600 text-white rounded-[2rem] text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all flex items-center gap-2.5 group"
@@ -312,7 +352,7 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
                       </td>
                       <td className="px-8 py-6 text-right">
                         <div className="flex justify-end gap-2.5">
-                           {canManage && (
+                           {canManagePersonnel && (
                              <>
                                <button onClick={() => openEdit(admin)} className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 flex items-center justify-center hover:bg-indigo-500 hover:text-white transition-all shadow-sm">
                                   <i className="ri-edit-line text-lg"></i>
@@ -361,7 +401,7 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
                   <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-white/5">
                     <span className="text-[10px] font-bold text-slate-400 uppercase">{admin.role.replace('_', ' ')}</span>
                     <div className="flex gap-2">
-                      {canManage && (
+                      {canManagePersonnel && (
                         <>
                           <button onClick={() => openEdit(admin)} className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 flex items-center justify-center shadow-sm">
                             <i className="ri-edit-line"></i>
@@ -407,7 +447,7 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Role Type</label>
                   <select value={newAdmin.role} onChange={e => setNewAdmin({...newAdmin, role: e.target.value as any})} className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                    <option value="super_admin">Boss Access (Super Admin)</option>
+                    <option value="admin">System Admin (Full Access)</option>
                     <option value="manager">Global Manager</option>
                     <option value="finance_admin">Finance (Money Access)</option>
                     <option value="dispatcher">Field Captain (Dispatcher)</option>

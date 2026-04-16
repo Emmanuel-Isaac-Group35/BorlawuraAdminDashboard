@@ -6,67 +6,44 @@ interface SidebarProps {
   setActiveSection: (section: string) => void;
   isOpen: boolean;
   onClose: () => void;
+  adminInfo: any;
 }
 
-export default function Sidebar({ activeSection, setActiveSection, isOpen, onClose }: SidebarProps) {
-  const [userInfo, setUserInfo] = useState({
-    fullName: 'Super Admin',
-    role: 'Super Admin',
-    email: 'admin@borlawura.gh'
-  });
-
-  useEffect(() => {
-    fetchUserProfile();
-  }, []);
-
-  const fetchUserProfile = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (user) {
-        const { data: adminData } = await supabase
-          .from('admins')
-          .select('full_name, role, email')
-          .eq('email', user.email)
-          .maybeSingle();
-        
-        const role = adminData?.role || 'Admin';
-        
-        setUserInfo({
-          fullName: adminData?.full_name || 'Admin User',
-          role: role,
-          email: adminData?.email || user.email || 'admin@borlawura.gh'
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-    }
+export default function Sidebar({ activeSection, setActiveSection, isOpen, onClose, adminInfo }: SidebarProps) {
+  const userInfo = adminInfo || {
+    fullName: 'Admin',
+    role: 'Admin',
+    email: 'admin@borlawura.gh',
+    avatar_url: ''
   };
+
+
 
   const getMenuItems = () => {
     // Normalize and fallback logic
     const rawRole = userInfo?.role || 'Admin';
     const roleKey = String(rawRole).toLowerCase().trim().replace(/\s+/g, '_');
     
-    // Only Super Admin gets everything automatically
-    const isSuperAdmin = roleKey === 'super_admin';
+    // Only Admin gets everything automatically
+    const isAdmin = roleKey === 'admin';
 
     const allItems = [
-      { id: 'overview', icon: 'ri-dashboard-3-line', label: 'Home', roles: ['super_admin', 'admin', 'finance_admin', 'manager', 'dispatcher', 'support_admin'], color: 'emerald' },
-      { id: 'feedback', icon: 'ri-customer-service-2-line', label: 'Support Desk', roles: ['super_admin', 'admin', 'manager', 'support_admin'], color: 'emerald' },
-      { id: 'admins', icon: 'ri-shield-user-line', label: 'Personnel', roles: ['super_admin', 'admin', 'manager'], color: 'slate' },
-      { id: 'riders', icon: 'ri-bike-line', label: 'Riders', roles: ['super_admin', 'admin', 'manager', 'dispatcher'], color: 'emerald' },
-      { id: 'users', icon: 'ri-group-line', label: 'Users', roles: ['super_admin', 'admin', 'manager', 'support_admin'], color: 'emerald' },
-      { id: 'pickups', icon: 'ri-calendar-check-line', label: 'Orders', roles: ['super_admin', 'admin', 'manager', 'dispatcher'], color: 'emerald' },
-      { id: 'sms', icon: 'ri-chat-voice-line', label: 'SMS', roles: ['super_admin', 'admin', 'operations_admin', 'manager', 'support_admin'], color: 'emerald' },
-      { id: 'live-tracking', icon: 'ri-map-pin-user-line', label: 'Map', roles: ['super_admin', 'admin', 'manager', 'dispatcher'], color: 'emerald' },
-      { id: 'financials', icon: 'ri-wallet-3-line', label: 'Finance', roles: ['super_admin', 'admin', 'finance_admin', 'manager'], color: 'amber' },
-      { id: 'analytics', icon: 'ri-bar-chart-box-line', label: 'Reports', roles: ['super_admin', 'admin', 'finance_admin', 'manager'], color: 'orange' },
-      { id: 'audit', icon: 'ri-file-shield-2-line', label: 'Audit Log', roles: ['super_admin', 'admin', 'manager'], color: 'slate' },
-      { id: 'settings', icon: 'ri-settings-5-line', label: 'Settings', roles: ['super_admin', 'admin', 'manager'], color: 'gray' },
+      { id: 'overview', icon: 'ri-dashboard-3-line', label: 'Home', roles: ['admin', 'finance_admin', 'manager', 'dispatcher', 'support_admin'], color: 'emerald' },
+      { id: 'feedback', icon: 'ri-customer-service-2-line', label: 'Support Desk', roles: ['admin', 'manager', 'support_admin'], color: 'emerald' },
+      { id: 'admins', icon: 'ri-shield-user-line', label: 'Personnel', roles: ['admin'], color: 'slate' },
+      { id: 'riders', icon: 'ri-bike-line', label: 'Riders', roles: ['admin', 'manager', 'dispatcher'], color: 'emerald' },
+      { id: 'users', icon: 'ri-group-line', label: 'Users', roles: ['admin', 'manager', 'support_admin', 'finance_admin'], color: 'emerald' },
+      { id: 'pickups', icon: 'ri-calendar-check-line', label: 'Orders', roles: ['admin', 'manager', 'dispatcher'], color: 'emerald' },
+      { id: 'sms', icon: 'ri-chat-voice-line', label: 'SMS', roles: ['admin', 'manager', 'support_admin'], color: 'emerald' },
+      { id: 'live-tracking', icon: 'ri-map-pin-user-line', label: 'Map', roles: ['admin', 'manager', 'dispatcher'], color: 'emerald' },
+      { id: 'financials', icon: 'ri-wallet-3-line', label: 'Finance', roles: ['admin', 'finance_admin', 'manager'], color: 'amber' },
+      { id: 'analytics', icon: 'ri-bar-chart-box-line', label: 'Reports', roles: ['admin', 'finance_admin', 'manager'], color: 'orange' },
+      { id: 'audit', icon: 'ri-file-shield-2-line', label: 'Audit Log', roles: ['admin'], color: 'slate' },
+      { id: 'cms', icon: 'ri-window-line', label: 'CMS', roles: ['admin', 'manager'], color: 'violet' },
+      { id: 'settings', icon: 'ri-settings-5-line', label: 'Settings', roles: ['admin'], color: 'gray' },
     ];
 
-    if (isSuperAdmin) return allItems;
+    if (isAdmin) return allItems;
     return allItems.filter(item => item.roles.includes(roleKey));
   };
 
@@ -131,8 +108,12 @@ export default function Sidebar({ activeSection, setActiveSection, isOpen, onClo
 
           <div className="p-4 bg-slate-50/50 dark:bg-white/[0.02] rounded-2xl border border-slate-100/50 dark:border-white/5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white dark:bg-black/20 flex items-center justify-center text-slate-500 dark:text-slate-400 shadow-sm border border-slate-50 dark:border-white/5">
-                <i className="ri-shield-user-line text-lg"></i>
+              <div className="w-10 h-10 rounded-xl bg-white dark:bg-black/20 flex items-center justify-center text-slate-500 dark:text-slate-400 shadow-sm border border-slate-50 dark:border-white/5 overflow-hidden">
+                {userInfo.avatar_url ? (
+                  <img src={userInfo.avatar_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <i className="ri-shield-user-line text-lg"></i>
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-bold text-slate-900 dark:text-white truncate uppercase tracking-tight">{userInfo.fullName}</p>

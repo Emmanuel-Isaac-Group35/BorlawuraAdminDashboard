@@ -104,9 +104,19 @@ export default function FinancialManagement({ adminInfo }: FinancialManagementPr
   };
 
   const userInfo = adminInfo || JSON.parse(localStorage.getItem('user_profile') || '{}');
-  const rawRole = userInfo.role || 'Super Admin';
+  const rawRole = userInfo.role || 'Admin';
   const roleKey = rawRole.toLowerCase().replace(/\s+/g, '_');
-  const isFinanceAdmin = roleKey === 'super_admin' || roleKey === 'manager' || roleKey === 'finance_admin';
+  const isFinanceAdmin = roleKey === 'admin' || roleKey === 'manager' || roleKey === 'finance_admin';
+
+  if (!isFinanceAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-sm">
+        <i className="ri-wallet-line text-6xl text-slate-200 mb-6 font-thin"></i>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Financial Lock Active</h2>
+        <p className="text-sm text-slate-500 max-w-sm text-center">Sensitive financial synchronization required. Please contact treasury for access.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-10 font-['Montserrat'] animate-fade-in pb-10">

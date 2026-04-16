@@ -41,10 +41,12 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
     balance: 0,
     role: 'customer',
     subscription_type: 'pay-as-you-go',
-    avatar_url: ''
+    avatar_url: '',
+    status: 'active'
   });
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [userPickups, setUserPickups] = useState<any[]>([]);
+  const [userPayments, setUserPayments] = useState<any[]>([]);
   const [loadingPickups, setLoadingPickups] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,11 +54,10 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
   const availableZones = settings.zones || ['Accra Central', 'Osu', 'Tema', 'Madina', 'Legon', 'Spintex'];
 
   const userInfo = adminInfo || JSON.parse(localStorage.getItem('user_profile') || '{}');
-  const rawRole = userInfo.role || 'Super Admin';
-  const roleKey = rawRole.toLowerCase().replace(/\s+/g, '_');
-  const isAdmin = roleKey === 'super_admin' || roleKey === 'admin' || roleKey === 'manager'; 
+  const roleKey = (userInfo.role || 'Admin').toLowerCase().replace(/\s+/g, '_');
+  const isAdmin = roleKey === 'admin' || roleKey === 'manager'; 
   const canModify = isAdmin || roleKey === 'support_admin'; 
-
+  const canPromote = roleKey === 'admin';
   useEffect(() => {
     fetchUsers();
 
@@ -74,25 +75,32 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
 
   useEffect(() => {
     if (selectedUser) {
-      fetchUserPickups(selectedUser.id);
+      fetchUserHistory(selectedUser.id);
     } else {
       setUserPickups([]);
+      setUserPayments([]);
     }
   }, [selectedUser]);
 
-  const fetchUserPickups = async (userId: string) => {
+  const fetchUserHistory = async (userId: string) => {
     setLoadingPickups(true);
     try {
-      const { data, error } = await supabase
-        .from('pickups')
+      const { data: orders } = await supabase
+        .from('orders')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
-      setUserPickups(data || []);
+      const { data: payments } = await supabase
+          .from('payments')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false });
+
+      setUserPickups(orders || []);
+      setUserPayments(payments || []);
     } catch (e) {
-      console.error('Error fetching user pickups:', e);
+      console.error('Error fetching user history:', e);
     } finally {
       setLoadingPickups(false);
     }
@@ -105,6 +113,7 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
       const { data, error } = await supabase
         .from('users')
         .select('*')
+        .eq('role', 'customer')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -165,9 +174,9 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
 
       if (error) throw error;
 
-      // promotion logic if someone is promoted to an admin role or rider
-      const adminRoles = ['super_admin', 'finance_admin', 'manager', 'dispatcher', 'support_admin'];
-      if (adminRoles.includes(formData.role)) {
+      // promotion logic if someone is promoted to an admin role or rider (RESRICTED TO MASTER)
+      const adminRoles = ['admin', 'finance_admin', 'manager', 'dispatcher', 'support_admin'];
+      if (adminRoles.includes(formData.role) && canPromote) {
          await supabase.from('admins').upsert([{
             id: selectedUser.id,
             email: formData.email,
@@ -642,15 +651,30 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
                      <img src={selectedUser.avatar_url} alt="" className="w-full h-full object-cover" />
                   ) : selectedUser.full_name?.charAt(0)}
                 </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{selectedUser.full_name}</h3>
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase ${selectedUser.status === 'active' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
-                      {selectedUser.status}
-                    </span>
-                    <span className="text-[11px] font-medium text-slate-400">ID: {selectedUser.id.slice(0,8)}</span>
-                  </div>
-                </div>
+                <div className="flex items-center gap-3">
+                   <div>
+                     <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{selectedUser.full_name}</h3>
+                     <div className="flex items-center gap-2">
+                       <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase ${selectedUser.status === 'active' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+                         {selectedUser.status}
+                       </span>
+                       <span className="text-[11px] font-medium text-slate-400">ID: {selectedUser.id.slice(0,8)}</span>
+                     </div>
+                   </div>
+                   <div className="flex-1 flex justify-end px-4">
+                      <button 
+                        onClick={() => toggleUserStatus(selectedUser.id, selectedUser.status)}
+                        className={`px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                          selectedUser.status === 'active' 
+                          ? 'bg-rose-500/10 text-rose-600 hover:bg-rose-600 hover:text-white' 
+                          : 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-600 hover:text-white'
+                        }`}
+                      >
+                         <i className={selectedUser.status === 'active' ? 'ri-user-unfollow-line mr-2' : 'ri-user-follow-line mr-2'}></i>
+                         {selectedUser.status === 'active' ? 'Suspend Access' : 'Restore Access'}
+                      </button>
+                   </div>
+                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-8 mb-10">
@@ -688,21 +712,21 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
                       <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
                     </div>
                   ) : userPickups.length > 0 ? (
-                    userPickups.slice(0, 4).map((p) => (
+                     userPickups.slice(0, 5).map((p) => (
                       <div key={p.id} className="p-4 bg-slate-50 dark:bg-white/[0.02] border border-slate-100 dark:border-white/5 rounded-2xl flex items-center justify-between group hover:bg-white dark:hover:bg-white/[0.05] transition-all">
                         <div className="flex items-center gap-3">
                            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
                               <i className="ri-truck-line text-sm"></i>
                            </div>
                            <div>
-                              <p className="text-[11px] font-bold text-slate-800 dark:text-white uppercase tracking-tight">{p.waste_type || 'Waste Pickup'}</p>
+                              <p className="text-[11px] font-bold text-slate-800 dark:text-white uppercase tracking-tight">{p.service_type || p.waste_type || 'Waste Pickup'}</p>
                               <p className="text-[9px] text-slate-400 font-bold uppercase">{new Date(p.created_at).toLocaleDateString()}</p>
                            </div>
                         </div>
                         <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase border ${
                           p.status === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                          p.status === 'requested' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                          'bg-slate-50 text-slate-400 border-slate-100'
+                          p.status === 'cancelled' ? 'bg-rose-50 text-rose-600 border-rose-100' :
+                          'bg-amber-50 text-amber-600 border-amber-100'
                         }`}>
                           {p.status}
                         </span>
@@ -713,6 +737,44 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">No previous requests identified</p>
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* Enhanced: Financial Activity Segment */}
+              <div className="mb-10">
+                <div className="flex items-center justify-between mb-4 px-2">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Financial Transactions</h4>
+                  <span className="text-[9px] font-bold text-emerald-500 uppercase">{userPayments.length} Entries</span>
+                </div>
+                <div className="space-y-3 max-h-[150px] overflow-y-auto pr-2 custom-scrollbar">
+                  {loadingPickups ? (
+                    <div className="py-4 text-center">
+                       <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                    </div>
+                  ) : userPayments.length > 0 ? (
+                    userPayments.map((pay) => (
+                      <div key={pay.id} className="p-3.5 bg-slate-50 dark:bg-white/[0.01] border border-slate-100 dark:border-white/5 rounded-2xl flex items-center justify-between group hover:bg-white dark:hover:bg-white/[0.05] transition-all">
+                        <div className="flex items-center gap-3">
+                           <div className={`w-8 h-8 rounded-lg ${pay.status === 'paid' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600'} flex items-center justify-center`}>
+                              <i className={pay.status === 'paid' ? 'ri-refund-2-line' : 'ri-error-warning-line'}></i>
+                           </div>
+                           <div>
+                              <p className="text-[10px] font-bold text-slate-800 dark:text-white uppercase leading-none">{pay.payment_method || 'Wallet Credit'}</p>
+                              <p className="text-[8px] text-slate-400 font-bold uppercase mt-1">{new Date(pay.created_at).toLocaleDateString()}</p>
+                           </div>
+                        </div>
+                        <div className="text-right">
+                           <span className={`text-[12px] font-black ${pay.status === 'paid' ? 'text-emerald-600' : 'text-rose-500'}`}>
+                              {pay.status === 'paid' ? '+' : ''}₵{pay.amount?.toLocaleString()}
+                           </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="py-8 text-center bg-slate-50/50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-100 dark:border-slate-800">
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">No wallet activity traced</p>
+                    </div>
+                   )}
                 </div>
               </div>
               <div className="flex flex-col gap-4">
@@ -739,7 +801,7 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
                      Close
                   </button>
                 </div>
-                {roleKey === 'super_admin' && (
+                {roleKey === 'admin' && (
                   <button 
                     onClick={() => handleDeleteUser(selectedUser.id)}
                     className="w-full py-4 text-[10px] font-bold text-rose-500 uppercase tracking-widest hover:bg-rose-50 dark:hover:bg-rose-500/5 rounded-2xl transition-all border border-transparent hover:border-rose-100 dark:hover:border-rose-500/20"
@@ -910,7 +972,7 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
                      <option value="subscription">Premium Subscription</option>
                    </select>
                  </div>
-                 {roleKey === 'super_admin' && (
+                 {roleKey === 'admin' && (
                    <div className="md:col-span-2 pt-4 space-y-2">
                      <label className="text-[10px] font-bold text-rose-500 uppercase tracking-widest pl-1">Security / Staff Clearance</label>
                      <div className="relative group">
@@ -924,7 +986,7 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
                          <option value="manager">Make Manager</option>
                          <option value="admin">Make Office Staff</option>
                          <option value="finance_admin">Make Finance Staff</option>
-                         <option value="super_admin">Make Super Admin</option>
+                         <option value="admin">Make Main Admin</option>
                          <option value="dispatcher">Make Dispatcher</option>
                          <option value="support_admin">Make Support Staff</option>
                          <option value="rider">Make Field Rider</option>

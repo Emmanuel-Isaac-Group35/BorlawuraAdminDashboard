@@ -27,6 +27,14 @@ export default function SystemSettings({ adminInfo }: SystemSettingsProps) {
     adminAlerts: true,
     senderId: 'BORLAWURA'
   });
+  const [mobileApp, setMobileApp] = useState({
+    headerTitle: 'Borla Wura',
+    headerTagline: 'Eco-friendly Pickups',
+    popupActive: false,
+    popupTitle: 'Welcome back!',
+    popupMessage: 'Check out our new recycling initiatives!',
+    popupImage: 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?auto=format&fit=crop&q=80'
+  });
 
   useEffect(() => {
     const savedSettings = localStorage.getItem('borlawura_settings');
@@ -37,6 +45,7 @@ export default function SystemSettings({ adminInfo }: SystemSettingsProps) {
         if (parsed.categories) setCategories(parsed.categories);
         if (parsed.pricing) setPricing(parsed.pricing);
         if (parsed.notifications) setNotifications(parsed.notifications);
+        if (parsed.mobileApp) setMobileApp(parsed.mobileApp);
       } catch (e) {
         console.error('Failed to load settings', e);
       }
@@ -45,15 +54,26 @@ export default function SystemSettings({ adminInfo }: SystemSettingsProps) {
 
   const saveSettings = async () => {
     const roleKey = (userInfo.role || '').toLowerCase().replace(/\s+/g, '_');
-    const canManage = roleKey === 'super_admin' || roleKey === 'manager' || roleKey === 'admin';
+    const canManage = roleKey === 'admin' || roleKey === 'manager';
     
     if (!canManage) {
       alert('Access Denied: Administrative authority required to modify core system protocols.');
       return;
     }
 
-    const settings = { zones, categories, pricing, notifications };
+    const settings = { zones, categories, pricing, notifications, mobileApp };
     localStorage.setItem('borlawura_settings', JSON.stringify(settings));
+
+    // Also push to Supabase for mobile app to fetch
+    try {
+      await supabase.from('system_settings').upsert([{ 
+        id: 'global_config', 
+        settings: settings,
+        updated_at: new Date().toISOString()
+      }], { onConflict: 'id' });
+    } catch (e) {
+      console.warn('Could not sync to cloud, remaining local', e);
+    }
 
     // Log action to database
     try {
@@ -103,7 +123,14 @@ export default function SystemSettings({ adminInfo }: SystemSettingsProps) {
                     </div>
                     <span className="text-[13px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight">{zone}</span>
                   </div>
-                  <button className="p-2 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
+                  <button 
+                    onClick={() => {
+                      if (window.confirm(`Delete ${zone}?`)) {
+                        setZones(zones.filter((_, i) => i !== index));
+                      }
+                    }}
+                    className="p-2 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
+                  >
                     <i className="ri-close-circle-line text-lg"></i>
                   </button>
                 </div>
@@ -134,8 +161,15 @@ export default function SystemSettings({ adminInfo }: SystemSettingsProps) {
                     </div>
                     <span className="text-[13px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight">{cat.name}</span>
                   </div>
-                  <button className="p-2 text-slate-300 hover:text-emerald-500 opacity-0 group-hover:opacity-100 transition-all">
-                    <i className="ri-settings-4-line text-lg"></i>
+                  <button 
+                    onClick={() => {
+                      if (window.confirm(`Delete ${cat.name}?`)) {
+                        setCategories(categories.filter((_, i) => i !== index));
+                      }
+                    }}
+                    className="p-2 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
+                  >
+                    <i className="ri-close-circle-line text-lg"></i>
                   </button>
                 </div>
               ))}

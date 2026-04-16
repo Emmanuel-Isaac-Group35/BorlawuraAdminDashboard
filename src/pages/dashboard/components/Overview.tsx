@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { getSMSBalance } from '../../../lib/sms';
+import { PremiumCard, IconBox, StatusBadge } from './DesignCore';
 
 interface OverviewProps {
   onNavigate?: (section: string) => void;
@@ -9,13 +10,7 @@ interface OverviewProps {
 
 export default function Overview({ onNavigate, adminInfo }: OverviewProps) {
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState([
-    { id: 1, title: 'All Pickups', value: '0', icon: 'ri-truck-line', color: 'emerald', trend: '+12%', label: 'All pickups' },
-    { id: 2, title: 'Riders Online', value: '0', icon: 'ri-e-bike-2-line', color: 'slate', trend: 'Live', label: 'Riders online' },
-    { id: 3, title: 'SMS Left', value: '0', icon: 'ri-message-3-line', color: 'emerald', trend: 'Units', label: 'SMS Messages' },
-    { id: 4, title: 'Total Paid', value: '₵0.00', icon: 'ri-wallet-3-line', color: 'amber', trend: '+8.4%', label: 'Money collected' },
-  ]);
-
+  const [stats, setStats] = useState<any[]>([]);
   const [recentPickups, setRecentPickups] = useState<any[]>([]);
   const [topRiders, setTopRiders] = useState<any[]>([]);
 
@@ -29,20 +24,18 @@ export default function Overview({ onNavigate, adminInfo }: OverviewProps) {
   const userInfo = adminInfo || getSessionProfile();
   const rawRole = userInfo?.role || 'Admin';
   const roleKey = String(rawRole).toLowerCase().trim().replace(/\s+/g, '_');
-  const isFullAdmin = roleKey === 'super_admin';
+  const isFullAdmin = roleKey === 'admin';
     
   useEffect(() => {
     fetchDashboardData();
 
-    // 1. Live Sync for Orders
     const ordersChannel = supabase
       .channel('live-dashboard-orders')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pickups' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
         fetchDashboardData(); 
       })
       .subscribe();
 
-    // 2. Live Sync for Riders
     const ridersChannel = supabase
       .channel('live-dashboard-riders')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'riders' }, () => {
@@ -50,29 +43,21 @@ export default function Overview({ onNavigate, adminInfo }: OverviewProps) {
       })
       .subscribe();
 
-    // 3. Real-time Background Polling (Every 10 Minutes for API Metrics)
-    const refreshInterval = setInterval(() => {
-      fetchDashboardData();
-    }, 600000);
-
     return () => {
       supabase.removeChannel(ordersChannel);
       supabase.removeChannel(ridersChannel);
-      clearInterval(refreshInterval);
     };
   }, []);
 
-
   const fetchDashboardData = async () => {
     try {
-      // Concurrent Data Stream Extraction
       const results = await Promise.all([
         supabase.from('users').select('*', { count: 'exact', head: true }),
         supabase.from('riders').select('*', { count: 'exact', head: true }),
         supabase.from('payments').select('amount').eq('status', 'paid'),
         supabase.from('feedback').select('*'),
         getSMSBalance(),
-        supabase.from('pickups').select('*, users(full_name)').order('created_at', { ascending: false }).limit(6),
+        supabase.from('orders').select('*, users(full_name)').order('created_at', { ascending: false }).limit(6),
         supabase.from('riders').select('*').order('total_pickups', { ascending: false }).limit(4)
       ]);
 
@@ -82,55 +67,29 @@ export default function Overview({ onNavigate, adminInfo }: OverviewProps) {
         { data: payments },
         { data: feedback },
         smsResult,
-        pickupsResult,
+        { data: pickupsResult },
         { data: topRiderData }
       ] = results;
-
-      // Resilient Order & User Manifest Synchronization
-      let activeOrders = [];
-      try {
-        const { data: primaryOrders, error: primaryError } = await supabase
-          .from('pickups')
-          .select('*, users(full_name)')
-          .order('created_at', { ascending: false })
-          .limit(6);
-        
-        if (primaryError || !primaryOrders) {
-           // Fallback 1: Direct fetch if join fails
-           const { data: directOrders } = await supabase
-            .from('pickups')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(6);
-           activeOrders = directOrders || [];
-        } else {
-           activeOrders = primaryOrders;
-        }
-      } catch (e) {
-         console.warn('Primary order manifest interrupted:', e);
-         activeOrders = [];
-      }
 
       const totalRevenue = payments?.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0) || 0;
       const avgRating = feedback?.length ? (feedback.reduce((acc, curr) => acc + curr.rating, 0) / feedback.length).toFixed(1) : '5.0';
       
-      // Robust Display Token for SMS
       let smsDisplayToken = 'N/A';
       if (smsResult?.success) {
         smsDisplayToken = Number(smsResult.balance).toLocaleString();
       }
 
       const allStats = [
-        { id: 1, title: 'Total Users', value: (userCount || 0).toLocaleString(), icon: 'ri-user-heart-line', color: 'emerald', trend: 'Humans', label: 'Citizens', roles: ['super_admin', 'admin', 'manager', 'dispatcher'] },
-        { id: 2, title: 'Total Riders', value: (riderCount || 0).toLocaleString(), icon: 'ri-e-bike-2-line', color: 'slate', trend: 'Fleet', label: 'Field Staff', roles: ['super_admin', 'admin', 'manager', 'dispatcher'] },
-        { id: 3, title: 'SMS Balance', value: smsDisplayToken, icon: 'ri-message-3-line', color: 'emerald', trend: 'Units', label: 'Arkesel Ptr', roles: ['super_admin', 'admin', 'manager', 'support_admin'] },
-        { id: 4, title: 'Total Paid', value: `₵${(totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, icon: 'ri-wallet-3-line', color: 'amber', trend: 'Revenue', label: 'Financials', roles: ['super_admin', 'admin', 'manager', 'finance_admin'] },
-        { id: 5, title: 'Satisfaction', value: avgRating, icon: 'ri-star-smile-line', color: 'emerald', trend: 'Avg', label: 'User Rating', roles: ['super_admin', 'admin', 'manager', 'support_admin'] },
+        { id: 1, title: 'Total Users', value: (userCount || 0).toLocaleString(), icon: 'ri-user-heart-line', color: 'emerald', trend: 'Humans', label: 'Citizens', roles: ['admin', 'manager', 'dispatcher'] },
+        { id: 2, title: 'Total Riders', value: (riderCount || 0).toLocaleString(), icon: 'ri-e-bike-2-line', color: 'slate', trend: 'Fleet', label: 'Field Staff', roles: ['admin', 'manager', 'dispatcher'] },
+        { id: 3, title: 'SMS Balance', value: smsDisplayToken, icon: 'ri-message-3-line', color: 'emerald', trend: 'Units', label: 'Arkesel Ptr', roles: ['admin', 'manager', 'support_admin'] },
+        { id: 4, title: 'Total Paid', value: `₵${(totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, icon: 'ri-wallet-3-line', color: 'amber', trend: 'Revenue', label: 'Financials', roles: ['admin', 'manager', 'finance_admin'] },
+        { id: 5, title: 'Satisfaction', value: avgRating, icon: 'ri-star-smile-line', color: 'emerald', trend: 'Avg', label: 'User Rating', roles: ['admin', 'manager', 'support_admin'] },
       ];
 
       setStats(allStats.filter(s => isFullAdmin || (s.roles && s.roles.includes(roleKey))).slice(0, 4));
-      setRecentPickups(activeOrders);
-      if (topRiderData) setTopRiders(topRiderData);
+      setRecentPickups(pickupsResult || []);
+      setTopRiders(topRiderData || []);
     } catch (error) {
       console.error('Dashboard synchronization protocol failure:', error);
     } finally {
@@ -149,32 +108,22 @@ export default function Overview({ onNavigate, adminInfo }: OverviewProps) {
     );
   }
 
-  const statColors: Record<string, string> = {
-    emerald: 'from-emerald-600/10 to-emerald-600/5 text-emerald-600 border-emerald-100 dark:border-emerald-500/20',
-    slate: 'from-slate-600/10 to-slate-600/5 text-slate-600 border-slate-100 dark:border-slate-500/20',
-    amber: 'from-amber-500/10 to-amber-500/5 text-amber-600 border-amber-100 dark:border-amber-500/20',
-  };
-
-  const getStatusColor = (status: string) => {
+  const getStatusBadgeType = (status: string): any => {
     switch (status) {
-      case 'requested': return 'bg-amber-100 text-amber-600 border-amber-200';
-      case 'scheduled': return 'bg-blue-100 text-blue-600 border-blue-200';
-      case 'in_progress': return 'bg-violet-100 text-violet-600 border-violet-200';
-      case 'completed': return 'bg-emerald-100 text-emerald-600 border-emerald-200';
-      default: return 'bg-slate-100 text-slate-500 border-slate-200';
+      case 'requested': return 'warning';
+      case 'scheduled': return 'info';
+      case 'in_progress': return 'indigo';
+      case 'completed': return 'success';
+      default: return 'neutral';
     }
   };
 
-  const allShortcuts = [
-    { id: 'feedback', icon: 'ri-customer-service-2-line', label: 'Support Desk', color: 'emerald', roles: ['super_admin', 'support_admin', 'admin', 'manager'] },
-    { id: 'sms', icon: 'ri-chat-voice-line', label: 'SMS', color: 'emerald', roles: ['super_admin', 'support_admin', 'admin', 'manager'] },
-    { id: 'pickups', icon: 'ri-map-pin-2-line', label: 'Dispatch', color: 'emerald', roles: ['super_admin', 'dispatcher', 'manager', 'admin'] },
-    { id: 'users', icon: 'ri-user-follow-line', label: 'Manage Users', color: 'emerald', roles: ['super_admin', 'manager', 'support_admin', 'admin'] },
-    { id: 'financials', icon: 'ri-line-chart-line', label: 'Ledger', color: 'amber', roles: ['super_admin', 'finance_admin', 'manager', 'admin'] },
-    { id: 'riders', icon: 'ri-bike-line', label: 'Fleet', color: 'emerald', roles: ['super_admin', 'manager', 'dispatcher', 'admin'] },
-  ];
-
-  const shortcuts = allShortcuts.filter(s => isFullAdmin || s.roles.includes(roleKey)).slice(0, 4);
+  const shortcuts = [
+    { id: 'feedback', icon: 'ri-customer-service-2-line', label: 'Support Desk', roles: ['admin', 'support_admin', 'manager'] },
+    { id: 'sms', icon: 'ri-chat-voice-line', label: 'SMS', roles: ['admin', 'support_admin', 'manager'] },
+    { id: 'pickups', icon: 'ri-map-pin-2-line', label: 'Dispatch', roles: ['admin', 'dispatcher', 'manager'] },
+    { id: 'users', icon: 'ri-user-follow-line', label: 'Manage Users', roles: ['admin', 'manager', 'support_admin'] },
+  ].filter(s => isFullAdmin || s.roles.includes(roleKey));
 
   return (
     <div className="space-y-10 font-['Montserrat'] animate-fade-in pb-10">
@@ -193,60 +142,75 @@ export default function Overview({ onNavigate, adminInfo }: OverviewProps) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat: any) => (
-          <div key={stat.id} className={`bg-gradient-to-br ${statColors[stat.color] || statColors.emerald} p-6 rounded-[2rem] border transition-all hover:scale-[1.02] cursor-default group`}>
-            <div className="flex items-center justify-between mb-5">
-               <div className={`w-12 h-12 rounded-2xl bg-white dark:bg-gray-900 shadow-sm flex items-center justify-center group-hover:rotate-6 transition-transform`}>
-                  <i className={`${stat.icon} text-xl`}></i>
-               </div>
-               <div className="text-right">
-                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-white/50 dark:bg-black/20 text-current">{stat.trend}</span>
-                 <p className="text-[9px] font-bold opacity-60 uppercase tracking-tighter mt-1">{stat.label}</p>
-               </div>
+        {stats.map((stat) => (
+          <div key={stat.id} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm transition-all hover:scale-[1.02] hover:shadow-xl group">
+            <div className="flex items-center justify-between mb-6">
+              <IconBox icon={stat.icon} color={stat.color} />
+              <span className="text-[10px] font-black text-slate-300 dark:text-slate-700 uppercase tracking-[0.2em] group-hover:text-emerald-500 transition-colors">Real-time</span>
             </div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{stat.title}</p>
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tighter">{stat.value}</h3>
+            <h3 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tighter mb-4">{stat.value}</h3>
+            <div>
+              <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{stat.title}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-[9px] font-black text-emerald-500 uppercase px-2 py-0.5 bg-emerald-500/10 rounded-full">{stat.trend}</span>
+                <span className="text-[9px] font-bold text-slate-400 uppercase opacity-60 italic">{stat.label}</span>
+              </div>
+            </div>
           </div>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-           <div className="bg-white dark:bg-gray-950 rounded-[2.5rem] border border-gray-100 dark:border-gray-800/60 shadow-sm overflow-hidden">
-              <div className="px-8 py-6 border-b border-gray-50 dark:border-gray-800/40 flex justify-between items-center">
-                  <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest">Active Orders</h2>
-                 <button onClick={() => onNavigate?.('pickups')} className="text-[11px] font-bold text-emerald-500 hover:text-emerald-600 transition-colors">Manage All</button>
-              </div>
-              <div className="divide-y divide-slate-50 dark:divide-white/5">
-                 {recentPickups.map((pickup) => (
-                    <div key={pickup.id} className="px-8 py-5 flex items-center gap-4 hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-colors group">
-                       <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:bg-emerald-500/10 group-hover:text-emerald-500 transition-colors">
-                          <i className="ri-truck-line text-lg"></i>
-                       </div>
-                       <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-semibold text-slate-800 dark:text-slate-200 truncate pr-4">{pickup.users?.full_name || 'Anonymous User'}</p>
-                          <p className="text-[10px] text-slate-500 font-medium mt-1 truncate">{pickup.address}</p>
-                       </div>
-                       <div className="flex flex-col items-end gap-1.5">
-                          <span className={`text-[9px] font-bold px-3 py-1 rounded-full border ${getStatusColor(pickup.status)} uppercase tracking-tighter`}>{pickup.status}</span>
-                          <span className="text-[9px] font-bold text-slate-400">{new Date(pickup.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                       </div>
-                    </div>
-                 ))}
-                 {recentPickups.length === 0 && (
-                    <div className="py-20 text-center text-[11px] text-gray-400 font-bold uppercase tracking-widest">No recent pickup requests</div>
-                 )}
-              </div>
-           </div>
+        <PremiumCard 
+          title="Active Missions" 
+          subtitle="Real-time order manifest"
+          className="lg:col-span-2"
+          actions={<button onClick={() => onNavigate?.('pickups')} className="text-[11px] font-bold text-emerald-500 hover:text-emerald-600 transition-colors">Manage All</button>}
+        >
+          <div className="divide-y divide-slate-50 dark:divide-white/5 mt-4">
+             {recentPickups.map((pickup) => (
+                <div key={pickup.id} className="px-10 py-6 flex items-center gap-4 hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-colors group">
+                   <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:bg-emerald-500/10 group-hover:text-emerald-500 transition-colors">
+                      <i className="ri-truck-line text-lg"></i>
+                   </div>
+                   <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-semibold text-slate-800 dark:text-slate-200 truncate pr-4">
+                        {pickup.users?.full_name || pickup.customer_name || 'Anonymous User'}
+                      </p>
+                      <p className="text-[10px] text-slate-500 font-medium mt-1 truncate">{pickup.address}</p>
+                   </div>
+                   <div className="flex flex-col items-end gap-1.5">
+                      <StatusBadge label={pickup.status} type={getStatusBadgeType(pickup.status)} />
+                      <span className="text-[9px] font-bold text-slate-400">{new Date(pickup.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                   </div>
+                </div>
+             ))}
+             {recentPickups.length === 0 && (
+                <div className="py-20 text-center text-[11px] text-gray-400 font-bold uppercase tracking-widest">No recent pickup requests</div>
+             )}
+          </div>
+        </PremiumCard>
 
-           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden min-h-[400px]">
-              <div className="px-10 py-8 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
-                 <div>
-                    <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-[0.2em]">Top Riders</h2>
-                    <button onClick={() => onNavigate?.('riders')} className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 transition-colors">View All</button>
-                 </div>
-              </div>
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-8">
+          <PremiumCard title="Quick Actions" subtitle="Administrative control panel">
+            <div className="p-8 grid grid-cols-2 gap-4">
+               {shortcuts.map((action) => (
+                  <button 
+                    key={action.id}
+                    onClick={() => onNavigate?.(action.id)}
+                    className="p-5 rounded-3xl border border-gray-50 dark:border-gray-800/40 hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-all group text-center"
+                  >
+                     <div className={`w-12 h-12 mx-auto mb-3 rounded-2xl flex items-center justify-center bg-gray-50 dark:bg-gray-900 group-hover:scale-110 transition-transform`}>
+                        <i className={`${action.icon} text-xl text-gray-400 group-hover:text-emerald-500`}></i>
+                     </div>
+                     <span className="text-[11px] font-bold text-gray-500 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">{action.label}</span>
+                  </button>
+               ))}
+            </div>
+          </PremiumCard>
+
+          <PremiumCard title="Top Riders" subtitle="Performance manifest">
+              <div className="p-8 grid grid-cols-1 gap-4">
                  {topRiders.map((rider) => (
                     <div key={rider.id} className="p-5 rounded-3xl border border-gray-50 dark:border-gray-800/40 bg-gray-50/30 dark:bg-white/[0.01] flex items-center gap-4 group hover:border-emerald-500/30 transition-colors">
                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white text-lg font-bold shadow-lg shadow-emerald-500/20">
@@ -257,34 +221,14 @@ export default function Overview({ onNavigate, adminInfo }: OverviewProps) {
                           <div className="flex items-center gap-3 mt-1.5">
                              <span className="text-[10px] font-bold text-emerald-600">{rider.total_pickups} Orders</span>
                              <div className="flex items-center gap-1 text-[10px] font-bold text-amber-500">
-                                <i className="ri-star-fill text-[8px]"></i> {rider.rating}
+                                <i className="ri-star-fill text-[8px]"></i> {rider.rating || '5.0'}
                              </div>
                           </div>
                        </div>
                     </div>
                  ))}
               </div>
-           </div>
-        </div>
-
-        <div className="space-y-8">
-           <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm">
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest mb-8">Shortcuts</h2>
-              <div className="grid grid-cols-2 gap-4">
-                 {shortcuts.map((action) => (
-                    <button 
-                      key={action.id}
-                      onClick={() => onNavigate?.(action.id)}
-                      className="p-5 rounded-3xl border border-gray-50 dark:border-gray-800/40 hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-all group text-center"
-                    >
-                       <div className={`w-12 h-12 mx-auto mb-3 rounded-2xl flex items-center justify-center bg-gray-50 dark:bg-gray-900 group-hover:scale-110 transition-transform`}>
-                          <i className={`${action.icon} text-xl text-gray-400 group-hover:text-emerald-500`}></i>
-                       </div>
-                       <span className="text-[11px] font-bold text-gray-500 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">{action.label}</span>
-                    </button>
-                 ))}
-              </div>
-           </div>
+          </PremiumCard>
         </div>
       </div>
     </div>

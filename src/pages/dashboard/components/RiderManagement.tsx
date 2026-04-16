@@ -46,8 +46,8 @@ export default function RiderManagement({ adminInfo }: RiderManagementProps) {
   });
 
   const userInfo = adminInfo || JSON.parse(localStorage.getItem('user_profile') || '{}');
-  const role = (userInfo.role || 'Super Admin').toLowerCase().replace(/\s+/g, '_');
-  const canManage = role === 'super_admin' || role === 'manager' || role === 'dispatcher';
+  const role = (userInfo.role || 'Admin').toLowerCase().replace(/\s+/g, '_');
+  const canManage = role === 'admin' || role === 'manager' || role === 'dispatcher';
 
   useEffect(() => {
     fetchRiders(true);

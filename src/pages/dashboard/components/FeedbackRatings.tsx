@@ -54,7 +54,15 @@ export default function FeedbackRatings() {
     }
   };
 
+  const userInfo = JSON.parse(localStorage.getItem('user_profile') || '{}');
+  const roleKey = (userInfo.role || 'Admin').toLowerCase().replace(/\s+/g, '_');
+  const canReview = roleKey === 'admin' || roleKey === 'manager' || roleKey === 'support_admin';
+
   const updateStatus = async (id: string, newStatus: string) => {
+    if (!canReview) {
+      alert("Permission Denied: Administrative access required to resolve feedback.");
+      return;
+    }
     try {
       const { error } = await supabase
         .from('feedback')

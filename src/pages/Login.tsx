@@ -17,15 +17,15 @@ export default function Login() {
         try {
             // Development Fallbacks
             if (password === 'Pentvarsmart') {
-                let role = 'super_admin';
-                let fullName = 'Super Admin';
+                let role = 'admin';
+                let fullName = 'Admin';
                 
                 if (email === 'finance@borlawura.gh') {
                     role = 'finance_admin';
                     fullName = 'Chief Finance Officer';
                 } else if (email !== 'admin@borlawura.gh') {
-                    // Default to super admin for the main test account or anyone with the secret pass during dev
-                    role = 'super_admin';
+                    // Default to admin for the main test account
+                    role = 'admin';
                 }
 
                 localStorage.setItem('adminToken', 'dev-session-token');
@@ -84,15 +84,25 @@ export default function Login() {
     };
 
     const handleBypass = () => {
+        const profile = {
+            id: 'root-authority-id',
+            fullName: 'Root Authority',
+            full_name: 'Root Authority', // compatibility
+            role: 'admin',
+            email: 'admin@borlawura.gh'
+        };
+
         localStorage.setItem('adminToken', 'bypass-session-token');
         localStorage.setItem('adminUser', JSON.stringify({
-            id: 'bypass-id',
+            id: 'root-authority-id',
             email: 'admin@borlawura.gh',
-            user_metadata: {
-                full_name: 'Bypass Admin',
-                role: 'Super Admin'
-            }
+            user_metadata: profile
         }));
+        localStorage.setItem('user_profile', JSON.stringify(profile));
+        
+        // Critical: Refresh the session cache before navigation
+        window.dispatchEvent(new Event('storage'));
+        
         navigate('/');
     };
 
@@ -224,7 +234,7 @@ export default function Login() {
                           onClick={handleBypass}
                           className="text-[10px] font-black text-teal-600 uppercase tracking-widest hover:text-teal-400 transition-colors cursor-pointer border border-teal-500/20 py-3 rounded-xl hover:bg-teal-500/5 text-center"
                         >
-                           Quick Access for Super Admin
+                           Quick Access for System Admin
                         </button>
                     </div>
                 </div>

@@ -72,27 +72,32 @@ export default function LiveTracking({ adminInfo }: { adminInfo?: any }) {
   const BASE_LAT = 5.6037;
   const BASE_LNG = -0.1870;
 
+  const userInfo = adminInfo || JSON.parse(localStorage.getItem('user_profile') || '{}');
+  const roleKey = (userInfo.role || 'customer').toLowerCase().replace(/\s+/g, '_');
+  const canTrack = roleKey === 'admin' || roleKey === 'manager' || roleKey === 'dispatcher';
+
+  if (!canTrack) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-sm">
+        <i className="ri-map-pin-user-line text-6xl text-slate-200 mb-6 font-thin"></i>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Satellite Lock Active</h2>
+        <p className="text-sm text-slate-500 max-w-sm text-center">Your operational clearance does not permit live GPS synchronization.</p>
+      </div>
+    );
+  }
+
   useEffect(() => {
-<<<<<<< HEAD
-    fetchRiders();
+    fetchRiders(true);
     fetchPickups();
 
     const channelRiders = supabase
       .channel('public:riders_live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'riders' }, () => {
-        fetchRiders();
-=======
-    fetchRiders(true);
-
-    const channel = supabase
-      .channel('public:riders')
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
         table: 'riders' 
       }, (payload) => {
         handleRealtimeUpdate(payload);
->>>>>>> 2a01413fc21621ea9ae6a977f6747fa97659b41c
       })
       .subscribe();
 
@@ -109,34 +114,6 @@ export default function LiveTracking({ adminInfo }: { adminInfo?: any }) {
     };
   }, []);
 
-<<<<<<< HEAD
-   const fetchPickups = async () => {
-      try {
-         const { data } = await supabase
-           .from('orders')
-           .select('*')
-           .neq('status', 'completed')
-           .neq('status', 'cancelled');
-         
-         if (data) {
-            setPickups(data.map(p => ({
-               id: p.id,
-               address: p.address,
-               location: {
-                  lat: p.latitude || BASE_LAT,
-                  lng: p.longitude || BASE_LNG
-               },
-               status: p.status,
-               waste_type: p.service_type || p.waste_type || 'General Waste'
-            })));
-         }
-      } catch (e) {
-        console.error('Error fetching pickups for map:', e);
-     }
-  };
-
-  const fetchRiders = async () => {
-=======
   const handleRealtimeUpdate = (payload: any) => {
     if (payload.eventType === 'INSERT') {
       const newRider = mapRiderData(payload.new);
@@ -153,10 +130,10 @@ export default function LiveTracking({ adminInfo }: { adminInfo?: any }) {
 
   const mapRiderData = (r: any): Rider => ({
     id: r.id,
-    name: r.full_name,
+    name: r.full_name || r.name || 'Unknown Rider',
     phone: r.phone_number || r.phone || 'N/A',
     zone: r.zone || 'Central',
-    status: r.status === 'active' ? 'online' : (r.status === 'busy' ? 'busy' : 'offline'),
+    status: r.status === 'active' || r.status === 'online' ? 'online' : (r.status === 'busy' ? 'busy' : 'offline'),
     location: {
       lat: r.latitude || BASE_LAT + (Math.random() - 0.5) * 0.05,
       lng: r.longitude || BASE_LNG + (Math.random() - 0.5) * 0.05,
@@ -166,8 +143,32 @@ export default function LiveTracking({ adminInfo }: { adminInfo?: any }) {
     speed: r.status === 'busy' ? Math.floor(Math.random() * 20) + 10 : 0
   });
 
+  const fetchPickups = async () => {
+    try {
+      const { data } = await supabase
+        .from('orders')
+        .select('*')
+        .neq('status', 'completed')
+        .neq('status', 'cancelled');
+      
+      if (data) {
+        setPickups(data.map(p => ({
+          id: p.id,
+          address: p.address,
+          location: {
+            lat: p.latitude || BASE_LAT,
+            lng: p.longitude || BASE_LNG
+          },
+          status: p.status,
+          waste_type: p.service_type || p.waste_type || 'General Waste'
+        })));
+      }
+    } catch (e) {
+      console.error('Error fetching pickups for map:', e);
+    }
+  };
+
   const fetchRiders = async (showLoading = false) => {
->>>>>>> 2a01413fc21621ea9ae6a977f6747fa97659b41c
     try {
       if (showLoading) setLoading(true);
       const { data, error } = await supabase.from('riders').select('*');

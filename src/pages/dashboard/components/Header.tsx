@@ -7,19 +7,21 @@ interface HeaderProps {
   onLogout: () => void;
   onMenuClick: () => void;
   onNavigate: (section: string) => void;
+  adminInfo: any;
 }
 
-export default function Header({ onLogout, onMenuClick, onNavigate }: HeaderProps) {
+export default function Header({ onLogout, onMenuClick, onNavigate, adminInfo }: HeaderProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [smsBalance, setSmsBalance] = useState<number | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(false);
-  const [userInfo, setUserInfo] = useState({
-    fullName: 'Super Admin',
-    role: 'Super Admin',
-    email: 'admin@borlawura.gh'
-  });
+  const userInfo = adminInfo || {
+    fullName: 'Admin',
+    role: 'Admin',
+    email: 'admin@borlawura.gh',
+    avatar_url: ''
+  };
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('theme');
@@ -30,7 +32,7 @@ export default function Header({ onLogout, onMenuClick, onNavigate }: HeaderProp
   });
 
   useEffect(() => {
-    fetchUserProfile();
+    fetchUnreadCount();
     fetchUnreadCount();
     fetchBalance();
 
@@ -64,29 +66,7 @@ export default function Header({ onLogout, onMenuClick, onNavigate }: HeaderProp
     setUnreadCount(count || 0);
   };
 
-  const fetchUserProfile = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const savedProfileStr = localStorage.getItem('user_profile');
-      const savedProfile = savedProfileStr ? JSON.parse(savedProfileStr) : null;
 
-      if (user) {
-        const { data: adminData } = await supabase
-          .from('admins')
-          .select('full_name, role')
-          .eq('email', user.email)
-          .maybeSingle();
-
-        setUserInfo({
-          fullName: adminData?.full_name || 'Admin User',
-          role: adminData?.role || 'Admin',
-          email: user.email || ''
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-    }
-  };
 
   useEffect(() => {
     if (isDarkMode) {
@@ -163,28 +143,54 @@ export default function Header({ onLogout, onMenuClick, onNavigate }: HeaderProp
         <div className="relative">
           <button
             onClick={() => setShowProfile(!showProfile)}
-            className={`flex items-center gap-3.5 pl-1.5 pr-2 py-1.5 rounded-2xl transition-all group ${
-              showProfile ? 'bg-slate-50 dark:bg-white/[0.05]' : 'hover:bg-slate-50 dark:hover:bg-white/[0.03]'
+            className={`flex items-center gap-3 pl-1.5 pr-3 py-1.5 rounded-[1.25rem] transition-all group ${
+              showProfile ? 'bg-slate-100 dark:bg-white/[0.08] ring-1 ring-slate-200 dark:ring-white/10' : 'hover:bg-slate-50 dark:hover:bg-white/[0.04]'
             }`}
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-emerald-500/20 transition-transform group-hover:scale-105 relative overflow-hidden">
-               <span className="relative z-10">{userInfo.fullName.charAt(0)}</span>
-               <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="relative">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-sm font-black shadow-lg shadow-emerald-500/20 transition-transform group-hover:scale-105 overflow-hidden ring-2 ring-white dark:ring-slate-900">
+                {userInfo.avatar_url ? (
+                  <img 
+                    src={userInfo.avatar_url} 
+                    alt="" 
+                    className="w-full h-full object-cover" 
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                ) : (
+                  <span className="relative z-10">{userInfo.fullName.charAt(0)}</span>
+                )}
+                <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              </div>
+              {/* Online Indicator Dot */}
+              <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900 shadow-sm"></div>
             </div>
-            <div className="hidden md:block text-left">
-              <p className="text-[11px] font-bold text-slate-900 dark:text-white leading-tight uppercase tracking-tight">{userInfo.fullName}</p>
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">{userInfo.role.replace('_', ' ')}</p>
+            
+            <div className="hidden lg:block text-left ml-1">
+              <p className="text-[11px] font-black text-slate-800 dark:text-white leading-none uppercase tracking-tight">{userInfo.fullName}</p>
+              <div className="flex items-center gap-1.5 mt-1">
+                 <span className="text-[8px] font-black text-emerald-500/80 uppercase tracking-tighter bg-emerald-500/5 px-1 rounded-sm leading-none">{userInfo.role.replace('_', ' ')}</span>
+              </div>
             </div>
-            <i className={`ri-arrow-down-s-line text-slate-400 transition-transform duration-300 ${showProfile ? 'rotate-180' : ''}`}></i>
+            <i className={`ri-arrow-down-s-line text-slate-400 text-sm transition-transform duration-300 ${showProfile ? 'rotate-180' : ''}`}></i>
           </button>
 
           {showProfile && (
             <>
               <div className="fixed inset-0 z-[70]" onClick={() => setShowProfile(false)}></div>
-              <div className="absolute right-0 mt-4 w-64 bg-white dark:bg-slate-950 rounded-3xl shadow-2xl border border-slate-100 dark:border-white/10 z-[80] overflow-hidden animate-scale-up origin-top-right">
-                <div className="p-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/20 dark:bg-white/[0.02]">
-                  <p className="text-[11px] font-bold text-slate-900 dark:text-white uppercase tracking-tight">{userInfo.fullName}</p>
-                  <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate mt-1">{userInfo.email}</p>
+              <div className="absolute right-0 mt-4 w-72 bg-white dark:bg-slate-950 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)] border border-slate-100 dark:border-white/10 z-[80] overflow-hidden animate-scale-up origin-top-right">
+                <div className="p-8 border-b border-slate-50 dark:border-white/5 bg-slate-50/20 dark:bg-white/[0.02] flex flex-col items-center text-center">
+                  <div className="w-20 h-20 rounded-3xl bg-emerald-500 flex items-center justify-center text-white text-3xl font-black mb-4 shadow-xl shadow-emerald-500/20 overflow-hidden ring-4 ring-white dark:ring-slate-900">
+                    {userInfo.avatar_url ? (
+                      <img src={userInfo.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      userInfo.fullName.charAt(0)
+                    )}
+                  </div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{userInfo.fullName}</h3>
+                  <p className="text-[10px] font-bold text-slate-400 mt-1 truncate max-w-full italic">{userInfo.email}</p>
+                  <div className="mt-4 px-3 py-1 bg-emerald-100/50 dark:bg-emerald-500/10 rounded-full border border-emerald-200 dark:border-emerald-500/20">
+                     <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{userInfo.role.replace('_', ' ')}</span>
+                  </div>
                 </div>
                 <div className="p-2.5">
                   <button 
