@@ -134,7 +134,7 @@ export default function AdminPersonnel() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
          {[
-            { label: 'Total Personnel', value: admins.length, icon: 'ri-group-line', color: 'indigo' },
+            { label: 'Total Admin Personnel', value: admins.length, icon: 'ri-group-line', color: 'indigo' },
             { label: 'Super Admins', value: admins.filter(a => a.role?.toLowerCase().includes('super')).length, icon: 'ri-shield-star-line', color: 'rose' },
             { label: 'Active Users', value: admins.filter(a => a.status === 'active').length, icon: 'ri-checkbox-circle-line', color: 'emerald' },
             { label: 'Field Staff', value: admins.filter(a => a.role?.toLowerCase().includes('dispatcher')).length, icon: 'ri-user-follow-line', color: 'amber' },

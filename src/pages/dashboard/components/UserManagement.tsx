@@ -114,6 +114,7 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
         .from('users')
         .select('*')
         .eq('role', 'customer')
+        .not('role', 'in', '("admin","manager","dispatcher","finance_admin","support_admin","rider")')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -364,7 +365,7 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
     <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">Customers</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">Residents</h1>
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage all registered households and their accounts</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -387,7 +388,7 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
               className="px-6 py-3 bg-emerald-600 text-white rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all flex items-center gap-2"
             >
               <i className="ri-user-add-line"></i>
-              Add New User
+              Add New Resident
             </button>
           )}
         </div>
@@ -395,9 +396,9 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
-          { label: 'Total Users', value: users.length, color: 'indigo', icon: 'ri-team-line' },
+          { label: 'Total Residents', value: users.length, color: 'indigo', icon: 'ri-team-line' },
           { label: 'Active Now', value: users.filter(u => u.status === 'active').length, color: 'emerald', icon: 'ri-checkbox-circle-line' },
-          { label: 'Stopped', value: users.filter(u => u.status === 'suspended').length, color: 'rose', icon: 'ri-forbid-2-line' },
+          { label: 'Suspended', value: users.filter(u => u.status === 'suspended').length, color: 'rose', icon: 'ri-forbid-2-line' },
         ].map((stat, i) => (
           <div key={i} className="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-100 dark:border-slate-800/50 shadow-sm flex items-center gap-5 transition-all hover:scale-[1.02]">
             <div className={`w-14 h-14 rounded-2xl bg-${stat.color}-500/10 flex items-center justify-center text-${stat.color}-600`}>
@@ -470,7 +471,7 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
               <table className="w-full">
                 <thead>
                   <tr className="bg-slate-50/50 dark:bg-slate-800/20 text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-50 dark:border-slate-800/50">
-                    <th className="px-8 py-5 text-left">User Profile</th>
+                    <th className="px-8 py-5 text-left">Resident Profile</th>
                     <th className="px-8 py-5 text-left">Location</th>
                     <th className="px-8 py-5 text-left">Balance</th>
                     <th className="px-8 py-5 text-left">Status</th>
@@ -638,7 +639,7 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setSelectedUser(null)}></div>
           <div className="relative w-full max-w-xl bg-white dark:bg-slate-950 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 shadow-2xl max-h-[90vh] overflow-y-auto animate-scale-up custom-scrollbar">
             <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-slate-50/10">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Customer Information</h2>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Resident Information</h2>
               <button onClick={() => setSelectedUser(null)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-400 hover:text-rose-500 transition-all">
                 <i className="ri-close-line text-2xl"></i>
               </button>

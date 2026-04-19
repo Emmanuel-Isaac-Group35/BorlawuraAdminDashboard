@@ -80,10 +80,9 @@ export default function Overview({ onNavigate, adminInfo }: OverviewProps) {
       }
 
       const allStats = [
-        { id: 1, title: 'Total Users', value: (userCount || 0).toLocaleString(), icon: 'ri-user-heart-line', color: 'emerald', trend: 'Humans', label: 'Citizens', roles: ['admin', 'manager', 'dispatcher'] },
-        { id: 2, title: 'Total Riders', value: (riderCount || 0).toLocaleString(), icon: 'ri-e-bike-2-line', color: 'slate', trend: 'Fleet', label: 'Field Staff', roles: ['admin', 'manager', 'dispatcher'] },
+        { id: 1, title: 'Total Residents', value: (userCount || 0).toLocaleString(), icon: 'ri-user-heart-line', color: 'emerald', trend: 'Humans', label: 'Citizens', roles: ['admin', 'manager', 'dispatcher'] },
+        { id: 2, title: 'Total Fleet Personnel', value: (riderCount || 0).toLocaleString(), icon: 'ri-e-bike-2-line', color: 'slate', trend: 'Fleet', label: 'Field Staff', roles: ['admin', 'manager', 'dispatcher'] },
         { id: 3, title: 'SMS Balance', value: smsDisplayToken, icon: 'ri-message-3-line', color: 'emerald', trend: 'Units', label: 'Arkesel Ptr', roles: ['admin', 'manager', 'support_admin'] },
-        { id: 4, title: 'Total Paid', value: `₵${(totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, icon: 'ri-wallet-3-line', color: 'amber', trend: 'Revenue', label: 'Financials', roles: ['admin', 'manager', 'finance_admin'] },
         { id: 5, title: 'Satisfaction', value: avgRating, icon: 'ri-star-smile-line', color: 'emerald', trend: 'Avg', label: 'User Rating', roles: ['admin', 'manager', 'support_admin'] },
       ];
 

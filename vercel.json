@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/arkesel/:path*",
+      "destination": "https://sms.arkesel.com/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

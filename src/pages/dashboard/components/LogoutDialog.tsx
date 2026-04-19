@@ -3,8 +3,15 @@ interface LogoutDialogProps {
   onClose: () => void;
 }
 
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../../../lib/supabase';
+
 export default function LogoutDialog({ isOpen, onClose }: LogoutDialogProps) {
-  const handleLogout = () => {
+  const navigate = useNavigate();
+  const handleLogout = async () => {
+    // Terminate Supabase session
+    await supabase.auth.signOut();
+
     // Clear any stored authentication data
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminUser');
@@ -25,7 +32,7 @@ export default function LogoutDialog({ isOpen, onClose }: LogoutDialogProps) {
     setTimeout(() => {
       toast.remove();
       // Redirect to login page
-      window.location.href = '/login';
+      navigate('/login');
     }, 1500);
   };
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -29,6 +30,7 @@ interface Toast {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
@@ -116,7 +118,7 @@ export default function Dashboard() {
               if (status === 'inactive' || status === 'suspended') {
                 console.log('Security Alert: Administrative access revoked by system.');
                 supabase.auth.signOut().then(() => {
-                  window.location.href = '/login';
+                  navigate('/login');
                 });
               }
             })

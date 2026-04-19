@@ -45,7 +45,7 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
       <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-sm">
         <i className="ri-shield-keyhole-line text-6xl text-slate-200 mb-6 font-thin"></i>
         <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Access Restricted</h2>
-        <p className="text-sm text-slate-500 max-w-sm text-center">Your personnel clearance does not allow entry to the Staff Manifest.</p>
+        <p className="text-sm text-slate-500 max-w-sm text-center">Your administrative clearance does not allow entry to the Staff Manifest.</p>
       </div>
     );
   }
@@ -138,7 +138,7 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
            sender: 'BORLAWURA'
         });
 
-        alert('Personnel record updated and notified.');
+        alert('Admin Personnel record updated and notified.');
       } else {
         const { error: authError } = await supabase.auth.signUp({
           email: newAdmin.email,
@@ -171,7 +171,7 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
            sender: 'BORLAWURA'
         });
 
-        alert('Personnel onboarded and notified.');
+        alert('Admin (Personnel) onboarded and notified.');
       }
       setShowAddModal(false);
       resetForm();
@@ -247,10 +247,10 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
       
       await logActivity('Staff Record Purged', 'admins', id, { 
         staff_email: email,
-        message: `Personnel ${email} removed from system permanently.`
+        message: `Admin (Personnel) ${email} removed from system permanently.`
       });
 
-      alert('Personnel record purged from the manifest successfully.');
+      alert('Admin (Personnel) record purged from the manifest successfully.');
       fetchAdmins();
     } catch (error: any) {
       alert(`Purge Failed: ${error.message}`);
@@ -261,7 +261,7 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
     <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">Staff</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">Admin (Personnel)</h1>
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage your team members and their access levels</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -315,7 +315,7 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
         {loading ? (
           <div className="p-24 flex flex-col items-center justify-center">
             <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-[11px] text-slate-400 font-bold uppercase mt-5 tracking-[0.2em] animate-pulse">Synchronizing Personnel...</p>
+            <p className="text-[11px] text-slate-400 font-bold uppercase mt-5 tracking-[0.2em] animate-pulse">Synchronizing Admin (Personnel)...</p>
           </div>
         ) : (
           <div>

@@ -389,7 +389,7 @@ export default function SMSManagement({ adminInfo }: SMSManagementProps) {
                   >
                     <option value="all_users">All Users (Residents)</option>
                     <option value="sector_users">Geographical Sector (Area)</option>
-                    <option value="all_riders">All Riders (Personnel)</option>
+                    <option value="all_riders">All Riders (Fleet Personnel)</option>
                     <option value="custom">Direct Notification (Manual)</option>
                   </select>
                 </div>
