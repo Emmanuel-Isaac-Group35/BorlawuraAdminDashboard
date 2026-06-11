@@ -13,6 +13,8 @@ export default function Overview({ onNavigate, adminInfo }: OverviewProps) {
   const [stats, setStats] = useState<any[]>([]);
   const [recentPickups, setRecentPickups] = useState<any[]>([]);
   const [topRiders, setTopRiders] = useState<any[]>([]);
+  const [totalUsers, setTotalUsers] = useState<number>(0);
+  const [totalRiders, setTotalRiders] = useState<number>(0);
 
   const getSessionProfile = () => {
     try {
@@ -80,8 +82,8 @@ export default function Overview({ onNavigate, adminInfo }: OverviewProps) {
       }
 
       const allStats = [
-        { id: 1, title: 'Total Residents', value: (userCount || 0).toLocaleString(), icon: 'ri-user-heart-line', color: 'emerald', trend: 'Humans', label: 'Citizens', roles: ['admin', 'manager', 'dispatcher'] },
-        { id: 2, title: 'Total Fleet Personnel', value: (riderCount || 0).toLocaleString(), icon: 'ri-e-bike-2-line', color: 'slate', trend: 'Fleet', label: 'Field Staff', roles: ['admin', 'manager', 'dispatcher'] },
+        { id: 1, title: 'Total Users', value: (userCount || 0).toLocaleString(), icon: 'ri-user-heart-line', color: 'emerald', roles: ['admin', 'manager', 'dispatcher'] },
+        { id: 2, title: 'Total Riders', value: (riderCount || 0).toLocaleString(), icon: 'ri-e-bike-2-line', color: 'slate', roles: ['admin', 'manager', 'dispatcher'] },
         { id: 3, title: 'SMS Balance', value: smsDisplayToken, icon: 'ri-message-3-line', color: 'emerald', trend: 'Units', label: 'Arkesel Ptr', roles: ['admin', 'manager', 'support_admin'] },
         { id: 5, title: 'Satisfaction', value: avgRating, icon: 'ri-star-smile-line', color: 'emerald', trend: 'Avg', label: 'User Rating', roles: ['admin', 'manager', 'support_admin'] },
       ];
@@ -89,6 +91,8 @@ export default function Overview({ onNavigate, adminInfo }: OverviewProps) {
       setStats(allStats.filter(s => isFullAdmin || (s.roles && s.roles.includes(roleKey))).slice(0, 4));
       setRecentPickups(pickupsResult || []);
       setTopRiders(topRiderData || []);
+      setTotalUsers(userCount || 0);
+      setTotalRiders(riderCount || 0);
     } catch (error) {
       console.error('Dashboard synchronization protocol failure:', error);
     } finally {
@@ -129,31 +133,29 @@ export default function Overview({ onNavigate, adminInfo }: OverviewProps) {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">Home</h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Operational Summary & Real-time Manifest</p>
-        </div>
-        <div className="flex items-center gap-2.5 px-5 py-2.5 bg-emerald-50 dark:bg-emerald-500/5 border border-emerald-100 dark:border-emerald-500/10 rounded-[1.5rem] shadow-sm shadow-emerald-500/5 transition-all hover:scale-105">
-           <div className="flex h-2 w-2 relative">
-              <div className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></div>
-              <div className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></div>
-           </div>
-           <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest pl-1">Live Database Connection</span>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Operational Summary & Manifest</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
         {stats.map((stat) => (
           <div key={stat.id} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm transition-all hover:scale-[1.02] hover:shadow-xl group">
             <div className="flex items-center justify-between mb-6">
               <IconBox icon={stat.icon} color={stat.color} />
-              <span className="text-[10px] font-black text-slate-300 dark:text-slate-700 uppercase tracking-[0.2em] group-hover:text-emerald-500 transition-colors">Real-time</span>
             </div>
             <h3 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tighter mb-4">{stat.value}</h3>
             <div>
               <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{stat.title}</p>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-[9px] font-black text-emerald-500 uppercase px-2 py-0.5 bg-emerald-500/10 rounded-full">{stat.trend}</span>
-                <span className="text-[9px] font-bold text-slate-400 uppercase opacity-60 italic">{stat.label}</span>
-              </div>
+              {(stat.trend || stat.label) && (
+                <div className="flex items-center gap-2 mt-2">
+                  {stat.trend && (
+                    <span className="text-[9px] font-black text-emerald-500 uppercase px-2 py-0.5 bg-emerald-500/10 rounded-full">{stat.trend}</span>
+                  )}
+                  {stat.label && (
+                    <span className="text-[9px] font-bold text-slate-400 uppercase opacity-60 italic">{stat.label}</span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -162,7 +164,7 @@ export default function Overview({ onNavigate, adminInfo }: OverviewProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <PremiumCard 
           title="Active Missions" 
-          subtitle="Real-time order manifest"
+          subtitle="Order manifest"
           className="lg:col-span-2"
           actions={<button onClick={() => onNavigate?.('pickups')} className="text-[11px] font-bold text-emerald-500 hover:text-emerald-600 transition-colors">Manage All</button>}
         >

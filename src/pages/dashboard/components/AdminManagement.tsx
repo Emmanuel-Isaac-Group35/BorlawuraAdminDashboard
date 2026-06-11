@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { logActivity } from '../../../lib/audit';
+import { DesignButton, StatusBadge, PremiumCard } from './DesignCore';
 import ExportButton from './ExportButton';
 import { sendSMS } from '../../../lib/sms';
 
@@ -33,6 +34,11 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState<AdminMember | null>(null);
 
+  // States for viewing details and recent activity of admin personnel
+  const [viewingAdmin, setViewingAdmin] = useState<AdminMember | null>(null);
+  const [adminActivities, setAdminActivities] = useState<any[]>([]);
+  const [loadingActivities, setLoadingActivities] = useState(false);
+
   const userInfo = adminInfo || JSON.parse(localStorage.getItem('user_profile') || '{}');
   const roleKey = (userInfo.role || 'Admin').toLowerCase().replace(/\s+/g, '_');
   
@@ -40,17 +46,9 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
   const canManagePersonnel = roleKey === 'admin';
   const canView = roleKey === 'admin' || roleKey === 'manager'; 
 
-  if (!canView) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-sm">
-        <i className="ri-shield-keyhole-line text-6xl text-slate-200 mb-6 font-thin"></i>
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Access Restricted</h2>
-        <p className="text-sm text-slate-500 max-w-sm text-center">Your administrative clearance does not allow entry to the Staff Manifest.</p>
-      </div>
-    );
-  }
-
   useEffect(() => {
+    if (!canView) return;
+
     fetchAdmins();
     
     const channel = supabase
@@ -63,7 +61,46 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [canView]);
+
+  useEffect(() => {
+    if (!canView) return;
+
+    if (viewingAdmin) {
+      fetchAdminActivities(viewingAdmin.id);
+    } else {
+      setAdminActivities([]);
+    }
+  }, [viewingAdmin, canView]);
+
+  if (!canView) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-sm">
+        <i className="ri-shield-keyhole-line text-6xl text-slate-200 mb-6 font-thin"></i>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Access Restricted</h2>
+        <p className="text-sm text-slate-500 max-w-sm text-center">Your administrative clearance does not allow entry to the Staff Manifest.</p>
+      </div>
+    );
+  }
+
+  const fetchAdminActivities = async (adminId: string) => {
+    setLoadingActivities(true);
+    try {
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .eq('admin_id', adminId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      setAdminActivities(data || []);
+    } catch (error) {
+      console.error('Error fetching admin activities:', error);
+    } finally {
+      setLoadingActivities(false);
+    }
+  };
 
   const fetchAdmins = async () => {
     try {
@@ -277,13 +314,13 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
             title="Office Team List"
           />
           {canManagePersonnel && (
-            <button 
+            <DesignButton 
               onClick={() => { resetForm(); setShowAddModal(true); }}
-              className="px-8 py-3.5 bg-emerald-600 text-white rounded-[2rem] text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all flex items-center gap-2.5 group"
+              icon="ri-user-add-line"
+              className="text-[10px]"
             >
-              <i className="ri-user-add-line text-lg group-hover:rotate-12 transition-transform"></i>
               Add Staff Member
-            </button>
+            </DesignButton>
           )}
         </div>
       </div>
@@ -333,14 +370,14 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
                   {admins.map((admin) => (
                     <tr key={admin.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all group">
                       <td className="px-8 py-6">
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 cursor-pointer group/item" onClick={() => setViewingAdmin(admin)}>
                           <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-slate-100 to-slate-200 dark:from-white/5 dark:to-white/10 flex items-center justify-center text-slate-500 font-bold text-sm shadow-sm overflow-hidden">
                             {admin.avatar_url ? (
                                <img src={admin.avatar_url} alt="" className="w-full h-full object-cover" />
                             ) : admin.full_name?.charAt(0)}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-[13px] font-bold text-slate-900 dark:text-white leading-none mb-1.5">{admin.full_name}</p>
+                            <p className="text-[13px] font-bold text-slate-900 dark:text-white leading-none mb-1.5 group-hover/item:text-emerald-500 transition-colors">{admin.full_name}</p>
                             <p className="text-[10px] text-slate-500 font-medium truncate max-w-[200px]">{admin.email}</p>
                           </div>
                         </div>
@@ -352,6 +389,9 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
                       </td>
                       <td className="px-8 py-6 text-right">
                         <div className="flex justify-end gap-2.5">
+                           <button onClick={() => setViewingAdmin(admin)} className="w-9 h-9 rounded-xl bg-slate-50 dark:bg-white/5 text-slate-500 dark:text-slate-400 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-sm" title="View Profile & Activities">
+                              <i className="ri-eye-line text-lg"></i>
+                           </button>
                            {canManagePersonnel && (
                              <>
                                <button onClick={() => openEdit(admin)} className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 flex items-center justify-center hover:bg-indigo-500 hover:text-white transition-all shadow-sm">
@@ -378,14 +418,14 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
               {admins.map((admin) => (
                 <div key={admin.id} className="bg-slate-50/50 dark:bg-white/[0.02] border border-slate-100 dark:border-white/5 rounded-3xl p-5 space-y-4">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 cursor-pointer group/item" onClick={() => setViewingAdmin(admin)}>
                       <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-bold text-sm overflow-hidden">
                         {admin.avatar_url ? (
                            <img src={admin.avatar_url} alt="" className="w-full h-full object-cover" />
                         ) : admin.full_name?.charAt(0)}
                       </div>
                       <div>
-                        <p className="text-[13px] font-bold text-slate-900 dark:text-white leading-tight">{admin.full_name}</p>
+                        <p className="text-[13px] font-bold text-slate-900 dark:text-white leading-tight group-hover/item:text-emerald-500 transition-colors">{admin.full_name}</p>
                         <p className="text-[10px] text-slate-500 font-medium">{admin.email}</p>
                       </div>
                     </div>
@@ -401,6 +441,9 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
                   <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-white/5">
                     <span className="text-[10px] font-bold text-slate-400 uppercase">{admin.role.replace('_', ' ')}</span>
                     <div className="flex gap-2">
+                      <button onClick={() => setViewingAdmin(admin)} className="w-9 h-9 rounded-xl bg-slate-50 dark:bg-white/5 text-slate-500 dark:text-slate-400 flex items-center justify-center shadow-sm" title="View Profile & Activities">
+                        <i className="ri-eye-line"></i>
+                      </button>
                       {canManagePersonnel && (
                         <>
                           <button onClick={() => openEdit(admin)} className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 flex items-center justify-center shadow-sm">
@@ -469,6 +512,96 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
                 {isEditing ? 'Save Changes' : 'Add Staff'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {viewingAdmin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setViewingAdmin(null)}></div>
+          <div className="relative w-full max-w-xl bg-white dark:bg-slate-950 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 shadow-2xl max-h-[90vh] overflow-y-auto animate-scale-up custom-scrollbar">
+            <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-slate-50/10">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Staff Information</h2>
+              <button onClick={() => setViewingAdmin(null)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-400 hover:text-rose-500 transition-all">
+                <i className="ri-close-line text-2xl"></i>
+              </button>
+            </div>
+            
+            <div className="p-10">
+              <div className="flex items-center gap-6 mb-10">
+                <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white text-3xl font-bold shadow-2xl shadow-emerald-500/20 overflow-hidden">
+                  {viewingAdmin.avatar_url ? (
+                     <img src={viewingAdmin.avatar_url} alt="" className="w-full h-full object-cover" />
+                  ) : viewingAdmin.full_name?.charAt(0)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 truncate">{viewingAdmin.full_name}</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-100/30">
+                      {viewingAdmin.role.replace('_', ' ')}
+                    </span>
+                    <span className={`px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest ${viewingAdmin.status === 'active' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+                      {viewingAdmin.status}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-10">
+                <div className="p-5 bg-slate-50 dark:bg-white/[0.01] rounded-3xl border border-slate-100 dark:border-white/5">
+                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Email Account</p>
+                   <p className="text-[13px] font-bold text-slate-900 dark:text-white truncate">{viewingAdmin.email}</p>
+                </div>
+                <div className="p-5 bg-slate-50 dark:bg-white/[0.01] rounded-3xl border border-slate-100 dark:border-white/5">
+                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Member Since</p>
+                   <p className="text-[13px] font-bold text-slate-900 dark:text-white">{new Date(viewingAdmin.created_at).toLocaleDateString()}</p>
+                </div>
+                <div className="sm:col-span-2 p-5 bg-slate-50 dark:bg-white/[0.01] rounded-3xl border border-slate-100 dark:border-white/5">
+                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Last System Check-In</p>
+                   <p className="text-[13px] font-bold text-slate-900 dark:text-white">
+                     {viewingAdmin.last_login ? new Date(viewingAdmin.last_login).toLocaleString() : 'Never'}
+                   </p>
+                </div>
+              </div>
+
+              {/* Recent Activity Logs */}
+              <div>
+                <div className="flex items-center justify-between mb-4 px-2">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Recent System Activity</h4>
+                  <span className="text-[9px] font-bold text-emerald-500 uppercase">{adminActivities.length} Actions</span>
+                </div>
+                <div className="space-y-3 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
+                  {loadingActivities ? (
+                    <div className="py-8 text-center bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                      <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                    </div>
+                  ) : adminActivities.length > 0 ? (
+                    adminActivities.map((act) => (
+                      <div key={act.id} className="p-4 bg-slate-50 dark:bg-white/[0.02] border border-slate-100 dark:border-white/5 rounded-2xl flex items-start gap-4 hover:bg-white dark:hover:bg-white/[0.05] transition-all">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <i className="ri-terminal-window-line text-sm"></i>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-bold text-slate-800 dark:text-white uppercase tracking-tight">{act.action}</p>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                            {act.details?.message || `Performed action on ${act.target_type}`}
+                          </p>
+                          <div className="flex items-center gap-3 mt-2">
+                            <span className="text-[9px] text-slate-400 font-bold uppercase">{new Date(act.created_at).toLocaleDateString()} {new Date(act.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                            <span className="text-[8px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/5 text-slate-400 font-medium">IP: {act.ip_address}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="py-8 text-center bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-slate-400">
+                      <i className="ri-article-line text-xl block mb-2 opacity-50"></i>
+                      <p className="text-[10px] font-bold uppercase tracking-wider">No logged activity recorded</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -6,6 +6,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import ExportButton from './ExportButton';
+import { DesignInput, DesignButton, StatusBadge, PremiumCard } from './DesignCore';
 
 // Safe Marker Icon Logic
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -278,16 +279,15 @@ export default function PickupOperations({ adminInfo }: PickupOperationsProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
         <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/50 shadow-sm flex flex-col min-h-[500px] md:min-h-[700px]">
            <div className="p-4 md:p-6 border-b border-slate-50 dark:border-slate-800/50 flex flex-col xl:flex-row gap-4 xl:items-center">
-              <div className="relative flex-1 w-full">
-                <i className="ri-search-line absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                <input 
-                  type="text"
-                  placeholder="Search by name or request ID..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3.5 bg-white dark:bg-black border border-slate-200/60 dark:border-white/5 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm"
-                />
-              </div>
+            <div className="flex-1 max-w-md">
+              <DesignInput 
+                label="Search Operations"
+                placeholder="Name or Request ID..."
+                icon="ri-search-line"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
               <div className="flex gap-1.5 p-1 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl overflow-x-auto scrollbar-hide w-full xl:w-auto">
                 {['all', 'requested', 'scheduled', 'in_progress', 'completed'].map((s) => (
                   <button
@@ -384,12 +384,13 @@ export default function PickupOperations({ adminInfo }: PickupOperationsProps) {
               <div className="bg-emerald-600/5 border border-emerald-500/10 rounded-[2.5rem] p-8 text-center animate-scale-up">
                  <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-3">Active Selection</p>
                  <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase mb-6 truncate">{selectedPickup.user_name}</h3>
-                 <button 
+                 <DesignButton 
                    onClick={() => setShowDetailsModal(true)}
-                   className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl hover:scale-105 transition-all"
+                   variant="secondary"
+                   className="w-full py-4 text-[11px]"
                  >
                     Manage Job Dossier
-                 </button>
+                 </DesignButton>
               </div>
            )}
         </div>

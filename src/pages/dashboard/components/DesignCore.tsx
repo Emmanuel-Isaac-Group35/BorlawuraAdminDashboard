@@ -69,3 +69,51 @@ export const IconBox: React.FC<{ icon: string; color: string; className?: string
         </div>
     );
 };
+
+interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+    label: string;
+    icon?: string;
+    error?: string;
+}
+
+export const DesignInput: React.FC<InputProps> = ({ label, icon, error, className = '', ...props }) => {
+    return (
+        <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
+            <div className="relative group">
+                {icon && <i className={`${icon} absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors`}></i>}
+                <input 
+                    {...props} 
+                    className={`w-full ${icon ? 'pl-12' : 'px-5'} py-4 bg-slate-50 dark:bg-black/30 rounded-2xl outline-none border border-transparent focus:border-emerald-500/30 text-sm font-bold transition-all ${error ? 'border-rose-500' : ''} ${className}`} 
+                />
+            </div>
+            {error && <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase tracking-tighter">{error}</p>}
+        </div>
+    );
+};
+
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+    variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+    loading?: boolean;
+    icon?: string;
+}
+
+export const DesignButton: React.FC<ButtonProps> = ({ children, variant = 'primary', loading, icon, className = '', ...props }) => {
+    const styles = {
+        primary: 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700',
+        secondary: 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-lg hover:opacity-90',
+        danger: 'bg-rose-500 text-white shadow-lg shadow-rose-500/20 hover:bg-rose-600',
+        ghost: 'bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10'
+    };
+
+    return (
+        <button 
+            {...props} 
+            disabled={loading || props.disabled}
+            className={`px-6 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 ${styles[variant]} ${className}`}
+        >
+            {loading ? <i className="ri-loader-4-line animate-spin text-lg"></i> : icon && <i className={`${icon} text-lg`}></i>}
+            {children}
+        </button>
+    );
+};

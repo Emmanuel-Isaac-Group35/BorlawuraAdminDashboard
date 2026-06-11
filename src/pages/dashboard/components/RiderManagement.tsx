@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { logActivity } from '../../../lib/audit';
 import ExportButton from './ExportButton';
+import { DesignInput, DesignButton, StatusBadge, PremiumCard } from './DesignCore';
 import { sendSMS } from '../../../lib/sms';
 
 interface Rider {
@@ -47,7 +48,7 @@ export default function RiderManagement({ adminInfo }: RiderManagementProps) {
 
   const userInfo = adminInfo || JSON.parse(localStorage.getItem('user_profile') || '{}');
   const role = (userInfo.role || 'Admin').toLowerCase().replace(/\s+/g, '_');
-  const canManage = role === 'admin' || role === 'manager' || role === 'dispatcher';
+  const canManage = ['admin', 'manager', 'dispatcher', 'support_admin', 'finance_admin'].includes(role);
 
   useEffect(() => {
     fetchRiders(true);
@@ -110,6 +111,7 @@ export default function RiderManagement({ adminInfo }: RiderManagementProps) {
         .from('riders')
         .insert([{
           ...newRider,
+          phone: newRider.phone_number,
           status: 'active',
           rating: 5.0,
           total_pickups: 0,
@@ -148,7 +150,10 @@ export default function RiderManagement({ adminInfo }: RiderManagementProps) {
      try {
        const { error } = await supabase
          .from('riders')
-         .update(newRider)
+         .update({
+            ...newRider,
+            phone: newRider.phone_number
+         })
          .eq('id', selectedRider.id);
 
        if (error) throw error;
@@ -228,8 +233,7 @@ export default function RiderManagement({ adminInfo }: RiderManagementProps) {
       const { error } = await supabase
         .from('riders')
         .update({ 
-          status: newStatus,
-          registration_status: newRegStatus
+          status: newStatus
         })
         .eq('id', id);
 
@@ -310,13 +314,13 @@ export default function RiderManagement({ adminInfo }: RiderManagementProps) {
             title="Rider List"
           />
           {canManage && (
-            <button 
+            <DesignButton 
               onClick={() => setShowAddModal(true)}
-              className="px-8 py-3.5 bg-emerald-600 text-white rounded-[2rem] text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all flex items-center gap-2.5 group"
+              icon="ri-user-add-line"
+              className="text-[10px]"
             >
-              <i className="ri-user-add-line text-lg group-hover:rotate-12 transition-transform"></i>
               Add New Rider
-            </button>
+            </DesignButton>
           )}
         </div>
       </div>
@@ -341,14 +345,13 @@ export default function RiderManagement({ adminInfo }: RiderManagementProps) {
       </div>
       <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden">
         <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex flex-col lg:flex-row gap-4 justify-between items-center bg-slate-50/10">
-          <div className="relative flex-1 max-w-md w-full group">
-            <i className="ri-search-line absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-emerald-500"></i>
-            <input 
-              type="text"
+          <div className="flex-1 max-w-md w-full">
+            <DesignInput 
+              label="Search Fleet"
               placeholder="Filter by name or contact..."
+              icon="ri-search-line"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-white dark:bg-black border border-slate-200/60 dark:border-white/5 rounded-2xl text-[13px] focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-medium shadow-sm"
             />
           </div>
           <div className="flex flex-col sm:flex-row flex-wrap items-center gap-2 p-1 bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl w-full lg:w-auto">
@@ -704,7 +707,7 @@ export default function RiderManagement({ adminInfo }: RiderManagementProps) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Contact String</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
                   <input 
                     type="tel" required
                     value={newRider.phone_number}

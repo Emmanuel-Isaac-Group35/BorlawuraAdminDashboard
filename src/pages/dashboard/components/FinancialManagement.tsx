@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import ExportButton from './ExportButton';
+import { PremiumCard, IconBox, StatusBadge } from './DesignCore';
 
 interface Payment {
   id: string;
@@ -89,17 +90,17 @@ export default function FinancialManagement({ adminInfo }: FinancialManagementPr
 
   const stats = calculateStats();
 
-  const getStatusStyle = (status: string) => {
+  const getStatusBadgeType = (status: string): any => {
     switch (status) {
       case 'paid':
       case 'completed':
       case 'approved':
       case 'active':
-        return 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20';
+        return 'success';
       case 'pending':
-        return 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20';
+        return 'warning';
       default:
-        return 'bg-slate-50 text-slate-500 border-slate-100 dark:bg-white/5 dark:text-slate-400 dark:border-white/10';
+        return 'neutral';
     }
   };
 
@@ -140,39 +141,36 @@ export default function FinancialManagement({ adminInfo }: FinancialManagementPr
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
         {[
           { label: "Today's Money", value: `₵${stats.todayRevenue.toLocaleString()}`, color: 'emerald', icon: 'ri-funds-box-line', sub: 'Calculated today' },
           { label: "This Month's Money", value: `₵${stats.monthlyRevenue.toLocaleString()}`, color: 'amber', icon: 'ri-line-chart-line', sub: 'Total this month' },
-          { label: 'Money to Riders', value: `₵${stats.pendingPayouts.toLocaleString()}`, color: 'emerald', icon: 'ri-wallet-3-line', sub: 'Pending payments' },
+          { label: 'Money to Riders', value: `₵${stats.pendingPayouts.toLocaleString()}`, color: 'indigo', icon: 'ri-wallet-3-line', sub: 'Pending payments' },
           { label: 'Business Profit', value: `₵${stats.commission.toLocaleString()}`, color: 'emerald', icon: 'ri-pie-chart-line', sub: 'Our 10% share' },
         ].map((stat, i) => (
-          <div key={i} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm transition-all hover:scale-[1.02]">
+          <div key={i} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm transition-all hover:scale-[1.02] group">
             <div className="flex items-center justify-between mb-5">
-              <div className={`w-12 h-12 rounded-2xl bg-${stat.color}-500/10 flex items-center justify-center text-${stat.color}-600`}>
-                <i className={`${stat.icon} text-xl`}></i>
-              </div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Summary</span>
+              <IconBox icon={stat.icon} color={stat.color} />
             </div>
             <h3 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tighter leading-none mb-4">{stat.value}</h3>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
-            <p className="text-[10px] text-slate-400 font-medium opacity-60 mt-2">{stat.sub}</p>
+            <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</p>
+            <p className="text-[9px] text-slate-400 font-bold opacity-60 mt-2 uppercase tracking-tighter">{stat.sub}</p>
           </div>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden flex flex-col">
-          <div className="px-10 py-8 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-[0.2em]">Recent Payments</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-widest">List of payments made by customers</p>
-            </div>
+        <PremiumCard 
+          title="Recent Payments" 
+          subtitle="List of payments made by customers"
+          className="lg:col-span-2"
+          actions={
             <div className="flex h-2 w-2 relative">
                <div className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></div>
                <div className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></div>
             </div>
-          </div>
+          }
+        >
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -188,11 +186,11 @@ export default function FinancialManagement({ adminInfo }: FinancialManagementPr
                   <tr key={txn.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all group">
                     <td className="px-10 py-6">
                       <div className="flex items-center gap-4">
-                        <div className="w-9 h-9 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 font-bold border border-slate-100 dark:border-white/5">
+                        <div className="w-9 h-9 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-500 font-bold border border-slate-100 dark:border-white/5 group-hover:bg-emerald-600 group-hover:text-white transition-all">
                           {txn.users?.full_name?.charAt(0) || 'G'}
                         </div>
                         <div>
-                          <p className="text-[13px] font-bold text-slate-900 dark:text-white transition-colors group-hover:text-emerald-600">{txn.users?.full_name || 'Guest Participant'}</p>
+                          <p className="text-[13px] font-bold text-slate-900 dark:text-white transition-colors">{txn.users?.full_name || 'Guest Participant'}</p>
                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter mt-0.5">ID: {txn.id.slice(0, 8)}</p>
                         </div>
                       </div>
@@ -201,9 +199,7 @@ export default function FinancialManagement({ adminInfo }: FinancialManagementPr
                       <p className="text-[14px] font-bold text-emerald-600">₵{txn.amount}</p>
                     </td>
                     <td className="px-10 py-6">
-                      <span className={`px-4 py-1.5 rounded-xl text-[9px] font-bold uppercase tracking-widest border ${getStatusStyle(txn.status)}`}>
-                        {txn.status}
-                      </span>
+                      <StatusBadge label={txn.status} type={getStatusBadgeType(txn.status)} />
                     </td>
                     <td className="px-10 py-6 text-right">
                        <p className="text-[11px] font-bold text-slate-500 uppercase tracking-tighter">{new Date(txn.created_at).toLocaleDateString()}</p>
@@ -217,7 +213,7 @@ export default function FinancialManagement({ adminInfo }: FinancialManagementPr
           {/* Mobile Payments View */}
           <div className="md:hidden divide-y divide-slate-50 dark:divide-white/5">
             {payments.map((txn) => (
-              <div key={txn.id} className="p-6 space-y-4">
+              <div key={txn.id} className="p-8 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
@@ -228,9 +224,7 @@ export default function FinancialManagement({ adminInfo }: FinancialManagementPr
                       <p className="text-[10px] text-slate-400 font-bold uppercase">{new Date(txn.created_at).toLocaleDateString()}</p>
                     </div>
                   </div>
-                  <span className={`px-3 py-1 rounded-xl text-[9px] font-bold uppercase border ${getStatusStyle(txn.status)}`}>
-                    {txn.status}
-                  </span>
+                  <StatusBadge label={txn.status} type={getStatusBadgeType(txn.status)} />
                 </div>
                 <div className="flex items-center justify-between pt-2">
                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Transaction Amount</p>
@@ -239,18 +233,20 @@ export default function FinancialManagement({ adminInfo }: FinancialManagementPr
               </div>
             ))}
           </div>
-        </div>
+        </PremiumCard>
 
-        <div className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden flex flex-col h-fit">
-          <div className="px-10 py-8 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex flex-col gap-4">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-[0.2em]">Payments to Staff</h3>
-            {isFinanceAdmin && (
-              <button className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:scale-[0.98] transition-all shadow-xl shadow-slate-900/20 dark:shadow-white/5">
-                Pay All Riders
+        <PremiumCard 
+          title="Staff Payouts" 
+          subtitle="Performance manifest"
+          actions={
+            isFinanceAdmin && (
+              <button className="px-5 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-[9px] font-bold uppercase tracking-widest hover:scale-[0.98] transition-all shadow-xl">
+                Pay All
               </button>
-            )}
-          </div>
-          <div className="p-6 space-y-4">
+            )
+          }
+        >
+          <div className="p-8 space-y-4">
              {riders.map((rider) => (
                 <div key={rider.id} className="p-5 rounded-3xl border border-slate-50 dark:border-white/5 bg-slate-50/30 dark:bg-white/[0.01] hover:border-emerald-500/30 transition-all group">
                    <div className="flex items-center justify-between mb-4">
@@ -263,9 +259,7 @@ export default function FinancialManagement({ adminInfo }: FinancialManagementPr
                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{rider.total_pickups} Pickups</p>
                           </div>
                        </div>
-                       <span className={`px-3 py-1 rounded-lg text-[8px] font-bold uppercase tracking-widest border ${getStatusStyle('pending')}`}>
-                        Pending
-                       </span>
+                       <StatusBadge label="Pending" type="warning" />
                     </div>
                     <div className="flex items-center justify-between">
                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Amount to Pay</p>
@@ -274,7 +268,7 @@ export default function FinancialManagement({ adminInfo }: FinancialManagementPr
                 </div>
              ))}
           </div>
-        </div>
+        </PremiumCard>
       </div>
     </div>
   );

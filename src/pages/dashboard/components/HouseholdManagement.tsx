@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { logActivity } from '../../../lib/audit';
+import { DesignInput, DesignButton, StatusBadge, PremiumCard } from './DesignCore';
 
 interface Household {
   id: string;
@@ -39,6 +40,7 @@ export default function HouseholdManagement({ adminInfo }: { adminInfo?: any }) 
       const { data, error } = await supabase
         .from('users')
         .select('*')
+        .or('role.eq.customer,role.is.null')
         .eq('registration_status', 'approved') 
         .order('created_at', { ascending: false });
 
@@ -114,13 +116,14 @@ export default function HouseholdManagement({ adminInfo }: { adminInfo?: any }) 
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Households</h1>
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage your registered households and their accounts</p>
         </div>
-        <button 
+        <DesignButton 
           onClick={fetchHouseholds}
-          className="px-6 py-3 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-[2rem] text-[10px] font-bold uppercase tracking-widest border border-slate-200/60 dark:border-white/10 hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm"
+          variant="ghost"
+          icon="ri-refresh-line"
+          className="text-[10px]"
         >
-          <i className="ri-refresh-line"></i>
           Refresh List
-        </button>
+        </DesignButton>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
@@ -146,14 +149,13 @@ export default function HouseholdManagement({ adminInfo }: { adminInfo?: any }) 
         <div className="px-6 md:px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-[0.2em]">Household List</h3>
-            <div className="relative group w-full sm:w-auto">
-              <i className="ri-search-line absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors"></i>
-              <input
-                type="text"
+            <div className="flex-1 max-w-md w-full">
+              <DesignInput 
+                label="Search Users"
                 placeholder="Search households..."
+                icon="ri-search-line"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full sm:w-64 pl-12 pr-4 py-3 text-[13px] font-medium border border-slate-200/60 dark:border-white/10 rounded-2xl bg-white dark:bg-black text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm"
               />
             </div>
           </div>

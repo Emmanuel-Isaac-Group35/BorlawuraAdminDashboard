@@ -49,17 +49,9 @@ export default function SMSManagement({ adminInfo }: SMSManagementProps) {
   const currentRole = (userInfo.role || 'Admin').toLowerCase().replace(/\s+/g, '_');
   const canSend = currentRole === 'admin' || currentRole === 'manager' || currentRole === 'support_admin';
 
-  if (!canSend) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-sm">
-        <i className="ri-chat-voice-line text-6xl text-slate-200 mb-6 font-thin"></i>
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Communication Lock</h2>
-        <p className="text-sm text-slate-500 max-w-sm text-center">Your role does not have authorization to broadcast SMS notifications.</p>
-      </div>
-    );
-  }
-
   useEffect(() => {
+    if (!canSend) return;
+
     fetchSMSLogs();
     
     const channel = supabase
@@ -72,7 +64,17 @@ export default function SMSManagement({ adminInfo }: SMSManagementProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [canSend]);
+
+  if (!canSend) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-sm">
+        <i className="ri-chat-voice-line text-6xl text-slate-200 mb-6 font-thin"></i>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Communication Lock</h2>
+        <p className="text-sm text-slate-500 max-w-sm text-center">Your role does not have authorization to broadcast SMS notifications.</p>
+      </div>
+    );
+  }
 
   const fetchSMSLogs = async () => {
     try {
@@ -137,7 +139,7 @@ export default function SMSManagement({ adminInfo }: SMSManagementProps) {
         const { data: users, error: usersError } = await query;
         if (usersError) throw usersError;
         recipients = users?.map(u => u.phone_number).filter(p => p && p.length >= 10) || [];
-        targetLabel = newMessage.target === 'sector_users' ? `Sector: ${newMessage.sector}` : 'All Users (Residents)';
+        targetLabel = newMessage.target === 'sector_users' ? `Sector: ${newMessage.sector}` : 'All Users';
       } else if (newMessage.target === 'all_riders') {
         const { data: riders, error: ridersError } = await supabase.from('riders').select('phone_number');
         if (ridersError) throw ridersError;
@@ -387,7 +389,7 @@ export default function SMSManagement({ adminInfo }: SMSManagementProps) {
                     onChange={e => setNewMessage({...newMessage, target: e.target.value})}
                     className="w-full px-5 py-4 bg-slate-50 dark:bg-black border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all appearance-none cursor-pointer"
                   >
-                    <option value="all_users">All Users (Residents)</option>
+                    <option value="all_users">All Users</option>
                     <option value="sector_users">Geographical Sector (Area)</option>
                     <option value="all_riders">All Riders (Fleet Personnel)</option>
                     <option value="custom">Direct Notification (Manual)</option>

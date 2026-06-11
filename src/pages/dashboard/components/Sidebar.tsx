@@ -29,17 +29,18 @@ export default function Sidebar({ activeSection, setActiveSection, isOpen, onClo
 
     const allItems = [
       { id: 'overview', icon: 'ri-dashboard-3-line', label: 'Home', roles: ['admin', 'finance_admin', 'manager', 'dispatcher', 'support_admin'], color: 'emerald' },
-      { id: 'feedback', icon: 'ri-customer-service-2-line', label: 'Support Desk', roles: ['admin', 'manager', 'support_admin'], color: 'emerald' },
-      { id: 'admins', icon: 'ri-shield-user-line', label: 'Admin (Personnel)', roles: ['admin'], color: 'slate' },
-      { id: 'riders', icon: 'ri-bike-line', label: 'Riders', roles: ['admin', 'manager', 'dispatcher'], color: 'emerald' },
-      { id: 'users', icon: 'ri-group-line', label: 'Residents', roles: ['admin', 'manager', 'support_admin', 'finance_admin'], color: 'emerald' },
+      { id: 'live-tracking', icon: 'ri-map-pin-user-line', label: 'Live Map', roles: ['admin', 'manager', 'dispatcher'], color: 'emerald' },
       { id: 'pickups', icon: 'ri-calendar-check-line', label: 'Orders', roles: ['admin', 'manager', 'dispatcher'], color: 'emerald' },
+      { id: 'users', icon: 'ri-group-line', label: 'Users', roles: ['admin', 'manager', 'support_admin', 'finance_admin'], color: 'emerald' },
+      { id: 'households', icon: 'ri-home-gear-line', label: 'Households', roles: ['admin', 'manager', 'support_admin'], color: 'emerald' },
+      { id: 'riders', icon: 'ri-bike-line', label: 'Riders', roles: ['admin', 'manager', 'dispatcher'], color: 'emerald' },
+      { id: 'admins', icon: 'ri-shield-user-line', label: 'Admin (Personnel)', roles: ['admin'], color: 'slate' },
       { id: 'sms', icon: 'ri-chat-voice-line', label: 'SMS', roles: ['admin', 'manager', 'support_admin'], color: 'emerald' },
-      { id: 'live-tracking', icon: 'ri-map-pin-user-line', label: 'Map', roles: ['admin', 'manager', 'dispatcher'], color: 'emerald' },
-      { id: 'financials', icon: 'ri-wallet-3-line', label: 'Finance', roles: ['admin', 'finance_admin', 'manager'], color: 'amber' },
+      { id: 'feedback', icon: 'ri-customer-service-2-line', label: 'Support Desk', roles: ['admin', 'manager', 'support_admin'], color: 'emerald' },
+      // { id: 'financials', icon: 'ri-wallet-3-line', label: 'Finance', roles: ['admin', 'finance_admin', 'manager'], color: 'amber' },
       { id: 'analytics', icon: 'ri-bar-chart-box-line', label: 'Reports', roles: ['admin', 'finance_admin', 'manager'], color: 'orange' },
-      { id: 'audit', icon: 'ri-file-shield-2-line', label: 'Audit Log', roles: ['admin'], color: 'slate' },
       { id: 'cms', icon: 'ri-window-line', label: 'CMS', roles: ['admin', 'manager'], color: 'violet' },
+      { id: 'audit', icon: 'ri-file-shield-2-line', label: 'Audit Log', roles: ['admin'], color: 'slate' },
       { id: 'settings', icon: 'ri-settings-5-line', label: 'Settings', roles: ['admin'], color: 'gray' },
     ];
 

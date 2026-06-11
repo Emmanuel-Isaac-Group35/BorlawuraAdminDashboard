@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { logActivity } from '../../../lib/audit';
+import { DesignInput, DesignButton, StatusBadge, PremiumCard } from './DesignCore';
 import ExportButton from './ExportButton';
 import { sendSMS } from '../../../lib/sms';
 
@@ -56,7 +57,7 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
   const userInfo = adminInfo || JSON.parse(localStorage.getItem('user_profile') || '{}');
   const roleKey = (userInfo.role || 'Admin').toLowerCase().replace(/\s+/g, '_');
   const isAdmin = roleKey === 'admin' || roleKey === 'manager'; 
-  const canModify = isAdmin || roleKey === 'support_admin'; 
+  const canModify = ['admin', 'manager', 'support_admin', 'dispatcher', 'finance_admin'].includes(roleKey); 
   const canPromote = roleKey === 'admin';
   useEffect(() => {
     fetchUsers();
@@ -113,8 +114,7 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('role', 'customer')
-        .not('role', 'in', '("admin","manager","dispatcher","finance_admin","support_admin","rider")')
+        .or('role.eq.customer,role.is.null')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -266,7 +266,8 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
       balance: 0,
       role: 'customer',
       subscription_type: 'pay-as-you-go',
-      avatar_url: ''
+      avatar_url: '',
+      status: 'active'
     });
     setIsEditing(false);
   };
@@ -282,7 +283,8 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
       balance: user.balance,
       role: user.role || 'customer',
       subscription_type: user.subscription_type || 'pay-as-you-go',
-      avatar_url: user.avatar_url || ''
+      avatar_url: user.avatar_url || '',
+      status: user.status
     });
     setIsEditing(true);
     setShowAddModal(true);
@@ -365,8 +367,8 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
     <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">Residents</h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage all registered households and their accounts</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">Users</h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage all registered user accounts</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <ExportButton 
@@ -383,20 +385,20 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
             title="Customer List"
           />
           {isAdmin && (
-            <button
+            <DesignButton
               onClick={() => { resetForm(); setShowAddModal(true); }}
-              className="px-6 py-3 bg-emerald-600 text-white rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all flex items-center gap-2"
+              icon="ri-user-add-line"
+              className="text-[10px]"
             >
-              <i className="ri-user-add-line"></i>
-              Add New Resident
-            </button>
+              Add New User
+            </DesignButton>
           )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
-          { label: 'Total Residents', value: users.length, color: 'indigo', icon: 'ri-team-line' },
+          { label: 'Total Users', value: users.length, color: 'indigo', icon: 'ri-team-line' },
           { label: 'Active Now', value: users.filter(u => u.status === 'active').length, color: 'emerald', icon: 'ri-checkbox-circle-line' },
           { label: 'Suspended', value: users.filter(u => u.status === 'suspended').length, color: 'rose', icon: 'ri-forbid-2-line' },
         ].map((stat, i) => (
@@ -414,14 +416,13 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
 
       <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden">
         <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex flex-col lg:flex-row gap-4 justify-between items-center bg-slate-50/10">
-          <div className="relative flex-1 max-w-md w-full group">
-            <i className="ri-search-line absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors"></i>
-            <input 
-              type="text"
-              placeholder="Search by name, phone or email..."
+          <div className="flex-1 max-w-md w-full">
+            <DesignInput 
+              label="Search Users"
+              placeholder="Name, phone or email..."
+              icon="ri-search-line"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-white dark:bg-black border border-slate-200/60 dark:border-white/5 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm"
             />
           </div>
           <div className="flex flex-col sm:flex-row flex-wrap items-center gap-2 p-1 bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl w-full lg:w-auto">
@@ -471,7 +472,7 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
               <table className="w-full">
                 <thead>
                   <tr className="bg-slate-50/50 dark:bg-slate-800/20 text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-50 dark:border-slate-800/50">
-                    <th className="px-8 py-5 text-left">Resident Profile</th>
+                    <th className="px-8 py-5 text-left">User Profile</th>
                     <th className="px-8 py-5 text-left">Location</th>
                     <th className="px-8 py-5 text-left">Balance</th>
                     <th className="px-8 py-5 text-left">Status</th>
@@ -639,7 +640,7 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setSelectedUser(null)}></div>
           <div className="relative w-full max-w-xl bg-white dark:bg-slate-950 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 shadow-2xl max-h-[90vh] overflow-y-auto animate-scale-up custom-scrollbar">
             <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-slate-50/10">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Resident Information</h2>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">User Information</h2>
               <button onClick={() => setSelectedUser(null)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-400 hover:text-rose-500 transition-all">
                 <i className="ri-close-line text-2xl"></i>
               </button>

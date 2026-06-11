@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import Sidebar from './components/Sidebar';
@@ -36,8 +36,15 @@ export default function Dashboard() {
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [adminProfile, setAdminProfile] = useState<any>(null);
+  const mainRef = useRef<HTMLElement>(null);
   
   const { profile, loading } = useAdminAuth();
+
+  useEffect(() => {
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+    }
+  }, [activeSection]);
 
   useEffect(() => {
     if (profile) setAdminProfile(profile);
@@ -177,7 +184,7 @@ export default function Dashboard() {
         pickups: ['admin', 'manager', 'dispatcher'],
         'live-tracking': ['admin', 'manager', 'dispatcher'],
         'route-optimization': ['admin', 'dispatcher'],
-        financials: ['admin', 'finance_admin', 'manager'],
+        // financials: ['admin', 'finance_admin', 'manager'],
         analytics: ['admin', 'finance_admin', 'manager'],
         sms: ['admin', 'manager', 'support_admin'],
         feedback: ['admin', 'manager', 'support_admin'],
@@ -211,7 +218,7 @@ export default function Dashboard() {
         case 'pickups': return <PickupOperations adminInfo={activeAdmin} />;
         case 'live-tracking': return <LiveTracking adminInfo={activeAdmin} />;
         case 'route-optimization': return <RouteOptimization adminInfo={activeAdmin} />;
-        case 'financials': return <FinancialManagement adminInfo={activeAdmin} />;
+        // case 'financials': return <FinancialManagement adminInfo={activeAdmin} />;
         case 'analytics': return <Analytics adminInfo={activeAdmin} />;
         case 'sms': return <SMSManagement adminInfo={activeAdmin} />;
         case 'feedback': return <SupportDesk adminInfo={activeAdmin} />;
@@ -272,7 +279,7 @@ export default function Dashboard() {
           onMenuClick={() => setIsSidebarOpen(true)}
           onNavigate={setActiveSection}
         />
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth scrollbar-hide">
+        <main ref={mainRef} className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth scrollbar-hide">
           <div key={activeSection} className="animate-fade-in max-w-[1400px] mx-auto pb-10">
             {renderContent()}
           </div>

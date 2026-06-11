@@ -76,17 +76,9 @@ export default function LiveTracking({ adminInfo }: { adminInfo?: any }) {
   const roleKey = (userInfo.role || 'customer').toLowerCase().replace(/\s+/g, '_');
   const canTrack = roleKey === 'admin' || roleKey === 'manager' || roleKey === 'dispatcher';
 
-  if (!canTrack) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-sm">
-        <i className="ri-map-pin-user-line text-6xl text-slate-200 mb-6 font-thin"></i>
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Satellite Lock Active</h2>
-        <p className="text-sm text-slate-500 max-w-sm text-center">Your operational clearance does not permit live GPS synchronization.</p>
-      </div>
-    );
-  }
-
   useEffect(() => {
+    if (!canTrack) return;
+
     fetchRiders(true);
     fetchPickups();
 
@@ -112,7 +104,17 @@ export default function LiveTracking({ adminInfo }: { adminInfo?: any }) {
       supabase.removeChannel(channelRiders);
       supabase.removeChannel(channelPickups);
     };
-  }, []);
+  }, [canTrack]);
+
+  if (!canTrack) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-sm">
+        <i className="ri-map-pin-user-line text-6xl text-slate-200 mb-6 font-thin"></i>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Satellite Lock Active</h2>
+        <p className="text-sm text-slate-500 max-w-sm text-center">Your operational clearance does not permit live GPS synchronization.</p>
+      </div>
+    );
+  }
 
   const handleRealtimeUpdate = (payload: any) => {
     if (payload.eventType === 'INSERT') {

@@ -83,28 +83,6 @@ export default function Login() {
         }
     };
 
-    const handleBypass = () => {
-        const profile = {
-            id: 'root-authority-id',
-            fullName: 'Root Authority',
-            full_name: 'Root Authority', // compatibility
-            role: 'admin',
-            email: 'admin@borlawura.gh'
-        };
-
-        localStorage.setItem('adminToken', 'bypass-session-token');
-        localStorage.setItem('adminUser', JSON.stringify({
-            id: 'root-authority-id',
-            email: 'admin@borlawura.gh',
-            user_metadata: profile
-        }));
-        localStorage.setItem('user_profile', JSON.stringify(profile));
-        
-        // Critical: Refresh the session cache before navigation
-        window.dispatchEvent(new Event('storage'));
-        
-        navigate('/');
-    };
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] px-4 relative overflow-hidden font-['Montserrat']">
@@ -148,18 +126,8 @@ export default function Login() {
                                                    <p className="text-[11px] font-bold text-gray-300 uppercase tracking-widest">Verification Protocol</p>
                                                 </div>
                                                 <p className="text-[11px] font-medium leading-relaxed text-gray-400">
-                                                    Your account activation is pending. Please check <span className="text-white font-bold">{email || 'your email'}</span> for the verification link.
+                                                    Your account activation is pending. Please check <span className="text-white font-bold">{email || 'your email'}</span> for the verification link to activate your account.
                                                 </p>
-                                            </div>
-
-                                            <div className="rounded-2xl border border-white/5 bg-black/40 p-4">
-                                                <div className="mb-2 flex items-center justify-between">
-                                                    <p className="text-[9px] font-black uppercase tracking-widest text-teal-500/70">Developer Console Fix</p>
-                                                    <div className="flex h-1.5 w-1.5 rounded-full bg-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.6)] animate-pulse"></div>
-                                                </div>
-                                                <code className="block break-all font-mono text-[9px] text-gray-400 opacity-90 leading-relaxed selection:bg-teal-500/30 selection:text-white">
-                                                    UPDATE auth.users SET email_confirmed_at = NOW() WHERE email = '{email}';
-                                                </code>
                                             </div>
                                         </div>
                                     )}
@@ -226,16 +194,10 @@ export default function Login() {
                         </form>
                     </div>
                     
-                    <div className="px-10 py-8 bg-white/5 border-t border-white/5 text-center flex flex-col gap-4">
+                    <div className="px-10 py-6 bg-white/5 border-t border-white/5 text-center">
                         <p className="text-[9px] font-black text-gray-600 uppercase tracking-[0.3em]">
-                            Secure System Active
+                            Authorized Access Only
                         </p>
-                        <button 
-                          onClick={handleBypass}
-                          className="text-[10px] font-black text-teal-600 uppercase tracking-widest hover:text-teal-400 transition-colors cursor-pointer border border-teal-500/20 py-3 rounded-xl hover:bg-teal-500/5 text-center"
-                        >
-                           Quick Access for System Admin
-                        </button>
                     </div>
                 </div>
             </div>
