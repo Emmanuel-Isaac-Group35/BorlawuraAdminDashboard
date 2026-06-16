@@ -133,7 +133,7 @@ export default function RiderManagement({ adminInfo }: RiderManagementProps) {
         sender: 'BORLAWURA'
       });
 
-      alert('Staff Personnel registered and notified via SMS.');
+      alert('Rider registered and notified via SMS.');
       setShowAddModal(false);
       resetForm();
       fetchRiders();
@@ -211,7 +211,7 @@ export default function RiderManagement({ adminInfo }: RiderManagementProps) {
         .eq('id', id);
 
       if (error) throw error;
-      alert('Field Personnel record decommissioned and deleted.');
+      alert('Rider record deleted.');
       fetchRiders();
     } catch (err: any) {
       alert(`Deletion Failed: ${err.message}`);
@@ -255,7 +255,7 @@ export default function RiderManagement({ adminInfo }: RiderManagementProps) {
         message: `${actionLabel} rider #${id.substring(0,8)}`
       });
 
-      alert(`Field Personnel ${actionLabel} successfully.`);
+      alert(`Rider ${actionLabel} successfully.`);
       fetchRiders();
 
       // Update local state if modal is open
@@ -557,7 +557,7 @@ export default function RiderManagement({ adminInfo }: RiderManagementProps) {
               ))}
               {filteredRiders.length === 0 && (
                 <div className="py-10 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest leading-none">
-                  Fleet personnel not found
+                  Rider not found
                 </div>
               )}
             </div>
@@ -640,7 +640,7 @@ export default function RiderManagement({ adminInfo }: RiderManagementProps) {
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setShowAddModal(false)}></div>
           <div className="relative w-full max-w-lg bg-white dark:bg-slate-950 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 shadow-2xl overflow-hidden animate-scale-up">
             <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-slate-50/10">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">{isEditing ? 'Modify Personnel' : 'Field Personnel Onboarding'}</h2>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">{isEditing ? 'Edit Rider' : 'Add Rider'}</h2>
               <button 
                 onClick={() => { setShowAddModal(false); resetForm(); }} 
                 className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-rose-500 transition-all"

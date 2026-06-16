@@ -40,7 +40,6 @@ export default function HouseholdManagement({ adminInfo }: { adminInfo?: any }) 
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .or('role.eq.customer,role.is.null')
         .eq('registration_status', 'approved') 
         .order('created_at', { ascending: false });
 

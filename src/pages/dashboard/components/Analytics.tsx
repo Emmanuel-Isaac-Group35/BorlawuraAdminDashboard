@@ -72,10 +72,28 @@ export default function Analytics({ adminInfo }: { adminInfo?: any }) {
 
       const peakHourStr = peakH === 0 ? '12 AM' : peakH > 12 ? `${peakH-12} PM` : peakH === 12 ? '12 PM' : `${peakH} AM`;
 
+      // Calculate real week-over-week growth
+      const now = new Date();
+      const startOfThisWeek = new Date(now);
+      startOfThisWeek.setDate(now.getDate() - now.getDay());
+      startOfThisWeek.setHours(0, 0, 0, 0);
+      const startOfLastWeek = new Date(startOfThisWeek);
+      startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
+
+      const thisWeekCount = pickups?.filter(p => new Date(p.created_at) >= startOfThisWeek).length || 0;
+      const lastWeekCount = pickups?.filter(p => {
+        const d = new Date(p.created_at);
+        return d >= startOfLastWeek && d < startOfThisWeek;
+      }).length || 0;
+
+      const growthValue = lastWeekCount > 0
+        ? parseFloat(((thisWeekCount - lastWeekCount) / lastWeekCount * 100).toFixed(1))
+        : thisWeekCount > 0 ? 100 : 0;
+
       setData(sortedData);
       
       setStats({
-        growth: 8.2, 
+        growth: growthValue,
         peakHour: peakHourStr || 'N/A',
         efficiency: efficiencyValue,
         activeHotspots: Math.ceil((pickups?.length || 0) / 10) || 1
@@ -124,7 +142,7 @@ export default function Analytics({ adminInfo }: { adminInfo?: any }) {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
          {[
-            { label: 'Weekly Growth', value: `+${stats.growth}%`, icon: 'ri-line-chart-line', color: 'emerald' },
+            { label: 'Weekly Growth', value: `${stats.growth >= 0 ? '+' : ''}${stats.growth}%`, icon: 'ri-line-chart-line', color: stats.growth >= 0 ? 'emerald' : 'rose' },
             { label: 'Busiest Time', value: stats.peakHour, icon: 'ri-time-line', color: 'amber' },
             { label: 'Success Rate', value: `${stats.efficiency}%`, icon: 'ri-dashboard-3-line', color: 'emerald' },
             { label: 'Active Areas', value: stats.activeHotspots, icon: 'ri-base-station-line', color: 'rose' },

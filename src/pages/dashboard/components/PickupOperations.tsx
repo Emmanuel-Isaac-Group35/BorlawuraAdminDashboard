@@ -477,7 +477,7 @@ export default function PickupOperations({ adminInfo }: PickupOperationsProps) {
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">Transition Protocols</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                        <button onClick={() => setShowAssignModal(true)} className="flex items-center justify-between p-6 bg-indigo-600 text-white rounded-[2rem] hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-600/20 group">
-                          <span className="text-[11px] font-black uppercase tracking-widest">Deploy Assigned Staff</span>
+                          <span className="text-[11px] font-black uppercase tracking-widest">Assign Rider</span>
                           <i className="ri-steering-2-line text-xl group-hover:rotate-12 transition-transform"></i>
                        </button>
                        <div className="grid grid-cols-2 gap-4">

@@ -7,7 +7,6 @@ import Overview from './components/Overview';
 import AdminManagement from './components/AdminManagement';
 import RiderManagement from './components/RiderManagement';
 import UserManagement from './components/UserManagement';
-import HouseholdManagement from './components/HouseholdManagement';
 import PickupOperations from './components/PickupOperations';
 import Analytics from './components/Analytics';
 import SystemSettings from './components/SystemSettings';
@@ -20,6 +19,7 @@ import FinancialManagement from './components/FinancialManagement';
 import ProfileView from './components/ProfileView';
 import CMSManagement from './components/CMSManagement';
 import SupportDesk from './components/SupportDesk';
+import PushNotifications from './components/PushNotifications';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 
 interface Toast {
@@ -176,22 +176,21 @@ export default function Dashboard() {
       const isAdminRole = roleKey === 'admin';
       
       const permissions: Record<string, string[]> = {
-        overview: ['admin', 'manager', 'dispatcher', 'finance_admin', 'support_admin'],
+        overview: ['admin', 'manager', 'dispatcher', 'finance', 'support'],
         admins: ['admin'],
-        users: ['admin', 'manager', 'support_admin'],
-        households: ['admin', 'manager', 'support_admin'],
+        users: ['admin', 'manager', 'support'],
         riders: ['admin', 'manager', 'dispatcher'],
         pickups: ['admin', 'manager', 'dispatcher'],
         'live-tracking': ['admin', 'manager', 'dispatcher'],
         'route-optimization': ['admin', 'dispatcher'],
-        // financials: ['admin', 'finance_admin', 'manager'],
-        analytics: ['admin', 'finance_admin', 'manager'],
-        sms: ['admin', 'manager', 'support_admin'],
-        feedback: ['admin', 'manager', 'support_admin'],
+        analytics: ['admin', 'finance', 'manager'],
+        push: ['admin', 'manager'],
+        sms: ['admin', 'manager', 'support'],
+        feedback: ['admin', 'manager', 'support'],
         settings: ['admin'],
         cms: ['admin', 'manager'],
         audit: ['admin'],
-        profile: ['admin', 'finance_admin', 'manager', 'dispatcher', 'support_admin']
+        profile: ['admin', 'finance', 'manager', 'dispatcher', 'support']
       };
 
       const hasPermission = isAdminRole || (permissions[activeSection] && permissions[activeSection].includes(roleKey));
@@ -214,13 +213,12 @@ export default function Dashboard() {
         case 'admins': return <AdminManagement adminInfo={activeAdmin} />;
         case 'riders': return <RiderManagement adminInfo={activeAdmin} />;
         case 'users': return <UserManagement adminInfo={activeAdmin} />;
-        case 'households': return <HouseholdManagement adminInfo={activeAdmin} />;
         case 'pickups': return <PickupOperations adminInfo={activeAdmin} />;
         case 'live-tracking': return <LiveTracking adminInfo={activeAdmin} />;
         case 'route-optimization': return <RouteOptimization adminInfo={activeAdmin} />;
-        // case 'financials': return <FinancialManagement adminInfo={activeAdmin} />;
         case 'analytics': return <Analytics adminInfo={activeAdmin} />;
         case 'sms': return <SMSManagement adminInfo={activeAdmin} />;
+        case 'push': return <PushNotifications adminInfo={activeAdmin} />;
         case 'feedback': return <SupportDesk adminInfo={activeAdmin} />;
         case 'cms': return <CMSManagement adminInfo={activeAdmin} />;
         case 'settings': return <SystemSettings adminInfo={activeAdmin} />;

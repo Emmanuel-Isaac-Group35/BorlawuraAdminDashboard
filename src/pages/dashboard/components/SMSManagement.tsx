@@ -47,7 +47,7 @@ export default function SMSManagement({ adminInfo }: SMSManagementProps) {
 
   const userInfo = adminInfo || JSON.parse(localStorage.getItem('user_profile') || '{}');
   const currentRole = (userInfo.role || 'Admin').toLowerCase().replace(/\s+/g, '_');
-  const canSend = currentRole === 'admin' || currentRole === 'manager' || currentRole === 'support_admin';
+  const canSend = currentRole === 'admin' || currentRole === 'manager' || currentRole === 'support' || currentRole === 'support_admin';
 
   useEffect(() => {
     if (!canSend) return;
@@ -391,7 +391,7 @@ export default function SMSManagement({ adminInfo }: SMSManagementProps) {
                   >
                     <option value="all_users">All Users</option>
                     <option value="sector_users">Geographical Sector (Area)</option>
-                    <option value="all_riders">All Riders (Fleet Personnel)</option>
+                    <option value="all_riders">All Riders</option>
                     <option value="custom">Direct Notification (Manual)</option>
                   </select>
                 </div>

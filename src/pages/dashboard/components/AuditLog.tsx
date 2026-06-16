@@ -97,7 +97,7 @@ export default function AuditLog({ adminInfo }: { adminInfo?: any }) {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Activity History</h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">A simple list of everything done on this dashboard by staff</p>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">A complete record of all actions performed by admins on this dashboard</p>
         </div>
         <div className="flex items-center gap-3">
           <ExportButton 
@@ -139,7 +139,7 @@ export default function AuditLog({ adminInfo }: { adminInfo?: any }) {
               <thead>
                 <tr className="bg-slate-50/50 dark:bg-white/5 text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-50 dark:border-white/5">
                   <th className="px-8 py-5">Time</th>
-                  <th className="px-8 py-5">Staff Member</th>
+                  <th className="px-8 py-5">Admin</th>
                   <th className="px-8 py-5">Activity</th>
                   <th className="px-8 py-5">Type</th>
                   <th className="px-8 py-5 text-right">Details</th>
@@ -208,7 +208,7 @@ export default function AuditLog({ adminInfo }: { adminInfo?: any }) {
             <div className="p-10 space-y-8">
                <div className="grid grid-cols-2 gap-4">
                   <div className="p-6 bg-slate-50 dark:bg-white/[0.02] rounded-3xl border border-slate-100 dark:border-white/5">
-                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Initiated By (Staff)</p>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Initiated By (Admin)</p>
                      <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">
                            {selectedLog.admin_name.charAt(0)}
@@ -217,7 +217,7 @@ export default function AuditLog({ adminInfo }: { adminInfo?: any }) {
                      </div>
                   </div>
                   <div className="p-6 bg-slate-50 dark:bg-white/[0.02] rounded-3xl border border-slate-100 dark:border-white/5">
-                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Target Personnel</p>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Target Record</p>
                      <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-indigo-500 text-white flex items-center justify-center text-xs font-bold">
                            {(selectedLog.details?.target_user_name || selectedLog.target_type).charAt(0)}

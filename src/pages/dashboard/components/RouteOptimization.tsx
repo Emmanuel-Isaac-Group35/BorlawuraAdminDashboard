@@ -101,8 +101,8 @@ export default function RouteOptimization({ adminInfo }: { adminInfo?: any }) {
           distanceValue: distVal,
           estimatedDuration: `${Math.floor(durationVal / 60)}h ${durationVal % 60}m`,
           durationValue: durationVal,
-          fuelSaved: '18.4%',
-          fuelSavedValue: 18.4,
+          fuelSaved: `${((1 - (distVal / (distVal + totalStops * 1.2))) * 100).toFixed(1)}%`,
+          fuelSavedValue: parseFloat(((1 - (distVal / (distVal + totalStops * 1.2))) * 100).toFixed(1)),
           status: 'active',
           stops: stops
         };
@@ -280,9 +280,9 @@ export default function RouteOptimization({ adminInfo }: { adminInfo?: any }) {
                        <i className="ri-donut-chart-line text-xl"></i>
                     </div>
                     <div>
-                       <h4 className="text-[11px] font-bold uppercase tracking-widest mb-1.5 text-emerald-400">Time Saved</h4>
+                       <h4 className="text-[11px] font-bold uppercase tracking-widest mb-1.5 text-emerald-400">Route Efficiency</h4>
                        <p className="text-[10px] font-medium text-slate-400 leading-relaxed">
-                          Our routes have helped riders finish work 18.4% faster today.
+                          Routes are optimized based on active pickup requests and current rider positions.
                        </p>
                     </div>
                  </div>
@@ -291,9 +291,9 @@ export default function RouteOptimization({ adminInfo }: { adminInfo?: any }) {
                        <i className="ri-error-warning-line text-xl"></i>
                     </div>
                     <div>
-                       <h4 className="text-[11px] font-bold uppercase tracking-widest mb-1.5 text-amber-400">Traffic Alert</h4>
+                       <h4 className="text-[11px] font-bold uppercase tracking-widest mb-1.5 text-amber-400">Live Dispatch</h4>
                        <p className="text-[10px] font-medium text-slate-400 leading-relaxed">
-                          Heavy traffic detected in Osu. We are finding better paths.
+                          Assign riders to routes to begin real-time tracking and order completion.
                        </p>
                     </div>
                  </div>
@@ -307,19 +307,21 @@ export default function RouteOptimization({ adminInfo }: { adminInfo?: any }) {
                  <div>
                     <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest mb-2.5">
                        <span className="text-slate-400">Work Load</span>
-                       <span className="text-slate-900 dark:text-white">94%</span>
+                       <span className="text-slate-900 dark:text-white">
+                          {routes.length > 0 ? `${Math.min(100, Math.round((routes.reduce((s, r) => s + r.totalStops, 0) / (routes.length * 10)) * 100))}%` : '0%'}
+                       </span>
                     </div>
                     <div className="w-full h-2 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
-                       <div className="h-full bg-indigo-500 shadow-lg shadow-indigo-500/50" style={{ width: '94%' }}></div>
+                       <div className="h-full bg-indigo-500 shadow-lg shadow-indigo-500/50 transition-all" style={{ width: `${routes.length > 0 ? Math.min(100, Math.round((routes.reduce((s, r) => s + r.totalStops, 0) / (routes.length * 10)) * 100)) : 0}%` }}></div>
                     </div>
                  </div>
                  <div>
                     <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest mb-2.5">
-                       <span className="text-slate-400">Rider Online</span>
-                       <span className="text-slate-900 dark:text-white">88%</span>
+                       <span className="text-slate-400">Active Routes</span>
+                       <span className="text-slate-900 dark:text-white">{routes.filter(r => r.status === 'active').length} / {routes.length}</span>
                     </div>
                     <div className="w-full h-2 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
-                       <div className="h-full bg-emerald-500 shadow-lg shadow-emerald-500/50" style={{ width: '88%' }}></div>
+                       <div className="h-full bg-emerald-500 shadow-lg shadow-emerald-500/50 transition-all" style={{ width: routes.length > 0 ? `${Math.round((routes.filter(r => r.status === 'active').length / routes.length) * 100)}%` : '0%' }}></div>
                     </div>
                  </div>
               </div>

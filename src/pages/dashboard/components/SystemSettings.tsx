@@ -33,23 +33,51 @@ export default function SystemSettings({ adminInfo }: SystemSettingsProps) {
     popupActive: false,
     popupTitle: 'Welcome back!',
     popupMessage: 'Check out our new recycling initiatives!',
-    popupImage: 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?auto=format&fit=crop&q=80'
+    popupImage: ''
   });
 
   useEffect(() => {
-    const savedSettings = localStorage.getItem('borlawura_settings');
-    if (savedSettings) {
+    const loadSettings = async () => {
+      // 1. Try loading from Supabase first
       try {
-        const parsed = JSON.parse(savedSettings);
-        if (parsed.zones) setZones(parsed.zones);
-        if (parsed.categories) setCategories(parsed.categories);
-        if (parsed.pricing) setPricing(parsed.pricing);
-        if (parsed.notifications) setNotifications(parsed.notifications);
-        if (parsed.mobileApp) setMobileApp(parsed.mobileApp);
+        const { data } = await supabase
+          .from('system_settings')
+          .select('settings')
+          .eq('id', 'global_config')
+          .single();
+
+        if (data?.settings) {
+          const s = data.settings;
+          if (s.zones) setZones(s.zones);
+          if (s.categories) setCategories(s.categories);
+          if (s.pricing) setPricing(s.pricing);
+          if (s.notifications) setNotifications(s.notifications);
+          if (s.mobileApp) setMobileApp(s.mobileApp);
+          // Sync to localStorage for offline use
+          localStorage.setItem('borlawura_settings', JSON.stringify(s));
+          return;
+        }
       } catch (e) {
-        console.error('Failed to load settings', e);
+        console.warn('Could not load settings from cloud, falling back to local cache.');
       }
-    }
+
+      // 2. Fallback to localStorage
+      const savedSettings = localStorage.getItem('borlawura_settings');
+      if (savedSettings) {
+        try {
+          const parsed = JSON.parse(savedSettings);
+          if (parsed.zones) setZones(parsed.zones);
+          if (parsed.categories) setCategories(parsed.categories);
+          if (parsed.pricing) setPricing(parsed.pricing);
+          if (parsed.notifications) setNotifications(parsed.notifications);
+          if (parsed.mobileApp) setMobileApp(parsed.mobileApp);
+        } catch (e) {
+          console.error('Failed to load local settings', e);
+        }
+      }
+    };
+
+    loadSettings();
   }, []);
 
   const saveSettings = async () => {

@@ -114,7 +114,7 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .or('role.eq.customer,role.is.null')
+        .not('role', 'in', '("admin","manager","dispatcher","support","finance","support_admin","finance_admin")')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -986,11 +986,11 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
                         >
                          <option value="customer">Regular User</option>
                          <option value="manager">Make Manager</option>
-                         <option value="admin">Make Office Staff</option>
-                         <option value="finance_admin">Make Finance Staff</option>
+                         <option value="admin">Promote to Admin</option>
+                         <option value="finance_admin">Promote to Finance Admin</option>
                          <option value="admin">Make Main Admin</option>
                          <option value="dispatcher">Make Dispatcher</option>
-                         <option value="support_admin">Make Support Staff</option>
+                         <option value="support_admin">Promote to Support Admin</option>
                          <option value="rider">Make Field Rider</option>
                        </select>
                     </div>

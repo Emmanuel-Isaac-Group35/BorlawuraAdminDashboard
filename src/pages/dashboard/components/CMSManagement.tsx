@@ -23,11 +23,7 @@ export default function CMSManagement({ adminInfo }: CMSManagementProps) {
       links: { website: 'https://borlawura.com', facebook: '', instagram: '', twitter: '', privacyPolicy: '', termsOfService: '' },
       features: { walletEnabled: true, referralSystem: true, householdSharing: true, liveTracking: true },
       announcement: { enabled: false, title: '', message: '', image: '' },
-      banners: [
-        { id: 1, title: 'Happy Mother Days', subtitle: 'act Required', category: 'PROMO', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSV2fkE7zLBUHdKi5k1T1qq8TnRHtziLdziFQ&s', enabled: true },
-        { id: 2, title: 'New Official Banner', subtitle: 'Action Required', category: 'jjfjhdbd', image: 'https://cdn.modernghana.com/content/300/360/111202114351-8dt2wjivuq-aboboyaa.jpg', enabled: true },
-        { id: 3, title: 'Merry Christmas', subtitle: 'Global Promo', category: 'OFFER', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTVe0nJiIkyWT0dvDFRF3fKKYJAMDEfdoA7tQ&s', enabled: true }
-      ],
+      banners: [],
       bannersEnabled: true,
       theme: { primaryColor: '#10b981', darkMode: false }
     },
