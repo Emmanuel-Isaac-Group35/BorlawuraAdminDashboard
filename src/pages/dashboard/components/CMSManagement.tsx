@@ -160,21 +160,21 @@ export default function CMSManagement({ adminInfo }: CMSManagementProps) {
   const currentApp = appConfig[activeApp];
 
   return (
-    <div className="min-h-screen bg-transparent p-4 md:p-6 lg:p-8 flex flex-col gap-6 font-['Montserrat']">
+    <div className="min-h-screen bg-transparent p-2 sm:p-4 md:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6 font-['Montserrat']">
       
       {/* PROFESSIONAL COMPACT HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-white/5 gap-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-sm border border-slate-100 dark:border-white/5 gap-4 sm:gap-6">
          <div className="flex items-center gap-4">
             <div className="w-11 h-11 bg-violet-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-violet-600/20">
                <i className="ri-window-line text-2xl"></i>
             </div>
             <div>
-               <h1 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-none">CMS Studio</h1>
-               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Platform Identity & Assets</p>
+               <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-none">CMS Studio</h1>
+               <p className="text-[8px] sm:text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Platform Identity & Assets</p>
             </div>
          </div>
-         <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="bg-slate-100 dark:bg-white/5 p-1 rounded-xl flex flex-1 md:flex-none">
+         <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+            <div className="bg-slate-100 dark:bg-white/5 p-1 rounded-xl flex w-full sm:w-auto">
                <button onClick={() => setActiveApp('user')} className={`flex-1 md:flex-none px-5 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${activeApp === 'user' ? 'bg-white dark:bg-violet-600 text-violet-600 dark:text-white shadow-sm' : 'text-slate-500'}`}>Consumer</button>
                <button onClick={() => setActiveApp('rider')} className={`flex-1 md:flex-none px-5 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${activeApp === 'rider' ? 'bg-white dark:bg-violet-600 text-violet-600 dark:text-white shadow-sm' : 'text-slate-500'}`}>Fleet</button>
             </div>
@@ -187,10 +187,10 @@ export default function CMSManagement({ adminInfo }: CMSManagementProps) {
       <div className="flex flex-col xl:flex-row gap-6 h-full items-start">
          
          {/* MAIN CONFIGURATION AREA */}
-         <div className="flex-1 w-full space-y-6">
+         <div className="flex-1 w-full space-y-4 sm:space-y-6">
             
             {/* COMPACT NAVIGATION */}
-            <div className="flex items-center gap-1 overflow-x-auto pb-2 scrollbar-hide bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-100 dark:border-white/5 shadow-sm px-4">
+            <div className="flex items-center gap-1 overflow-x-auto pb-2 scrollbar-hide bg-white dark:bg-slate-900 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl border border-slate-100 dark:border-white/5 shadow-sm px-2 sm:px-4">
                {[
                  { id: 'interface', label: 'Identity', icon: 'ri-layout-top-line' },
                  { id: 'banners', label: 'Ad Central', icon: 'ri-slideshow-3-line' },
@@ -202,16 +202,16 @@ export default function CMSManagement({ adminInfo }: CMSManagementProps) {
                  <button 
                   key={tab.id} 
                   onClick={() => setActiveTab(tab.id as any)} 
-                  className={`flex items-center gap-2 px-4 py-3 rounded-xl transition-all shrink-0 group ${activeTab === tab.id ? 'bg-violet-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}
+                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl transition-all shrink-0 group ${activeTab === tab.id ? 'bg-violet-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5'}`}
                  >
-                   <i className={`${tab.icon} text-base`}></i>
-                   <span className="text-[10px] font-bold uppercase tracking-widest">{tab.label}</span>
+                   <i className={`${tab.icon} text-sm sm:text-base`}></i>
+                   <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-widest">{tab.label}</span>
                  </button>
                ))}
             </div>
 
             {/* TAB CONTENT - Standard Professional Sizing */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/5 shadow-sm p-6 md:p-8 min-h-[600px] mb-20">
+            <div className="bg-white dark:bg-slate-900 rounded-xl sm:rounded-2xl border border-slate-100 dark:border-white/5 shadow-sm p-4 sm:p-6 md:p-8 min-h-[400px] sm:min-h-[600px] mb-20">
                
                {activeTab === 'interface' && (
                   <div className="space-y-8 animate-fade-in">
@@ -247,31 +247,31 @@ export default function CMSManagement({ adminInfo }: CMSManagementProps) {
 
                {activeTab === 'banners' && (
                   <div className="space-y-6 animate-fade-in">
-                     <div className="flex justify-between items-center border-b border-slate-50 dark:border-white/5 pb-4">
-                        <div className="flex items-center gap-6">
+                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-50 dark:border-white/5 pb-4 gap-3">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6">
                            <div>
-                              <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tighter">Ad Central</h3>
-                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Promotional Carousel Management</p>
+                              <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white uppercase tracking-tighter">Ad Central</h3>
+                              <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Promotional Carousel Management</p>
                            </div>
                            <div className="h-10 w-px bg-slate-100 dark:bg-white/5 mx-2 hidden md:block"></div>
-                           <div className="flex items-center gap-3 bg-slate-50 dark:bg-white/5 px-4 py-2 rounded-xl border border-slate-100 dark:border-white/10">
-                              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Carousel Status</span>
+                           <div className="flex items-center gap-2 sm:gap-3 bg-slate-50 dark:bg-white/5 px-3 sm:px-4 py-2 rounded-xl border border-slate-100 dark:border-white/10">
+                              <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-slate-500">Carousel Status</span>
                               <label className="relative inline-flex items-center cursor-pointer">
                                  <input type="checkbox" checked={currentApp.bannersEnabled} onChange={e => updateField(`${activeApp}.bannersEnabled`, e.target.checked)} className="sr-only peer" />
                                  <div className="w-10 h-5 bg-slate-200 dark:bg-slate-700 rounded-full peer peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-5"></div>
                               </label>
-                              <span className={`text-[9px] font-black uppercase tracking-widest ${currentApp.bannersEnabled ? 'text-emerald-500' : 'text-slate-400'}`}>{currentApp.bannersEnabled ? 'Active' : 'Offline'}</span>
+                              <span className={`text-[8px] sm:text-[9px] font-black uppercase tracking-widest ${currentApp.bannersEnabled ? 'text-emerald-500' : 'text-slate-400'}`}>{currentApp.bannersEnabled ? 'Active' : 'Offline'}</span>
                            </div>
                         </div>
-                        <button onClick={() => updateField(`${activeApp}.banners`, [...currentApp.banners, { id: Date.now(), image: '', title: '', subtitle: '', category: '', enabled: true }])} className="px-4 py-2.5 bg-violet-600 text-white rounded-lg font-black uppercase text-[9px] tracking-widest shadow-lg hover:bg-violet-700 transition-all flex items-center gap-2">
+                        <button onClick={() => updateField(`${activeApp}.banners`, [...currentApp.banners, { id: Date.now(), image: '', title: '', subtitle: '', category: '', enabled: true }])} className="w-full sm:w-auto px-4 py-2.5 bg-violet-600 text-white rounded-lg font-black uppercase text-[9px] tracking-widest shadow-lg hover:bg-violet-700 transition-all flex items-center justify-center gap-2">
                            <i className="ri-add-line"></i> Add Asset
                         </button>
                      </div>
                      <div className={`space-y-4 transition-all duration-500 ${currentApp.bannersEnabled ? 'opacity-100' : 'opacity-40 grayscale pointer-events-none scale-[0.99]'}`}>
                         {currentApp.banners.map((banner: any, idx: number) => (
-                           <div key={banner.id} className={`p-5 bg-slate-50 dark:bg-black/30 rounded-2xl border transition-all group ${banner.enabled ? 'border-transparent hover:border-violet-500/10' : 'border-rose-500/20 opacity-60'}`}>
-                              <div className="flex flex-col lg:flex-row gap-6">
-                                 <div className="w-full lg:w-56 h-40 rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-800 relative shadow-sm shrink-0">
+                           <div key={banner.id} className={`p-3 sm:p-5 bg-slate-50 dark:bg-black/30 rounded-xl sm:rounded-2xl border transition-all group ${banner.enabled ? 'border-transparent hover:border-violet-500/10' : 'border-rose-500/20 opacity-60'}`}>
+                              <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
+                                 <div className="w-full lg:w-56 h-32 sm:h-40 rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-800 relative shadow-sm shrink-0">
                                     {banner.image ? <img src={banner.image} className={`w-full h-full object-cover ${banner.enabled ? '' : 'grayscale'}`} /> : <div className="w-full h-full flex items-center justify-center opacity-10"><i className="ri-image-add-line text-3xl"></i></div>}
                                     <div className="absolute top-3 left-3 px-3 py-1.5 bg-black/70 text-white text-[8px] font-black rounded-lg backdrop-blur-md">SLOT {idx+1}</div>
                                     {!banner.enabled && <div className="absolute inset-0 bg-rose-500/10 backdrop-blur-[2px] flex items-center justify-center"><span className="bg-rose-500 text-white text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Disabled</span></div>}
@@ -389,8 +389,8 @@ export default function CMSManagement({ adminInfo }: CMSManagementProps) {
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Aesthetic Render Engine</p>
                      </div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="p-6 bg-slate-50 dark:bg-black/30 rounded-2xl flex items-center gap-6 border border-transparent hover:border-violet-500/10 transition-all">
-                           <div className="relative group">
+                        <div className="p-6 bg-slate-50 dark:bg-black/30 rounded-2xl flex flex-col sm:flex-row items-center text-center sm:text-left gap-4 sm:gap-6 border border-transparent hover:border-violet-500/10 transition-all w-full">
+                           <div className="relative group flex-shrink-0">
                               <input type="color" value={currentApp.theme.primaryColor} onChange={e => updateField(`${activeApp}.theme.primaryColor`, e.target.value)} className="w-16 h-16 bg-transparent rounded-full cursor-pointer relative z-10 p-0 border-0" />
                               <div className="absolute inset-0 blur-xl opacity-30 group-hover:opacity-60 transition-all rounded-full" style={{ backgroundColor: currentApp.theme.primaryColor }}></div>
                            </div>

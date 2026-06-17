@@ -140,7 +140,7 @@ export default function Analytics({ adminInfo }: { adminInfo?: any }) {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
          {[
             { label: 'Weekly Growth', value: `${stats.growth >= 0 ? '+' : ''}${stats.growth}%`, icon: 'ri-line-chart-line', color: stats.growth >= 0 ? 'emerald' : 'rose' },
             { label: 'Busiest Time', value: stats.peakHour, icon: 'ri-time-line', color: 'amber' },
@@ -160,7 +160,7 @@ export default function Analytics({ adminInfo }: { adminInfo?: any }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-         <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 p-8 shadow-sm">
+         <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 p-6 sm:p-8 shadow-sm">
             <div className="mb-8">
                <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Pickups over time</h3>
                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">How many pickups were done in the last 7 days</p>
@@ -204,7 +204,7 @@ export default function Analytics({ adminInfo }: { adminInfo?: any }) {
             </div>
          </div>
 
-         <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 p-8 shadow-sm">
+         <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 p-6 sm:p-8 shadow-sm">
             <div className="mb-8">
                <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Completion Index</h3>
                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Daily fulfillment performance</p>
@@ -239,7 +239,7 @@ export default function Analytics({ adminInfo }: { adminInfo?: any }) {
          </div>
       </div>
 
-      <div className="bg-black rounded-[3rem] p-10 text-white relative overflow-hidden group border border-white/5">
+      <div className="bg-black rounded-[3rem] p-6 md:p-10 text-white relative overflow-hidden group border border-white/5">
          <div className="flex flex-col md:flex-row items-center justify-between gap-8 relative z-10">
             <div className="max-w-2xl">
                <h2 className="text-sm font-bold text-white uppercase tracking-[0.2em] mb-4 opacity-70">Executive Summary</h2>
@@ -249,7 +249,7 @@ export default function Analytics({ adminInfo }: { adminInfo?: any }) {
                   demand concentrated at {stats.peakHour}. System hotspots are actively being optimized for fleet distribution.
                </p>
             </div>
-            <div className="px-8 py-6 rounded-[2rem] bg-white/5 border border-white/10 flex items-center gap-6 backdrop-blur-md">
+            <div className="px-6 md:px-8 py-4 md:py-6 rounded-[2rem] bg-white/5 border border-white/10 flex items-center gap-6 backdrop-blur-md">
                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-2xl font-bold shadow-2xl shadow-emerald-500/20">
                   {stats.efficiency}%
                </div>

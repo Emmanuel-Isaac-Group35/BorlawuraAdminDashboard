@@ -139,7 +139,7 @@ export default function Overview({ onNavigate, adminInfo }: OverviewProps) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
         {stats.map((stat) => (
-          <div key={stat.id} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm transition-all hover:scale-[1.02] hover:shadow-xl group">
+          <div key={stat.id} className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm transition-all hover:scale-[1.02] hover:shadow-xl group">
             <div className="flex items-center justify-between mb-6">
               <IconBox icon={stat.icon} color={stat.color} />
             </div>
@@ -170,7 +170,7 @@ export default function Overview({ onNavigate, adminInfo }: OverviewProps) {
         >
           <div className="divide-y divide-slate-50 dark:divide-white/5 mt-4">
              {recentPickups.map((pickup) => (
-                <div key={pickup.id} className="px-10 py-6 flex items-center gap-4 hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-colors group">
+                <div key={pickup.id} className="px-6 sm:px-10 py-4 sm:py-6 flex items-center gap-4 hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-colors group">
                    <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:bg-emerald-500/10 group-hover:text-emerald-500 transition-colors">
                       <i className="ri-truck-line text-lg"></i>
                    </div>
@@ -194,7 +194,7 @@ export default function Overview({ onNavigate, adminInfo }: OverviewProps) {
 
         <div className="space-y-8">
           <PremiumCard title="Quick Actions" subtitle="Administrative control panel">
-            <div className="p-8 grid grid-cols-2 gap-4">
+            <div className="p-6 sm:p-8 grid grid-cols-2 gap-4">
                {shortcuts.map((action) => (
                   <button 
                     key={action.id}
@@ -211,7 +211,7 @@ export default function Overview({ onNavigate, adminInfo }: OverviewProps) {
           </PremiumCard>
 
           <PremiumCard title="Top Riders" subtitle="Performance manifest">
-              <div className="p-8 grid grid-cols-1 gap-4">
+              <div className="p-6 sm:p-8 grid grid-cols-1 gap-4">
                  {topRiders.map((rider) => (
                     <div key={rider.id} className="p-5 rounded-3xl border border-gray-50 dark:border-gray-800/40 bg-gray-50/30 dark:bg-white/[0.01] flex items-center gap-4 group hover:border-emerald-500/30 transition-colors">
                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white text-lg font-bold shadow-lg shadow-emerald-500/20">

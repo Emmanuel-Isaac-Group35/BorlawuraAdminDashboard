@@ -518,7 +518,7 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setShowAddModal(false)}></div>
           <div className="relative w-full max-w-lg bg-white dark:bg-slate-950 rounded-[2.5rem] shadow-2xl animate-scale-up border border-slate-100 dark:border-white/10 overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
+            <div className="px-6 md:px-8 py-4 md:py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
               <div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white">{isEditing ? 'Edit Admin' : 'Add Admin'}</h2>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Set role and contact details</p>
@@ -528,8 +528,8 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="p-8 space-y-5">
-              <div className="grid grid-cols-2 gap-5">
+            <form onSubmit={handleSave} className="p-6 md:p-8 space-y-5 max-h-[70vh] overflow-y-auto custom-scrollbar">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Full Name</label>
                   <input type="text" required value={newAdmin.full_name} onChange={e => setNewAdmin({ ...newAdmin, full_name: e.target.value })} className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all" placeholder="John Doe" />
@@ -551,12 +551,12 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
                   </select>
                 </div>
                 {!isEditing && (
-                  <div className="col-span-2 space-y-2">
+                  <div className="sm:col-span-2 space-y-2">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Password</label>
                     <input type="password" required value={newAdmin.password} onChange={e => setNewAdmin({ ...newAdmin, password: e.target.value })} className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all" placeholder="••••••••" />
                   </div>
                 )}
-                <div className="col-span-2 space-y-2">
+                <div className="sm:col-span-2 space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Profile Photo URL (Optional)</label>
                   <input type="url" value={newAdmin.avatar_url} onChange={e => setNewAdmin({ ...newAdmin, avatar_url: e.target.value })} className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all" placeholder="https://example.com/photo.jpg" />
                 </div>
@@ -588,21 +588,21 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setViewingAdmin(null)}></div>
           <div className="relative w-full max-w-xl bg-white dark:bg-slate-950 rounded-[2.5rem] border border-slate-100 dark:border-white/10 shadow-2xl max-h-[90vh] overflow-y-auto animate-scale-up">
-            <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 flex justify-between items-center bg-slate-50/10">
+            <div className="px-6 md:px-8 py-4 md:py-6 border-b border-slate-50 dark:border-white/10 flex justify-between items-center bg-slate-50/10">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white">Admin Profile</h2>
               <button onClick={() => setViewingAdmin(null)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-400 hover:text-rose-500 transition-all">
                 <i className="ri-close-line text-2xl"></i>
               </button>
             </div>
-            <div className="p-8 space-y-8">
+            <div className="p-6 md:p-8 space-y-6 md:space-y-8">
               {/* Profile header */}
-              <div className="flex items-center gap-5">
-                <div className={`w-20 h-20 rounded-3xl bg-gradient-to-tr ${gradientMap[getRoleConfig(viewingAdmin.role).color]} flex items-center justify-center text-white text-3xl font-bold shadow-2xl overflow-hidden`}>
+              <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
+                <div className={`w-20 h-20 rounded-3xl bg-gradient-to-tr ${gradientMap[getRoleConfig(viewingAdmin.role).color]} flex items-center justify-center text-white text-3xl font-bold shadow-2xl overflow-hidden flex-shrink-0`}>
                   {viewingAdmin.avatar_url ? <img src={viewingAdmin.avatar_url} alt="" className="w-full h-full object-cover" /> : viewingAdmin.full_name?.charAt(0)}
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white">{viewingAdmin.full_name}</h3>
-                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-2">
                     <span className={`px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border ${getRoleBadge(viewingAdmin.role)}`}>
                       <i className={`${getRoleConfig(viewingAdmin.role).icon} mr-1`}></i>{getRoleConfig(viewingAdmin.role).label}
                     </span>
@@ -614,7 +614,7 @@ export default function AdminManagement({ adminInfo }: AdminManagementProps) {
               </div>
 
               {/* Info grid */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[
                   { label: 'Email', value: viewingAdmin.email },
                   { label: 'Phone', value: viewingAdmin.phone_number || 'N/A' },

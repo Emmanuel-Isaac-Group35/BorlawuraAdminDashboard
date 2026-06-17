@@ -121,28 +121,28 @@ export default function SystemSettings({ adminInfo }: SystemSettingsProps) {
   };
 
   return (
-    <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="space-y-5 sm:space-y-8 font-['Montserrat'] animate-fade-in pb-10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Settings</h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Change how the system works and set your prices</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Settings</h1>
+          <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Change how the system works and set your prices</p>
         </div>
         <button
           onClick={saveSettings}
-          className="px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-xl transition-all flex items-center gap-2"
+          className="w-full sm:w-auto px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl sm:rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-xl transition-all flex items-center justify-center gap-2"
         >
           <i className="ri-save-3-line"></i>
           Save Settings
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-8">
         {/* Service Zones */}
-        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden flex flex-col">
-           <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10">
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Areas We Work In</h2>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden flex flex-col">
+           <div className="px-5 sm:px-8 py-4 sm:py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10">
+              <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Areas We Work In</h2>
            </div>
-           <div className="p-8 space-y-3">
+           <div className="p-4 sm:p-8 space-y-3">
               {zones.map((zone, index) => (
                 <div key={index} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-white/[0.02] rounded-2xl border border-transparent hover:border-slate-100 dark:hover:border-white/5 transition-all group">
                   <div className="flex items-center gap-4">
@@ -176,11 +176,11 @@ export default function SystemSettings({ adminInfo }: SystemSettingsProps) {
         </div>
 
         {/* Waste Categories */}
-        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden flex flex-col">
-           <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10">
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Types of Waste</h2>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden flex flex-col">
+           <div className="px-5 sm:px-8 py-4 sm:py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10">
+              <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Types of Waste</h2>
            </div>
-           <div className="p-8 space-y-3">
+           <div className="p-4 sm:p-8 space-y-3">
               {categories.map((cat, index) => (
                 <div key={index} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-white/[0.02] rounded-2xl border border-transparent hover:border-slate-100 dark:hover:border-white/5 transition-all group">
                   <div className="flex items-center gap-4">
@@ -214,13 +214,13 @@ export default function SystemSettings({ adminInfo }: SystemSettingsProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-8">
         {/* Pricing */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden">
-           <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10">
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Prices & Fees</h2>
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl sm:rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden">
+           <div className="px-5 sm:px-8 py-4 sm:py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10">
+              <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Prices & Fees</h2>
            </div>
-           <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+           <div className="p-4 sm:p-8 grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-8">
               {[
                 { label: 'One-time Pickup Fee', key: 'baseFee', symbol: '₵' },
                 { label: 'Our Commission (Percent)', key: 'commission', symbol: '%' },
@@ -245,11 +245,11 @@ export default function SystemSettings({ adminInfo }: SystemSettingsProps) {
         </div>
 
         {/* Global Notifications */}
-        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden flex flex-col">
-           <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10">
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Notification Settings</h2>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden flex flex-col">
+           <div className="px-5 sm:px-8 py-4 sm:py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10">
+              <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Notification Settings</h2>
            </div>
-           <div className="p-8 space-y-6 flex-1">
+           <div className="p-4 sm:p-8 space-y-4 sm:space-y-6 flex-1">
               {[
                 { label: 'SMS Notifications', key: 'sms', desc: 'Send messages to users' },
                 { label: 'App Push Notifications', key: 'push', desc: 'Direct phone alerts' },

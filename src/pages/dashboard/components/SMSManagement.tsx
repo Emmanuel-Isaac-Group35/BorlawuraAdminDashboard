@@ -367,7 +367,7 @@ export default function SMSManagement({ adminInfo }: SMSManagementProps) {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md" onClick={() => setShowComposeModal(false)}></div>
           <div className="relative w-full max-w-xl bg-white dark:bg-slate-950 rounded-[3rem] shadow-2xl overflow-hidden animate-scale-up border border-slate-100 dark:border-white/10">
-            <div className="px-10 py-8 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
+            <div className="px-6 md:px-10 py-6 md:py-8 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
               <div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Notification Setup</h2>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 px-1 border-l-2 border-emerald-500">Institutional Protocol 4.2</p>
@@ -380,8 +380,8 @@ export default function SMSManagement({ adminInfo }: SMSManagementProps) {
               </button>
             </div>
             
-            <form onSubmit={handleSendSMS} className="p-10 space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <form onSubmit={handleSendSMS} className="p-6 md:p-10 space-y-6 md:space-y-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
                 <div className="space-y-3">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] pl-1">Target Segment</label>
                   <select 

@@ -31,6 +31,7 @@ export default function Sidebar({ activeSection, setActiveSection, isOpen, onClo
       { id: 'overview', icon: 'ri-dashboard-3-line', label: 'Home', roles: ['admin', 'finance', 'manager', 'dispatcher', 'support'], color: 'emerald' },
       { id: 'pickups', icon: 'ri-calendar-check-line', label: 'Orders', roles: ['admin', 'manager', 'dispatcher'], color: 'emerald' },
       { id: 'users', icon: 'ri-group-line', label: 'Users', roles: ['admin', 'manager', 'support', 'finance'], color: 'emerald' },
+      { id: 'households', icon: 'ri-community-line', label: 'Households', roles: ['admin', 'manager', 'support'], color: 'emerald' },
       { id: 'riders', icon: 'ri-bike-line', label: 'Riders', roles: ['admin', 'manager', 'dispatcher'], color: 'emerald' },
       { id: 'admins', icon: 'ri-shield-user-line', label: 'Admins', roles: ['admin'], color: 'slate' },
       { id: 'live-tracking', icon: 'ri-map-pin-user-line', label: 'Live Map', roles: ['admin', 'manager', 'dispatcher'], color: 'emerald' },
@@ -41,6 +42,7 @@ export default function Sidebar({ activeSection, setActiveSection, isOpen, onClo
       { id: 'cms', icon: 'ri-window-line', label: 'CMS', roles: ['admin', 'manager'], color: 'violet' },
       { id: 'audit', icon: 'ri-file-shield-2-line', label: 'Audit Log', roles: ['admin'], color: 'slate' },
       { id: 'settings', icon: 'ri-settings-5-line', label: 'Settings', roles: ['admin'], color: 'gray' },
+      { id: 'profile', icon: 'ri-user-settings-line', label: 'My Profile', roles: ['admin', 'finance', 'manager', 'dispatcher', 'support'], color: 'slate' },
     ];
 
     if (isAdmin) return allItems;

@@ -20,6 +20,7 @@ import ProfileView from './components/ProfileView';
 import CMSManagement from './components/CMSManagement';
 import SupportDesk from './components/SupportDesk';
 import PushNotifications from './components/PushNotifications';
+import HouseholdManagement from './components/HouseholdManagement';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 
 interface Toast {
@@ -179,6 +180,7 @@ export default function Dashboard() {
         overview: ['admin', 'manager', 'dispatcher', 'finance', 'support'],
         admins: ['admin'],
         users: ['admin', 'manager', 'support'],
+        households: ['admin', 'manager', 'support'],
         riders: ['admin', 'manager', 'dispatcher'],
         pickups: ['admin', 'manager', 'dispatcher'],
         'live-tracking': ['admin', 'manager', 'dispatcher'],
@@ -213,6 +215,7 @@ export default function Dashboard() {
         case 'admins': return <AdminManagement adminInfo={activeAdmin} />;
         case 'riders': return <RiderManagement adminInfo={activeAdmin} />;
         case 'users': return <UserManagement adminInfo={activeAdmin} />;
+        case 'households': return <HouseholdManagement adminInfo={activeAdmin} />;
         case 'pickups': return <PickupOperations adminInfo={activeAdmin} />;
         case 'live-tracking': return <LiveTracking adminInfo={activeAdmin} />;
         case 'route-optimization': return <RouteOptimization adminInfo={activeAdmin} />;

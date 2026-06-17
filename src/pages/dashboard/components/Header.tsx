@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { getSMSBalance } from '../../../lib/sms';
 import NotificationPanel from './NotificationPanel';
 
 interface HeaderProps {
@@ -14,8 +13,6 @@ export default function Header({ onLogout, onMenuClick, onNavigate, adminInfo }:
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [smsBalance, setSmsBalance] = useState<number | null>(null);
-  const [loadingBalance, setLoadingBalance] = useState(false);
   const userInfo = adminInfo || {
     fullName: 'Admin',
     role: 'Admin',
@@ -33,8 +30,6 @@ export default function Header({ onLogout, onMenuClick, onNavigate, adminInfo }:
 
   useEffect(() => {
     fetchUnreadCount();
-    fetchUnreadCount();
-    fetchBalance();
 
     // Set up real-time subscription for notification badge
     const channel = supabase
@@ -48,15 +43,6 @@ export default function Header({ onLogout, onMenuClick, onNavigate, adminInfo }:
       supabase.removeChannel(channel);
     };
   }, []);
-
-  const fetchBalance = async () => {
-    setLoadingBalance(true);
-    const result = await getSMSBalance();
-    if (result.success) {
-      setSmsBalance(result.balance);
-    }
-    setLoadingBalance(false);
-  };
 
   const fetchUnreadCount = async () => {
     const { count } = await supabase
@@ -201,11 +187,11 @@ export default function Header({ onLogout, onMenuClick, onNavigate, adminInfo }:
                      <span>My Profile</span>
                   </button>
                   <button 
-                    onClick={() => { setShowProfile(false); onNavigate('profile'); }}
+                    onClick={() => { setShowProfile(false); onNavigate('settings'); }}
                     className="w-full flex items-center gap-4 px-4 py-3 text-[11px] font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/[0.03] rounded-2xl transition-all uppercase tracking-widest group"
                   >
                      <i className="ri-shield-keyhole-line text-lg text-slate-400 group-hover:text-emerald-500 transition-colors"></i>
-                     <span>Security</span>
+                     <span>Settings</span>
                    </button>
                   <div className="h-px bg-slate-100 dark:bg-white/5 my-2 mx-4"></div>
                   <button 

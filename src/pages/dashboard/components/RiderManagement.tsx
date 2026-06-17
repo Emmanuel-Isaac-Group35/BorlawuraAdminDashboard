@@ -570,28 +570,28 @@ export default function RiderManagement({ adminInfo }: RiderManagementProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setSelectedRider(null)}></div>
           <div className="relative w-full max-w-xl bg-white dark:bg-slate-950 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 shadow-2xl overflow-hidden animate-scale-up">
-            <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-slate-50/10">
+            <div className="px-6 md:px-8 py-4 md:py-6 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-slate-50/10">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Rider Dossier</h2>
               <button onClick={() => setSelectedRider(null)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-rose-500 transition-all">
                 <i className="ri-close-line text-2xl"></i>
               </button>
             </div>
             
-            <div className="p-10">
-              <div className="flex items-center gap-6 mb-10">
-                <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white text-4xl font-bold shadow-2xl shadow-emerald-500/20 overflow-hidden">
+            <div className="p-6 md:p-10">
+              <div className="flex flex-col sm:flex-row items-center gap-6 mb-10 text-center sm:text-left">
+                <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white text-4xl font-bold shadow-2xl shadow-emerald-500/20 overflow-hidden flex-shrink-0">
                   {selectedRider.avatar_url ? (
                      <img src={selectedRider.avatar_url} alt="" className="w-full h-full object-cover" />
                   ) : selectedRider.full_name?.charAt(0)}
                 </div>
                 <div>
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex flex-col sm:flex-row items-center gap-3 mb-2">
                     <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{selectedRider.full_name}</h3>
                     <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase ${selectedRider.status === 'active' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
                       {selectedRider.status}
                     </span>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center justify-center sm:justify-start gap-4">
                     <div className="flex items-center gap-1.5 text-amber-500">
                        <i className="ri-star-fill text-sm"></i>
                        <span className="text-sm font-bold">{selectedRider.rating} / 5.0 Rating</span>
@@ -600,7 +600,7 @@ export default function RiderManagement({ adminInfo }: RiderManagementProps) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-8 mb-10">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 mb-10">
                 <div className="p-4 bg-slate-50 dark:bg-white/[0.01] rounded-3xl border border-slate-100 dark:border-slate-800/60">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Asset Assigned</p>
                   <p className="text-[13px] font-bold text-slate-900 dark:text-white">{selectedRider.vehicle_type}</p>
@@ -639,7 +639,7 @@ export default function RiderManagement({ adminInfo }: RiderManagementProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setShowAddModal(false)}></div>
           <div className="relative w-full max-w-lg bg-white dark:bg-slate-950 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 shadow-2xl overflow-hidden animate-scale-up">
-            <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-slate-50/10">
+            <div className="px-6 md:px-8 py-4 md:py-6 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-slate-50/10">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">{isEditing ? 'Edit Rider' : 'Add Rider'}</h2>
               <button 
                 onClick={() => { setShowAddModal(false); resetForm(); }} 
@@ -649,7 +649,7 @@ export default function RiderManagement({ adminInfo }: RiderManagementProps) {
               </button>
             </div>
             
-            <form onSubmit={isEditing ? handleUpdateRider : handleRegister} className="p-8 space-y-6">
+            <form onSubmit={isEditing ? handleUpdateRider : handleRegister} className="p-6 md:p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
               <div className="flex flex-col items-center mb-6">
                 <div className="relative">
                   <div className="w-24 h-24 rounded-3xl bg-slate-100 dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center overflow-hidden">
@@ -716,7 +716,7 @@ export default function RiderManagement({ adminInfo }: RiderManagementProps) {
                     placeholder="+233..."
                   />
                 </div>
-                <div className="col-span-2 space-y-2">
+                <div className="md:col-span-2 space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email Connection</label>
                   <input 
                     type="email"

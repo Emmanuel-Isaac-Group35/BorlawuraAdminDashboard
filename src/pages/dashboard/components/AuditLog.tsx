@@ -93,11 +93,11 @@ export default function AuditLog({ adminInfo }: { adminInfo?: any }) {
   );
 
   return (
-    <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="space-y-5 sm:space-y-8 font-['Montserrat'] animate-fade-in pb-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Activity History</h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">A complete record of all actions performed by admins on this dashboard</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Activity History</h1>
+          <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">A complete record of all actions performed by admins</p>
         </div>
         <div className="flex items-center gap-3">
           <ExportButton 
@@ -114,8 +114,8 @@ export default function AuditLog({ adminInfo }: { adminInfo?: any }) {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden">
-        <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden">
+        <div className="px-4 sm:px-6 md:px-8 py-4 sm:py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10">
            <div className="relative max-w-md group">
               <i className="ri-search-line absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors"></i>
               <input 
@@ -123,7 +123,7 @@ export default function AuditLog({ adminInfo }: { adminInfo?: any }) {
                 placeholder="Search history..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-white dark:bg-black border border-slate-200/60 dark:border-white/5 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full pl-12 pr-4 py-3 bg-white dark:bg-black border border-slate-200/60 dark:border-white/5 rounded-xl sm:rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
            </div>
         </div>
@@ -134,95 +134,134 @@ export default function AuditLog({ adminInfo }: { adminInfo?: any }) {
             <p className="text-[11px] text-slate-400 font-bold uppercase mt-5 tracking-widest">Accessing records...</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-slate-50/50 dark:bg-white/5 text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-50 dark:border-white/5">
-                  <th className="px-8 py-5">Time</th>
-                  <th className="px-8 py-5">Admin</th>
-                  <th className="px-8 py-5">Activity</th>
-                  <th className="px-8 py-5">Type</th>
-                  <th className="px-8 py-5 text-right">Details</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-white/5">
-                {filteredLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all group">
-                    <td className="px-8 py-6 whitespace-nowrap">
-                      <p className="text-[11px] font-bold text-slate-900 dark:text-white">{new Date(log.created_at).toLocaleDateString()}</p>
-                      <p className="text-[10px] text-slate-500">{new Date(log.created_at).toLocaleTimeString()}</p>
-                    </td>
-                    <td className="px-8 py-6 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                         <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-500">
-                           {log.admin_name.charAt(0)}
-                         </div>
-                         <p className="text-[13px] font-bold text-slate-700 dark:text-slate-200">{log.admin_name}</p>
+          <>
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-slate-50/50 dark:bg-white/5 text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-50 dark:border-white/5">
+                    <th className="px-8 py-5">Time</th>
+                    <th className="px-8 py-5">Admin</th>
+                    <th className="px-8 py-5">Activity</th>
+                    <th className="px-8 py-5">Type</th>
+                    <th className="px-8 py-5 text-right">Details</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50 dark:divide-white/5">
+                  {filteredLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all group">
+                      <td className="px-8 py-6 whitespace-nowrap">
+                        <p className="text-[11px] font-bold text-slate-900 dark:text-white">{new Date(log.created_at).toLocaleDateString()}</p>
+                        <p className="text-[10px] text-slate-500">{new Date(log.created_at).toLocaleTimeString()}</p>
+                      </td>
+                      <td className="px-8 py-6 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                           <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-500">
+                             {log.admin_name.charAt(0)}
+                           </div>
+                           <p className="text-[13px] font-bold text-slate-700 dark:text-slate-200">{log.admin_name}</p>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <span className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest border border-slate-200/50 dark:border-white/5">
+                          {log.action}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6">
+                        <p className="text-[11px] font-bold text-slate-900 dark:text-white uppercase tracking-tight">{log.target_type}</p>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <button 
+                          onClick={() => setSelectedLog(log)}
+                          className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/10 text-slate-300 hover:text-emerald-500 hover:border-emerald-500/30 group-hover:shadow-md transition-all"
+                        >
+                          <i className="ri-shield-user-line text-lg"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredLogs.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-24 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest">
+                         No history found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden p-4 space-y-3">
+              {filteredLogs.map((log) => (
+                <div key={log.id} className="bg-slate-50/50 dark:bg-white/[0.02] border border-slate-100 dark:border-white/5 rounded-3xl p-5 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[11px] font-bold text-slate-500 flex-shrink-0">
+                        {log.admin_name.charAt(0)}
                       </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <span className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest border border-slate-200/50 dark:border-white/5">
-                        {log.action}
-                      </span>
-                    </td>
-                    <td className="px-8 py-6">
-                      <p className="text-[11px] font-bold text-slate-900 dark:text-white uppercase tracking-tight">{log.target_type}</p>
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      <button 
-                        onClick={() => setSelectedLog(log)}
-                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/10 text-slate-300 hover:text-emerald-500 hover:border-emerald-500/30 group-hover:shadow-md transition-all"
-                      >
-                        <i className="ri-shield-user-line text-lg"></i>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {filteredLogs.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="py-24 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest">
-                       No history found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                      <div className="min-w-0">
+                        <p className="text-[12px] font-bold text-slate-900 dark:text-white truncate">{log.admin_name}</p>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{log.target_type}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setSelectedLog(log)}
+                      className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/10 text-slate-300 hover:text-emerald-500 transition-all"
+                    >
+                      <i className="ri-shield-user-line"></i>
+                    </button>
+                  </div>
+                  <div className="px-3 py-2 bg-white dark:bg-black/20 rounded-2xl border border-slate-100 dark:border-white/5">
+                    <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide truncate">{log.action}</p>
+                  </div>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest pl-1">
+                    {new Date(log.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                  </p>
+                </div>
+              ))}
+              {filteredLogs.length === 0 && (
+                <div className="py-20 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest">
+                  No history found
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
 
       {selectedLog && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setSelectedLog(null)}></div>
-          <div className="relative w-full max-w-xl bg-white dark:bg-slate-950 rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-up border border-slate-100 dark:border-white/10">
-            <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
+          <div className="relative w-full max-w-xl bg-white dark:bg-slate-950 rounded-2xl sm:rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-up border border-slate-100 dark:border-white/10 max-h-[90vh] overflow-y-auto">
+            <div className="px-5 sm:px-8 py-4 sm:py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center sticky top-0 bg-white dark:bg-slate-950 z-10">
               <div>
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Security Audit Dossier</h2>
-                <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-[0.2em] mt-1">Transaction Log Analysis</p>
+                <h2 className="text-base sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight">Security Audit Dossier</h2>
+                <p className="text-[9px] sm:text-[10px] font-bold text-emerald-500 uppercase tracking-[0.2em] mt-1">Transaction Log Analysis</p>
               </div>
-              <button onClick={() => setSelectedLog(null)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-400 hover:text-rose-500">
-                <i className="ri-close-line text-2xl"></i>
+              <button onClick={() => setSelectedLog(null)} className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-400 hover:text-rose-500">
+                <i className="ri-close-line text-xl sm:text-2xl"></i>
               </button>
             </div>
             
-            <div className="p-10 space-y-8">
-               <div className="grid grid-cols-2 gap-4">
-                  <div className="p-6 bg-slate-50 dark:bg-white/[0.02] rounded-3xl border border-slate-100 dark:border-white/5">
-                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Initiated By (Admin)</p>
+            <div className="p-5 sm:p-8 md:p-10 space-y-6 sm:space-y-8">
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="p-4 sm:p-6 bg-slate-50 dark:bg-white/[0.02] rounded-2xl sm:rounded-3xl border border-slate-100 dark:border-white/5">
+                     <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 sm:mb-3">Initiated By (Admin)</p>
                      <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">
                            {selectedLog.admin_name.charAt(0)}
                         </div>
-                        <p className="text-[13px] font-bold text-slate-900 dark:text-white">{selectedLog.admin_name}</p>
+                        <p className="text-[12px] sm:text-[13px] font-bold text-slate-900 dark:text-white">{selectedLog.admin_name}</p>
                      </div>
                   </div>
-                  <div className="p-6 bg-slate-50 dark:bg-white/[0.02] rounded-3xl border border-slate-100 dark:border-white/5">
-                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Target Record</p>
+                  <div className="p-4 sm:p-6 bg-slate-50 dark:bg-white/[0.02] rounded-2xl sm:rounded-3xl border border-slate-100 dark:border-white/5">
+                     <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 sm:mb-3">Target Record</p>
                      <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-indigo-500 text-white flex items-center justify-center text-xs font-bold">
                            {(selectedLog.details?.target_user_name || selectedLog.target_type).charAt(0)}
                         </div>
-                        <p className="text-[13px] font-bold text-slate-900 dark:text-white truncate">
+                        <p className="text-[12px] sm:text-[13px] font-bold text-slate-900 dark:text-white truncate">
                            {selectedLog.details?.target_user_name || selectedLog.details?.user || 'System Entity'}
                         </p>
                      </div>
@@ -240,16 +279,16 @@ export default function AuditLog({ adminInfo }: { adminInfo?: any }) {
                      </p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                     <div className="p-5 bg-slate-50 dark:bg-white/[0.02] rounded-3xl border border-slate-100 dark:border-white/5">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Execution Time</p>
-                        <p className="text-[12px] font-bold text-slate-900 dark:text-white">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                     <div className="p-4 sm:p-5 bg-slate-50 dark:bg-white/[0.02] rounded-2xl sm:rounded-3xl border border-slate-100 dark:border-white/5">
+                        <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Execution Time</p>
+                        <p className="text-[11px] sm:text-[12px] font-bold text-slate-900 dark:text-white">
                            {new Date(selectedLog.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
                         </p>
                      </div>
-                     <div className="p-5 bg-slate-50 dark:bg-white/[0.02] rounded-3xl border border-slate-100 dark:border-white/5">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Network Node (IP)</p>
-                        <p className="text-[12px] font-mono font-bold text-emerald-600">
+                     <div className="p-4 sm:p-5 bg-slate-50 dark:bg-white/[0.02] rounded-2xl sm:rounded-3xl border border-slate-100 dark:border-white/5">
+                        <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Network Node (IP)</p>
+                        <p className="text-[11px] sm:text-[12px] font-mono font-bold text-emerald-600">
                            {selectedLog.ip_address || '127.0.0.1 (Internal)'}
                         </p>
                      </div>

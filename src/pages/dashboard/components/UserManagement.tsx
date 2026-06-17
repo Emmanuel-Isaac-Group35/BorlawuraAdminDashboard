@@ -639,36 +639,36 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setSelectedUser(null)}></div>
           <div className="relative w-full max-w-xl bg-white dark:bg-slate-950 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 shadow-2xl max-h-[90vh] overflow-y-auto animate-scale-up custom-scrollbar">
-            <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-slate-50/10">
+            <div className="px-6 md:px-8 py-4 md:py-6 border-b border-slate-50 dark:border-slate-800/50 flex justify-between items-center bg-slate-50/10">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">User Information</h2>
               <button onClick={() => setSelectedUser(null)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-400 hover:text-rose-500 transition-all">
                 <i className="ri-close-line text-2xl"></i>
               </button>
             </div>
             
-            <div className="p-10">
-              <div className="flex items-center gap-6 mb-10">
-                <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-4xl font-bold shadow-2xl shadow-emerald-500/20 overflow-hidden">
+            <div className="p-6 md:p-10">
+              <div className="flex flex-col sm:flex-row items-center gap-6 mb-10 text-center sm:text-left">
+                <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-4xl font-bold shadow-2xl shadow-emerald-500/20 overflow-hidden flex-shrink-0">
                   {selectedUser.avatar_url ? (
                      <img src={selectedUser.avatar_url} alt="" className="w-full h-full object-cover" />
                   ) : selectedUser.full_name?.charAt(0)}
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full">
                    <div>
                      <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{selectedUser.full_name}</h3>
-                     <div className="flex items-center gap-2">
+                     <div className="flex items-center justify-center sm:justify-start gap-2">
                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase ${selectedUser.status === 'active' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
                          {selectedUser.status}
                        </span>
                        <span className="text-[11px] font-medium text-slate-400">ID: {selectedUser.id.slice(0,8)}</span>
                      </div>
                    </div>
-                   <div className="flex-1 flex justify-end px-4">
+                   <div className="flex-1 flex justify-center sm:justify-end">
                       <button 
                         onClick={() => toggleUserStatus(selectedUser.id, selectedUser.status)}
                         className={`px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
                           selectedUser.status === 'active' 
-                          ? 'bg-rose-500/10 text-rose-600 hover:bg-rose-600 hover:text-white' 
+                          ? 'bg-rose-50/10 text-rose-600 hover:bg-rose-600 hover:text-white' 
                           : 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-600 hover:text-white'
                         }`}
                       >
@@ -679,7 +679,7 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
                  </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-8 mb-10">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 mb-10">
                 <div className="p-5 bg-slate-50 dark:bg-white/[0.01] rounded-3xl border border-slate-100 dark:border-slate-800/60">
                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Registered Phone</p>
                    <p className="text-sm font-bold text-slate-900 dark:text-white">{selectedUser.phone_number}</p>
@@ -780,7 +780,7 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
                 </div>
               </div>
               <div className="flex flex-col gap-4">
-                <div className="flex gap-4">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                   {canModify && (
                     <button 
                       onClick={() => {
@@ -798,7 +798,7 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
                   )}
                   <button 
                      onClick={() => setSelectedUser(null)} 
-                     className="px-8 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-white text-xs font-bold uppercase rounded-3xl hover:bg-slate-200 transition-all"
+                     className="px-8 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-white text-xs font-bold uppercase rounded-3xl hover:bg-slate-200 transition-all sm:flex-1"
                   >
                      Close
                   </button>
@@ -820,7 +820,7 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setShowAddModal(false)}></div>
           <div className="relative w-full max-w-lg bg-white dark:bg-slate-950 rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-up border border-slate-100 dark:border-white/10">
-            <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
+            <div className="px-6 md:px-8 py-4 md:py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
               <div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
                   {isEditing ? 'Edit User Details' : 'Add New User'}
@@ -854,7 +854,7 @@ export default function UserManagement({ adminInfo }: UserManagementProps) {
               </div>
             </div>
             
-            <form onSubmit={isEditing ? handleUpdateUser : handleCreateUser} className="p-10 space-y-6">
+            <form onSubmit={isEditing ? handleUpdateUser : handleCreateUser} className="p-6 md:p-10 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
               <div className="flex flex-col items-center mb-6">
                 <div className="relative group">
                   <div className="w-24 h-24 rounded-3xl bg-slate-100 dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center overflow-hidden">

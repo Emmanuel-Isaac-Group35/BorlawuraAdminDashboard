@@ -37,7 +37,7 @@ export const PremiumCard: React.FC<CardProps> = ({ children, title, subtitle, cl
   return (
     <div className={`bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden flex flex-col ${className}`}>
       {(title || actions) && (
-        <div className="px-10 py-8 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex items-center justify-between">
+        <div className="px-6 md:px-10 py-6 md:py-8 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex items-center justify-between">
           <div>
             {title && <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-[0.2em]">{title}</h3>}
             {subtitle && <p className="text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-widest">{subtitle}</p>}

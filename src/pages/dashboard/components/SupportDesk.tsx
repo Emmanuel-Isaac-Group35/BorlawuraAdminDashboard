@@ -94,21 +94,25 @@ export default function SupportDesk({ adminInfo }: SupportDeskProps) {
 
   return (
     <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Support Desk</h1>
-           <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Managed sentiment and help requests from Users & Riders</p>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+             <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Support Desk</h1>
+             <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Managed sentiment and help requests from Users & Riders</p>
+          </div>
         </div>
-        <div className="flex gap-1.5 p-1 bg-white dark:bg-black border border-slate-100 dark:border-white/5 rounded-2xl">
-           {['all', 'user', 'rider'].map((f) => (
-             <button
-               key={f}
-               onClick={() => setActiveFilter(f as any)}
-               className={`px-6 py-2.5 text-[10px] font-bold uppercase rounded-xl transition-all ${activeFilter === f ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-slate-400 hover:text-slate-600'}`}
-             >
-               {f === 'all' ? 'All Channels' : `${f} Stream`}
-             </button>
-           ))}
+        <div className="overflow-x-auto scrollbar-hide">
+          <div className="flex gap-1.5 p-1 bg-white dark:bg-black border border-slate-100 dark:border-white/5 rounded-2xl w-fit min-w-full sm:min-w-0">
+             {['all', 'user', 'rider'].map((f) => (
+               <button
+                 key={f}
+                 onClick={() => setActiveFilter(f as any)}
+                 className={`px-6 py-2.5 text-[10px] font-bold uppercase rounded-xl transition-all whitespace-nowrap flex-1 sm:flex-none ${activeFilter === f ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-slate-400 hover:text-slate-600'}`}
+               >
+                 {f === 'all' ? 'All Channels' : `${f} Stream`}
+               </button>
+             ))}
+          </div>
         </div>
       </div>
 
@@ -122,7 +126,7 @@ export default function SupportDesk({ adminInfo }: SupportDeskProps) {
            <div 
              key={item.id} 
              onClick={() => setSelectedItem(item)}
-             className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm hover:shadow-xl transition-all cursor-pointer group hover:-translate-y-1"
+             className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm hover:shadow-xl transition-all cursor-pointer group hover:-translate-y-1"
            >
               <div className="flex justify-between items-start mb-6">
                  <div className="flex items-center gap-4">
@@ -164,23 +168,23 @@ export default function SupportDesk({ adminInfo }: SupportDeskProps) {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md animate-fade-in" onClick={() => setSelectedItem(null)}></div>
            <div className="relative w-full max-w-xl bg-white dark:bg-slate-950 rounded-[3rem] shadow-2xl overflow-hidden animate-scale-up border border-slate-100 dark:border-white/10">
-              <div className="p-10 space-y-8">
-                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-5">
-                       <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center text-white text-2xl shadow-xl ${selectedItem.origin === 'user' ? 'bg-indigo-600' : 'bg-emerald-600'}`}>
-                          <i className={selectedItem.origin === 'user' ? 'ri-user-heart-line' : 'ri-e-bike-2-line'}></i>
-                       </div>
-                       <div>
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{selectedItem.origin} Stream</p>
-                          <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{selectedItem.sender_name}</h3>
-                       </div>
-                    </div>
-                    <button onClick={() => setSelectedItem(null)} className="w-12 h-12 flex items-center justify-center rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 border border-slate-100 dark:border-white/5">
-                       <i className="ri-close-line text-2xl"></i>
-                    </button>
-                 </div>
+              <div className="p-6 md:p-10 space-y-6 md:space-y-8">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+                     <div className="flex flex-col sm:flex-row items-center gap-5">
+                        <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center text-white text-2xl shadow-xl flex-shrink-0 ${selectedItem.origin === 'user' ? 'bg-indigo-600' : 'bg-emerald-600'}`}>
+                           <i className={selectedItem.origin === 'user' ? 'ri-user-heart-line' : 'ri-e-bike-2-line'}></i>
+                        </div>
+                        <div>
+                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{selectedItem.origin} Stream</p>
+                           <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{selectedItem.sender_name}</h3>
+                        </div>
+                     </div>
+                     <button onClick={() => setSelectedItem(null)} className="w-12 h-12 flex items-center justify-center rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 border border-slate-100 dark:border-white/5 self-end sm:self-center">
+                        <i className="ri-close-line text-2xl"></i>
+                     </button>
+                  </div>
 
-                 <div className="p-8 bg-slate-50 dark:bg-black/20 rounded-[2rem] border border-slate-100 dark:border-white/5">
+                  <div className="p-6 md:p-8 bg-slate-50 dark:bg-black/20 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 dark:border-white/5">
                     <p className="text-base font-medium text-slate-700 dark:text-slate-300 leading-relaxed italic animate-fade-in">"{selectedItem.content}"</p>
                  </div>
 

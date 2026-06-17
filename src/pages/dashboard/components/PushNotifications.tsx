@@ -222,10 +222,10 @@ export default function PushNotifications({ adminInfo }: PushNotificationsProps)
   const currentAudience = AUDIENCES.find(a => a.key === audience)!;
 
   return (
-    <div className="space-y-8 font-['Montserrat'] animate-fade-in pb-10">
+    <div className="space-y-6 md:space-y-8 font-['Montserrat'] animate-fade-in pb-10">
 
       {/* ── Header ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Push Notifications</h1>
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">
@@ -248,50 +248,50 @@ export default function PushNotifications({ adminInfo }: PushNotificationsProps)
       </div>
 
       {/* ── Reach Stats ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-3 md:gap-4">
         {AUDIENCES.map(aud => {
           const count = aud.key === 'all_users' ? userCount : aud.key === 'all_riders' ? riderCount : userCount + riderCount;
           return (
-            <div key={aud.key} className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-white/5 shadow-sm flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${aud.gradient} flex items-center justify-center text-white text-xl shadow-lg`}>
+            <div key={aud.key} className="bg-white dark:bg-slate-900 p-4 md:p-6 rounded-[2rem] border border-slate-100 dark:border-white/5 shadow-sm flex flex-col sm:flex-row items-center gap-3">
+              <div className={`w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-gradient-to-br ${aud.gradient} flex items-center justify-center text-white text-lg md:text-xl shadow-lg flex-shrink-0`}>
                 <i className={aud.icon}></i>
               </div>
-              <div>
-                <p className="text-2xl font-bold text-slate-900 dark:text-white">{count.toLocaleString()}</p>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{aud.label}</p>
+              <div className="text-center sm:text-left">
+                <p className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white leading-none">{count.toLocaleString()}</p>
+                <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{aud.label}</p>
               </div>
             </div>
           );
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
 
         {/* ══ LEFT: Compose Panel ══ */}
-        <div className="space-y-6">
+        <div className="space-y-5">
           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10">
+            <div className="px-5 md:px-8 py-5 md:py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10">
               <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Compose Notification</h2>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Reach {getReach().toLocaleString()} {currentAudience.label.toLowerCase()} instantly</p>
             </div>
-            <div className="p-8 space-y-6">
+            <div className="p-5 md:p-8 space-y-5 md:space-y-6">
 
               {/* Audience Selector */}
               <div className="space-y-3">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Target Audience</label>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-2 md:gap-3">
                   {AUDIENCES.map(aud => (
                     <button
                       key={aud.key}
                       onClick={() => setAudience(aud.key)}
-                      className={`p-4 rounded-2xl border text-center transition-all group ${audience === aud.key
+                      className={`p-2.5 md:p-4 rounded-2xl border text-center transition-all group ${audience === aud.key
                         ? `bg-gradient-to-br ${aud.gradient} text-white border-transparent shadow-lg`
                         : 'border-slate-100 dark:border-white/5 hover:border-slate-200 dark:hover:border-white/10'
                       }`}
                     >
-                      <i className={`${aud.icon} text-2xl block mb-1.5 ${audience !== aud.key ? 'text-slate-400' : ''}`}></i>
-                      <p className={`text-[10px] font-bold uppercase tracking-wide ${audience !== aud.key ? 'text-slate-500 dark:text-slate-400' : ''}`}>{aud.label}</p>
-                      <p className={`text-[9px] mt-1 leading-tight ${audience === aud.key ? 'text-white/80' : 'text-slate-400'}`}>
+                      <i className={`${aud.icon} text-xl md:text-2xl block mb-1 md:mb-1.5 ${audience !== aud.key ? 'text-slate-400' : ''}`}></i>
+                      <p className={`text-[9px] md:text-[10px] font-bold uppercase tracking-wide leading-tight ${audience !== aud.key ? 'text-slate-500 dark:text-slate-400' : ''}`}>{aud.label}</p>
+                      <p className={`text-[8px] md:text-[9px] mt-0.5 md:mt-1 leading-tight hidden sm:block ${audience === aud.key ? 'text-white/80' : 'text-slate-400'}`}>
                         {aud.key === 'all_users' ? userCount : aud.key === 'all_riders' ? riderCount : userCount + riderCount} recipients
                       </p>
                     </button>
@@ -300,7 +300,7 @@ export default function PushNotifications({ adminInfo }: PushNotificationsProps)
               </div>
 
               {/* Type + Priority */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Type</label>
                   <select value={notifType} onChange={e => setNotifType(e.target.value)} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[12px] font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
@@ -339,7 +339,7 @@ export default function PushNotifications({ adminInfo }: PushNotificationsProps)
                   value={title}
                   onChange={e => setTitle(e.target.value)}
                   placeholder="e.g. Pickup Schedule Update"
-                  className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                  className="w-full px-4 md:px-5 py-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                 />
                 <p className="text-[9px] font-bold text-slate-400 text-right">{title.length}/80</p>
               </div>
@@ -353,7 +353,7 @@ export default function PushNotifications({ adminInfo }: PushNotificationsProps)
                   value={message}
                   onChange={e => setMessage(e.target.value)}
                   placeholder="Write a clear, concise message to your audience..."
-                  className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all resize-none leading-relaxed"
+                  className="w-full px-4 md:px-5 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-white/10 rounded-2xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all resize-none leading-relaxed"
                 />
                 <p className="text-[9px] font-bold text-slate-400 text-right">{message.length}/300</p>
               </div>
@@ -363,7 +363,7 @@ export default function PushNotifications({ adminInfo }: PushNotificationsProps)
                 <button
                   onClick={handleSend}
                   disabled={sending || !title.trim() || !message.trim()}
-                  className={`w-full py-4 rounded-[2rem] text-sm font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-3 shadow-xl ${
+                  className={`w-full py-4 rounded-[2rem] text-xs md:text-sm font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 md:gap-3 shadow-xl ${
                     success
                       ? 'bg-emerald-500 text-white shadow-emerald-500/20'
                       : sending
@@ -372,11 +372,17 @@ export default function PushNotifications({ adminInfo }: PushNotificationsProps)
                   }`}
                 >
                   {success ? (
-                    <><i className="ri-check-line text-lg"></i> Sent Successfully!</>
+                    <><i className="ri-check-line text-lg"></i> <span>Sent Successfully!</span></>
                   ) : sending ? (
-                    <><div className="w-5 h-5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div> Sending...</>
+                    <><div className="w-5 h-5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div> <span>Sending...</span></>
                   ) : (
-                    <><i className="ri-send-plane-fill text-lg"></i> Send to {currentAudience.label} · {getReach().toLocaleString()} people</>
+                    <>
+                      <i className="ri-send-plane-fill text-lg"></i>
+                      <span className="truncate">
+                        <span className="hidden sm:inline">Send to {currentAudience.label} · </span>
+                        {getReach().toLocaleString()} people
+                      </span>
+                    </>
                   )}
                 </button>
               ) : (
@@ -389,15 +395,15 @@ export default function PushNotifications({ adminInfo }: PushNotificationsProps)
         </div>
 
         {/* ══ RIGHT: Templates + History ══ */}
-        <div className="space-y-6">
+        <div className="space-y-5 md:space-y-6">
 
           {/* Quick Templates */}
           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10">
+            <div className="px-5 md:px-8 py-5 md:py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10">
               <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Quick Templates</h2>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">For {currentAudience.label} — click to fill the form</p>
             </div>
-            <div className="p-6 space-y-3">
+            <div className="p-4 md:p-6 space-y-3">
               {(TEMPLATES[audience] || []).map((tpl, i) => (
                 <button
                   key={i}
@@ -421,7 +427,7 @@ export default function PushNotifications({ adminInfo }: PushNotificationsProps)
 
           {/* Preview Card */}
           {(title || message) && (
-            <div className="bg-slate-900 dark:bg-white/5 rounded-[2rem] border border-white/10 p-6 space-y-3">
+            <div className="bg-slate-900 dark:bg-white/5 rounded-[2rem] border border-white/10 p-5 md:p-6 space-y-3">
               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Live Preview</p>
               <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-xl flex items-start gap-3">
                 <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${currentAudience.gradient} flex items-center justify-center text-white flex-shrink-0`}>
@@ -443,7 +449,7 @@ export default function PushNotifications({ adminInfo }: PushNotificationsProps)
 
       {/* ══ Broadcast History ══ */}
       <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden">
-        <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex items-center justify-between">
+        <div className="px-5 md:px-8 py-5 md:py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex items-center justify-between">
           <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Broadcast History</h2>
           <span className="px-3 py-1 bg-slate-100 dark:bg-white/5 text-slate-500 rounded-full text-[10px] font-bold uppercase tracking-widest">{history.length} sent</span>
         </div>
@@ -515,25 +521,29 @@ export default function PushNotifications({ adminInfo }: PushNotificationsProps)
             </div>
 
             {/* Mobile Cards */}
-            <div className="md:hidden p-4 space-y-4">
+            <div className="md:hidden p-4 space-y-3">
               {history.map(notif => {
                 const audCfg = getAudienceConfig(notif.target_audience);
+                const typeCfg = NOTIFICATION_TYPES.find(t => t.key === notif.type) || NOTIFICATION_TYPES[0];
                 return (
-                  <div key={notif.id} className="bg-slate-50/50 dark:bg-white/[0.02] border border-slate-100 dark:border-white/5 rounded-3xl p-5">
-                    <div className="flex items-start gap-3 mb-3">
+                  <div key={notif.id} className="bg-slate-50/50 dark:bg-white/[0.02] border border-slate-100 dark:border-white/5 rounded-3xl p-4 space-y-3">
+                    <div className="flex items-start gap-3">
                       <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${audCfg.gradient} flex items-center justify-center text-white flex-shrink-0`}>
-                        <i className={audCfg.icon}></i>
+                        <i className={typeCfg.icon}></i>
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[12px] font-bold text-slate-900 dark:text-white truncate">{notif.title}</p>
-                        <p className="text-[10px] text-slate-500 line-clamp-2 leading-relaxed">{notif.message}</p>
+                        <p className="text-[10px] text-slate-500 line-clamp-2 leading-relaxed mt-0.5">{notif.message}</p>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-white/5">
-                      <span className={`px-2.5 py-1 rounded-xl text-[8px] font-bold uppercase border ${audienceColorMap[notif.target_audience]}`}>{audCfg.label}</span>
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-white/5">
                       <div className="flex items-center gap-2">
+                        <span className={`px-2.5 py-1 rounded-xl text-[8px] font-bold uppercase border ${audienceColorMap[notif.target_audience]}`}>{audCfg.label}</span>
                         <span className={`px-2 py-0.5 rounded-lg text-[8px] font-bold uppercase ${priorityColorMap[notif.priority]}`}>{notif.priority}</span>
-                        <span className="text-[9px] font-bold text-slate-400">{formatTime(notif.created_at)}</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[9px] font-bold text-slate-500">{notif.sent_by_name || 'System'}</p>
+                        <p className="text-[9px] font-bold text-slate-400">{formatTime(notif.created_at)}</p>
                       </div>
                     </div>
                   </div>

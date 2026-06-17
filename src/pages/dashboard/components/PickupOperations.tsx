@@ -2,19 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { logActivity } from '../../../lib/audit';
 import { sendSMS } from '../../../lib/sms';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import ExportButton from './ExportButton';
 import { DesignInput, DesignButton, StatusBadge, PremiumCard } from './DesignCore';
-
-// Safe Marker Icon Logic
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-});
 
 interface PickupRequest {
   id: string;
@@ -43,7 +32,7 @@ export default function PickupOperations({ adminInfo }: PickupOperationsProps) {
   const [selectedPickup, setSelectedPickup] = useState<PickupRequest | null>(null);
   const [riders, setRiders] = useState<any[]>([]);
   const [showAssignModal, setShowAssignModal] = useState(false);
-  const [mapError, setMapError] = useState(false);
+
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFormData, setEditFormData] = useState({
      address: '',
@@ -242,17 +231,7 @@ export default function PickupOperations({ adminInfo }: PickupOperationsProps) {
     }
   };
 
-  const createPickupIcon = (status: string) => {
-    let color = '#10b981';
-    if (status === 'scheduled') color = '#22c55e';
-    if (status === 'in_progress') color = '#059669';
-    if (status === 'completed') color = '#064e3b';
-    return L.divIcon({
-      html: `<div style="background-color: ${color}; width: 14px; height: 14px; border-radius: 4px; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.2);"></div>`,
-      className: 'custom-marker',
-      iconSize: [14, 14],
-    });
-  };
+
 
   const getStatusBadgeType = (status: string) => {
     if (status === 'requested') return 'warning';
@@ -266,134 +245,183 @@ export default function PickupOperations({ adminInfo }: PickupOperationsProps) {
     return matchesSearch && matchesStatus;
   });
 
+  // Summary counts for stat cards
+  const statCounts = {
+    total: pickups.length,
+    requested: pickups.filter(p => p.status === 'requested').length,
+    in_progress: pickups.filter(p => p.status === 'in_progress').length,
+    completed: pickups.filter(p => p.status === 'completed').length,
+    cancelled: pickups.filter(p => p.status === 'cancelled').length,
+  };
+
   return (
-    <div className="space-y-6 md:space-y-8 font-['Montserrat'] animate-fade-in pb-10">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-1">
+    <div className="space-y-5 md:space-y-8 font-['Montserrat'] animate-fade-in pb-10">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6 px-1">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Orders Registry</h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Full operational log of all service requests and deployments</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Orders Registry</h1>
+          <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Full operational log of all service requests and deployments</p>
         </div>
         <ExportButton data={filteredPickups} fileName="Pickup_List" title="Reports" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/50 shadow-sm flex flex-col min-h-[500px] md:min-h-[700px]">
-           <div className="p-4 md:p-6 border-b border-slate-50 dark:border-slate-800/50 flex flex-col xl:flex-row gap-4 xl:items-center">
-            <div className="flex-1 max-w-md">
-              <DesignInput 
-                label="Search Operations"
-                placeholder="Name or Request ID..."
-                icon="ri-search-line"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-              <div className="flex gap-1.5 p-1 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl overflow-x-auto scrollbar-hide w-full xl:w-auto">
-                {['all', 'requested', 'scheduled', 'in_progress', 'completed'].map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setStatusFilter(s)}
-                    className={`flex-1 xl:flex-none px-4 py-2 text-[10px] font-bold uppercase rounded-xl transition-all whitespace-nowrap ${
-                      statusFilter === s ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
+      {/* Summary Stat Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+        {[
+          { label: 'Total Orders', value: statCounts.total, icon: 'ri-file-list-3-line', color: 'from-slate-500 to-slate-700', bg: 'bg-slate-50 dark:bg-slate-800/50' },
+          { label: 'Requested', value: statCounts.requested, icon: 'ri-time-line', color: 'from-amber-500 to-orange-600', bg: 'bg-amber-50 dark:bg-amber-500/10' },
+          { label: 'In Progress', value: statCounts.in_progress, icon: 'ri-loader-4-line', color: 'from-violet-500 to-purple-600', bg: 'bg-violet-50 dark:bg-violet-500/10' },
+          { label: 'Completed', value: statCounts.completed, icon: 'ri-checkbox-circle-line', color: 'from-emerald-500 to-green-600', bg: 'bg-emerald-50 dark:bg-emerald-500/10' },
+          { label: 'Cancelled', value: statCounts.cancelled, icon: 'ri-close-circle-line', color: 'from-rose-500 to-red-600', bg: 'bg-rose-50 dark:bg-rose-500/10' },
+        ].map((stat) => (
+          <div key={stat.label} className={`${stat.bg} rounded-2xl sm:rounded-3xl border border-slate-100 dark:border-slate-800/50 p-3 sm:p-5 flex flex-col gap-2 transition-transform hover:scale-[1.02]`}>
+            <div className="flex items-center gap-2">
+              <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center shadow-sm`}>
+                <i className={`${stat.icon} text-white text-sm sm:text-base`}></i>
               </div>
-           </div>
-           
-           {loading ? (
-             <div className="flex-1 flex flex-col justify-center items-center py-20">
-                <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-[11px] text-slate-400 font-bold uppercase mt-5 tracking-widest">Loading Requests...</p>
-             </div>
-           ) : (
-             <div className="flex-1 overflow-y-auto divide-y divide-slate-50 dark:divide-slate-800/50 max-h-[600px] xl:max-h-none">
-                {filteredPickups.map((p) => (
-                  <div 
-                    key={p.id} 
-                    className={`p-4 md:p-6 hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all cursor-pointer group ${selectedPickup?.id === p.id ? 'bg-emerald-50/30' : ''}`}
-                    onClick={() => setSelectedPickup(p)}
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="min-w-0 flex-1">
-                           <div className="flex flex-wrap items-center gap-2 mb-2">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">#{p.id.slice(0,8)}</span>
-                              <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase border ${getStatusStyle(p.status)}`}>
-                                 {p.status}
-                              </span>
-                           </div>
-                           <div className="flex items-center gap-3">
-                              <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate pr-2">{p.user_name}</h3>
-                              <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold tracking-tight">{p.user_phone}</span>
-                           </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                           <button 
-                             onClick={(e) => { e.stopPropagation(); setSelectedPickup(p); setShowDetailsModal(true); }}
-                             className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 text-slate-400 hover:text-emerald-500 hover:border-emerald-500 shadow-sm transition-all"
-                             title="View Detailed Dossier"
-                           >
-                              <i className="ri-external-link-line text-lg"></i>
-                           </button>
-                           <div className="text-right flex-shrink-0 flex flex-col items-end">
-                              <p className="text-[11px] font-bold text-emerald-600 uppercase mb-1.5">{p.waste_type}</p>
-                              <div className="px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 text-[9px] font-black text-emerald-600 uppercase tracking-widest">{p.waste_size}</div>
-                           </div>
-                        </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between gap-4">
-                       <div className="flex items-center gap-2 text-slate-500 text-[11px] min-w-0">
-                          <i className="ri-map-pin-line text-emerald-500 flex-shrink-0"></i>
-                          <span className="truncate flex-1 font-medium">{p.address}</span>
-                       </div>
-                    </div>
-                  </div>
-                ))}
-                {filteredPickups.length === 0 && (
-                  <div className="py-24 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest">No requests found</div>
-                )}
-             </div>
-           )}
+            </div>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-none">{stat.value}</p>
+            <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Selected Order Banner */}
+      {selectedPickup && (
+        <div className="bg-emerald-600/5 border border-emerald-500/10 rounded-2xl sm:rounded-3xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-scale-up">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center text-lg sm:text-xl font-bold flex-shrink-0">
+              {selectedPickup.user_name.charAt(0)}
+            </div>
+            <div className="min-w-0">
+              <p className="text-[9px] sm:text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Active Selection</p>
+              <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-white uppercase truncate">{selectedPickup.user_name}</h3>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <DesignButton 
+              onClick={() => setShowDetailsModal(true)}
+              variant="secondary"
+              className="flex-1 sm:flex-none px-5 py-3 text-[10px] sm:text-[11px]"
+            >
+              Manage Job Dossier
+            </DesignButton>
+            <button
+              onClick={() => setSelectedPickup(null)}
+              className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-rose-500 hover:border-rose-300 transition-all flex-shrink-0"
+              title="Deselect"
+            >
+              <i className="ri-close-line text-lg"></i>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Orders List - Full Width */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-[2.5rem] border border-slate-100 dark:border-slate-800/50 shadow-sm flex flex-col">
+        {/* Search & Filter Bar */}
+        <div className="p-3 sm:p-4 md:p-6 border-b border-slate-50 dark:border-slate-800/50 flex flex-col md:flex-row gap-3 md:gap-4 md:items-center">
+          <div className="flex-1 max-w-md">
+            <DesignInput 
+              label="Search Operations"
+              placeholder="Name or Request ID..."
+              icon="ri-search-line"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-1 sm:gap-1.5 p-1 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-xl sm:rounded-2xl overflow-x-auto scrollbar-hide w-full md:w-auto">
+            {['all', 'requested', 'scheduled', 'in_progress', 'completed'].map((s) => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={`flex-1 md:flex-none px-3 sm:px-4 py-2 text-[9px] sm:text-[10px] font-bold uppercase rounded-lg sm:rounded-xl transition-all whitespace-nowrap ${
+                  statusFilter === s ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                {s.replace('_', ' ')}
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        {/* Results Count */}
+        <div className="px-4 sm:px-6 py-2 sm:py-3 border-b border-slate-50 dark:border-slate-800/50">
+          <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+            {filteredPickups.length} {filteredPickups.length === 1 ? 'order' : 'orders'} found
+          </p>
         </div>
 
-        <div className="flex flex-col gap-6 md:gap-8 h-full">
-           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden h-[300px] md:h-[350px] z-0 flex-shrink-0">
-             {!mapError ? (
-               <MapContainer center={[5.6037, -0.1870]} zoom={12} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
-                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  {pickups.map(p => (
-                    <Marker key={p.id} position={[p.location.lat, p.location.lng]} icon={createPickupIcon(p.status)}>
-                      <Popup><p className="font-bold text-xs">{p.user_name}</p></Popup>
-                    </Marker>
-                  ))}
-               </MapContainer>
-             ) : (
-               <div className="h-full flex items-center justify-center p-8 bg-slate-50 dark:bg-slate-950">Map Unavailable</div>
-             )}
-           </div>
-           
-           {!selectedPickup ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-slate-50/50 dark:bg-white/[0.01] rounded-[2.5rem] border border-dashed border-slate-200 dark:border-slate-800/50">
-                <i className="ri-cursor-line text-3xl text-slate-300 mb-3"></i>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Tap an order row<br/>to open management console</p>
+        {/* Orders Content */}
+        {loading ? (
+          <div className="flex-1 flex flex-col justify-center items-center py-16 sm:py-20">
+            <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-[11px] text-slate-400 font-bold uppercase mt-5 tracking-widest">Loading Requests...</p>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto divide-y divide-slate-50 dark:divide-slate-800/50 max-h-[60vh] sm:max-h-[65vh] md:max-h-[70vh]">
+            {filteredPickups.map((p) => (
+              <div 
+                key={p.id} 
+                className={`p-3 sm:p-4 md:p-6 hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all cursor-pointer group ${
+                  selectedPickup?.id === p.id ? 'bg-emerald-50/30 dark:bg-emerald-500/5 border-l-4 border-l-emerald-500' : 'border-l-4 border-l-transparent'
+                }`}
+                onClick={() => setSelectedPickup(p)}
+              >
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4 mb-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">#{p.id.slice(0,8)}</span>
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase border ${getStatusStyle(p.status)}`}>
+                        {p.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">{p.user_name}</h3>
+                      <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold tracking-tight">{p.user_phone}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setSelectedPickup(p); setShowDetailsModal(true); }}
+                      className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-xl sm:rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 text-slate-400 hover:text-emerald-500 hover:border-emerald-500 shadow-sm transition-all"
+                      title="View Detailed Dossier"
+                    >
+                      <i className="ri-external-link-line text-base sm:text-lg"></i>
+                    </button>
+                    <div className="text-right flex flex-col items-end">
+                      <p className="text-[10px] sm:text-[11px] font-bold text-emerald-600 uppercase mb-1">{p.waste_type}</p>
+                      <div className="px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 text-[8px] sm:text-[9px] font-black text-emerald-600 uppercase tracking-widest">{p.waste_size}</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4">
+                  <div className="flex items-center gap-2 text-slate-500 text-[11px] min-w-0">
+                    <i className="ri-map-pin-line text-emerald-500 flex-shrink-0"></i>
+                    <span className="truncate flex-1 font-medium">{p.address}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-400 text-[10px] flex-shrink-0">
+                    <i className="ri-time-line flex-shrink-0"></i>
+                    <span className="font-medium">{new Date(p.created_at).toLocaleDateString()} · {new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    {p.rider_name && (
+                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-[9px] font-bold">
+                        <i className="ri-motorbike-line"></i> {p.rider_name}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-           ) : (
-              <div className="bg-emerald-600/5 border border-emerald-500/10 rounded-[2.5rem] p-8 text-center animate-scale-up">
-                 <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-3">Active Selection</p>
-                 <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase mb-6 truncate">{selectedPickup.user_name}</h3>
-                 <DesignButton 
-                   onClick={() => setShowDetailsModal(true)}
-                   variant="secondary"
-                   className="w-full py-4 text-[11px]"
-                 >
-                    Manage Job Dossier
-                 </DesignButton>
+            ))}
+            {filteredPickups.length === 0 && (
+              <div className="py-16 sm:py-24 text-center">
+                <i className="ri-inbox-2-line text-4xl text-slate-200 dark:text-slate-700 mb-4 block"></i>
+                <p className="text-slate-400 text-[11px] font-bold uppercase tracking-widest">No requests found</p>
+                <p className="text-slate-300 dark:text-slate-600 text-[10px] mt-1">Try adjusting your filters or search query</p>
               </div>
-           )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Assignment Modal */}
@@ -426,7 +454,7 @@ export default function PickupOperations({ adminInfo }: PickupOperationsProps) {
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md animate-fade-in" onClick={() => setShowDetailsModal(false)}></div>
             <div className="relative w-full max-w-2xl bg-white dark:bg-slate-950 rounded-[3rem] shadow-2xl overflow-hidden animate-scale-up border border-slate-100 dark:border-white/10 max-h-[90vh] overflow-y-auto">
               {/* Header */}
-              <div className="px-10 py-8 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center sticky top-0 bg-white dark:bg-slate-950 z-10">
+              <div className="px-6 md:px-10 py-6 md:py-8 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center sticky top-0 bg-white dark:bg-slate-950 z-10">
                  <div>
                    <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Job Dossier</h2>
                    <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-[0.2em] mt-1">Order #{selectedPickup.id.slice(0,8)}</p>
@@ -436,7 +464,7 @@ export default function PickupOperations({ adminInfo }: PickupOperationsProps) {
                  </button>
               </div>
 
-              <div className="p-10 space-y-10">
+              <div className="p-6 md:p-10 space-y-6 md:space-y-10">
                  {/* Identity card */}
                  <div className="flex flex-col md:flex-row justify-between items-center gap-6 p-6 rounded-[2rem] bg-slate-50 dark:bg-white/[0.02] border border-slate-100 dark:border-white/5">
                     <div className="flex items-center gap-4">
@@ -452,12 +480,12 @@ export default function PickupOperations({ adminInfo }: PickupOperationsProps) {
                  </div>
 
                  {/* Waste Details */}
-                 <div className="grid grid-cols-2 gap-6">
-                    <div className="p-6 rounded-[2rem] border border-slate-100 dark:border-white/5">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                    <div className="p-4 sm:p-6 rounded-[2rem] border border-slate-100 dark:border-white/5">
                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 mb-3">Waste Stream</p>
                        <p className="text-sm font-black text-slate-800 dark:text-white uppercase underline decoration-emerald-500 decoration-2 underline-offset-4">{selectedPickup.waste_type}</p>
                     </div>
-                    <div className="p-6 rounded-[2rem] border border-slate-100 dark:border-white/5">
+                    <div className="p-4 sm:p-6 rounded-[2rem] border border-slate-100 dark:border-white/5">
                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 mb-3">Volume Metrics</p>
                        <p className="text-sm font-black text-slate-800 dark:text-white uppercase underline decoration-amber-500 decoration-2 underline-offset-4">{selectedPickup.waste_size}</p>
                     </div>
@@ -466,7 +494,7 @@ export default function PickupOperations({ adminInfo }: PickupOperationsProps) {
                  {/* Geographical Intelligence */}
                  <div className="space-y-4">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">Collection Coordinates</p>
-                    <div className="p-8 rounded-[2.5rem] bg-slate-900 dark:bg-black border border-slate-800 shadow-2xl flex gap-4">
+                    <div className="p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] bg-slate-900 dark:bg-black border border-slate-800 shadow-2xl flex gap-4">
                        <i className="ri-map-pin-2-fill text-2xl text-emerald-500 mt-1"></i>
                        <p className="text-sm md:text-base font-medium text-slate-300 leading-relaxed italic pr-4">"{selectedPickup.address}"</p>
                     </div>

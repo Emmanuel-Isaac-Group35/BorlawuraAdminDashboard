@@ -218,7 +218,7 @@ export default function LiveTracking({ adminInfo }: { adminInfo?: any }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden h-[680px] z-0 relative">
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden h-[320px] sm:h-[450px] lg:h-[680px] z-0 relative">
           <MapContainer center={[BASE_LAT, BASE_LNG]} zoom={13} style={{ height: '100%', width: '100%' }}>
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             
@@ -260,7 +260,7 @@ export default function LiveTracking({ adminInfo }: { adminInfo?: any }) {
             ))}
           </MapContainer>
           
-          <div className="absolute top-6 right-6 z-[500] bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-5 rounded-3xl shadow-2xl border border-slate-100 dark:border-white/10">
+          <div className="hidden sm:block absolute top-6 right-6 z-[500] bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-5 rounded-3xl shadow-2xl border border-slate-100 dark:border-white/10 animate-fade-in">
              <div className="space-y-4">
                 <div className="flex flex-col gap-2 border-b border-slate-100 dark:border-white/5 pb-3">
                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Fleet</p>
@@ -285,7 +285,7 @@ export default function LiveTracking({ adminInfo }: { adminInfo?: any }) {
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden flex flex-col h-[680px]">
+          <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden flex flex-col h-[450px] lg:h-[680px]">
              <div className="p-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 space-y-5">
                 <div className="relative group">
                    <i className="ri-search-line absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors"></i>
@@ -356,15 +356,15 @@ export default function LiveTracking({ adminInfo }: { adminInfo?: any }) {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setSelectedRider(null)}></div>
            <div className="relative w-full max-w-lg bg-white dark:bg-slate-950 rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-up border border-slate-100 dark:border-white/10">
-              <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
+              <div className="px-6 md:px-8 py-4 md:py-6 border-b border-slate-50 dark:border-white/5 bg-slate-50/10 flex justify-between items-center">
                  <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Rider Details</h2>
                  <button onClick={() => setSelectedRider(null)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-400 hover:text-rose-500">
                     <i className="ri-close-line text-2xl"></i>
                  </button>
               </div>
-              <div className="p-10 space-y-8">
-                 <div className="flex items-center gap-6">
-                    <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-3xl font-bold font-['Montserrat'] shadow-lg shadow-emerald-500/20">
+              <div className="p-6 md:p-10 space-y-6 md:space-y-8">
+                 <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+                    <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-3xl font-bold font-['Montserrat'] shadow-lg shadow-emerald-500/20 flex-shrink-0">
                        {selectedRider.name.charAt(0)}
                     </div>
                     <div>
@@ -373,7 +373,7 @@ export default function LiveTracking({ adminInfo }: { adminInfo?: any }) {
                     </div>
                  </div>
 
-                  <div className="grid grid-cols-2 gap-6">
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     <div className="p-5 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-100 dark:border-white/5">
                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Live Status</p>
                        <p className="text-[13px] font-bold text-emerald-600 uppercase">{selectedRider.status}</p>
@@ -390,13 +390,13 @@ export default function LiveTracking({ adminInfo }: { adminInfo?: any }) {
                     <p className="text-[10px] font-mono text-slate-500 mt-3">{selectedRider.location.lat.toFixed(6)} N, {selectedRider.location.lng.toFixed(6)} W</p>
                  </div>
 
-                 <div className="flex gap-4 pt-4">
+                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
                     <button className="flex-1 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-[2rem] text-xs font-bold uppercase tracking-widest shadow-xl transition-all">
                        Direct Contact
                     </button>
                     <button 
                        onClick={() => setSelectedRider(null)}
-                       className="px-10 py-4 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-white rounded-[2rem] text-xs font-bold uppercase transition-all"
+                       className="px-10 py-4 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-white rounded-[2rem] text-xs font-bold uppercase transition-all sm:flex-1"
                     >
                        Dismiss
                     </button>
