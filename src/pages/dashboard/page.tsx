@@ -180,6 +180,7 @@ export default function Dashboard() {
         overview: ['admin', 'manager', 'dispatcher', 'finance', 'support'],
         admins: ['admin'],
         users: ['admin', 'manager', 'support'],
+        finance: ['admin', 'finance', 'finance_admin', 'manager'],
         households: ['admin', 'manager', 'support'],
         riders: ['admin', 'manager', 'dispatcher'],
         pickups: ['admin', 'manager', 'dispatcher'],
@@ -215,6 +216,7 @@ export default function Dashboard() {
         case 'admins': return <AdminManagement adminInfo={activeAdmin} />;
         case 'riders': return <RiderManagement adminInfo={activeAdmin} />;
         case 'users': return <UserManagement adminInfo={activeAdmin} />;
+        case 'finance': return <FinancialManagement adminInfo={activeAdmin} />;
         case 'households': return <HouseholdManagement adminInfo={activeAdmin} />;
         case 'pickups': return <PickupOperations adminInfo={activeAdmin} />;
         case 'live-tracking': return <LiveTracking adminInfo={activeAdmin} />;

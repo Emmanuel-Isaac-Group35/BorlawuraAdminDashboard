@@ -56,7 +56,7 @@ export default function Overview({ onNavigate, adminInfo }: OverviewProps) {
       const results = await Promise.all([
         supabase.from('users').select('*', { count: 'exact', head: true }).not('role', 'in', '("admin","manager","dispatcher","support","finance","support_admin","finance_admin")'),
         supabase.from('riders').select('*', { count: 'exact', head: true }),
-        supabase.from('payments').select('amount').eq('status', 'paid'),
+        supabase.from('orders').select('amount').eq('payment_status', 'paid'),
         supabase.from('feedback').select('*'),
         getSMSBalance(),
         supabase.from('orders').select('*, users(full_name)').order('created_at', { ascending: false }).limit(6),

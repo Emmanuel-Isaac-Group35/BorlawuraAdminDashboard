@@ -31,6 +31,7 @@ export default function Sidebar({ activeSection, setActiveSection, isOpen, onClo
       { id: 'overview', icon: 'ri-dashboard-3-line', label: 'Home', roles: ['admin', 'finance', 'manager', 'dispatcher', 'support'], color: 'emerald' },
       { id: 'pickups', icon: 'ri-calendar-check-line', label: 'Orders', roles: ['admin', 'manager', 'dispatcher'], color: 'emerald' },
       { id: 'users', icon: 'ri-group-line', label: 'Users', roles: ['admin', 'manager', 'support', 'finance'], color: 'emerald' },
+      { id: 'finance', icon: 'ri-wallet-3-line', label: 'Finance', roles: ['admin', 'finance', 'finance_admin', 'manager'], color: 'emerald' },
       { id: 'households', icon: 'ri-community-line', label: 'Households', roles: ['admin', 'manager', 'support'], color: 'emerald' },
       { id: 'riders', icon: 'ri-bike-line', label: 'Riders', roles: ['admin', 'manager', 'dispatcher'], color: 'emerald' },
       { id: 'admins', icon: 'ri-shield-user-line', label: 'Admins', roles: ['admin'], color: 'slate' },

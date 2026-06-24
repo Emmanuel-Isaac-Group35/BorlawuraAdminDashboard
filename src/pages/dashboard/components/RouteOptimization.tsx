@@ -1,5 +1,16 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix Leaflet marker icons
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+});
 
 interface RouteStop {
   id: string;
@@ -9,6 +20,8 @@ interface RouteStop {
   estimatedTime: string;
   wasteType: string;
   status: 'pending' | 'completed' | 'skipped';
+  lat: number;
+  lng: number;
 }
 
 interface OptimizedRoute {
@@ -50,9 +63,9 @@ export default function RouteOptimization({ adminInfo }: { adminInfo?: any }) {
       if (ridersError) throw ridersError;
 
       const { data: pickups, error: pickupsError } = await supabase
-        .from('pickups')
+        .from('orders')
         .select('*, users(location, full_name)')
-        .eq('status', 'requested')
+        .in('status', ['requested', 'pending'])
         .order('created_at', { ascending: true });
 
       if (pickupsError) throw pickupsError;
@@ -83,7 +96,9 @@ export default function RouteOptimization({ adminInfo }: { adminInfo?: any }) {
           priority: i % 3 === 0 ? 'high' : 'medium',
           estimatedTime: new Date(new Date().getTime() + (index * 60 + (i + 1) * 30) * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           wasteType: p.waste_type || 'General',
-          status: 'pending'
+          status: 'pending',
+          lat: p.pickup_latitude || p.latitude || 5.6037 + (Math.random() - 0.5) * 0.05,
+          lng: p.pickup_longitude || p.longitude || -0.1870 + (Math.random() - 0.5) * 0.05
         }));
 
         const totalStops = stops.length;
@@ -398,6 +413,33 @@ export default function RouteOptimization({ adminInfo }: { adminInfo?: any }) {
                     </div>
                   ))}
                 </div>
+              </div>
+              
+              <div className="h-[300px] w-full rounded-3xl overflow-hidden border border-slate-100 dark:border-white/5 relative z-0">
+                <MapContainer 
+                  center={[selectedRoute.stops[0]?.lat || 5.6037, selectedRoute.stops[0]?.lng || -0.1870]} 
+                  zoom={13} 
+                  style={{ height: '100%', width: '100%' }}
+                >
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  {selectedRoute.stops.map((stop, index) => (
+                    <Marker key={stop.id} position={[stop.lat, stop.lng]}>
+                      <Popup>
+                        <div className="p-1">
+                          <p className="font-bold text-xs">{stop.address}</p>
+                          <p className="text-[10px] text-indigo-500 font-bold uppercase mt-1">Stop {index + 1}</p>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  ))}
+                  <Polyline 
+                    positions={selectedRoute.stops.map(s => [s.lat, s.lng])} 
+                    color="#4f46e5" 
+                    weight={4} 
+                    opacity={0.7} 
+                    dashArray="10, 10" 
+                  />
+                </MapContainer>
               </div>
             </div>
             
